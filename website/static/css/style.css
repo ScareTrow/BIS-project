@@ -1,0 +1,140 @@
+nav {
+	height: 130px;
+	background-color: white;
+}
+
+div.logo img {
+	position: absolute;
+	top: 25px;
+	left: 200px;
+}
+
+div.home-btn input {
+	position: absolute;
+	right: 350px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.home-btn input:hover {
+	opacity: 0.5;
+}
+
+div.about-btn input {
+	position: absolute;
+	right: 250px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.about-btn input:hover {
+	opacity: 0.5;
+}
+
+div.enter-btn input {
+	position: absolute;
+	right: 120px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.enter-btn input:hover {
+	opacity: 0.5;
+}
+
+div.forum-btn input {
+	position: absolute;
+	right: 200px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.forum-btn input:hover {
+	opacity: 0.5;
+}
+
+div.signup-btn input {
+	position: absolute;
+	right: 20px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.signup-btn input:hover {
+	opacity: 0.5;
+}
+
+div.signup-btn-2 input {
+	font-size: 15px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.signup-btn-2 input:hover {
+	opacity: 0.5;
+}
+
+div.carousel {
+	position: absolute;
+	width: 100%;
+	left: 0px;
+}
+
+div.end-block {
+	position: absolute;
+	width: 100%;
+	height: 30%;
+	top: 930px;
+	left: 0px;
+	background-color: #212121;
+}
+
+div.end-block div.tech {
+	margin-top: 40px;
+	color: white;
+}
+
+div.info {
+	position: absolute;
+	top: 200px;
+	left: 300px;
+	font-size: 25px;
+	color: rgb(255, 255, 255);
+}
+
+
+div.login-form {
+	margin-top: 50px;
+	margin-left: 220px;
+	width: 60%;
+}
+
+div.exit-btn input {
+	position: absolute;
+	right: 120px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.exit-btn input:hover {
+	opacity: 0.5;
+}

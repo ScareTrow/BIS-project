@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Login
+{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-light">
+  <div class="collapse navbar-collapse" id="navbar">
+    <div class="navbar-nav">
+      <div class="logo">
+        <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
+      </div>
+      <div class="home-btn">
+        <a id="home" href="/">
+          <input type="submit" value="Главная" />
+        </a>
+      </div>
+      <div class="about-btn">
+        <a id="about" href="/">
+          <input type="submit" value="О нас" />
+        </a>
+      </div>
+      <div class="signup-btn">
+        <a id="signup" href="/sign-up">
+          <input type="submit" value="Зарегистрироваться" />
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="login-form">
+  <center>
+    <h1>Вход</h1>
+  </center>
+  <form method="POST">
+    <div class="email-field">
+      <input type="email" class="form-control" id="email" name="email" placeholder="Введите email" />
+    </div>
+    <div class="password-field">
+      <input type="password" class="form-control" id="password" name="password" placeholder="Введите пароль" />
+    </div>
+    <button type="submit" class="form-singin-button">Войти</button>
+  </form>
+</div>
+{% endblock %}

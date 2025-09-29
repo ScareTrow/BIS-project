@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Homepage
+{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-light">
+  <div class="collapse navbar-collapse" id="navbar">
+    <div class="navbar-nav">
+      <div class="logo">
+        <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
+      </div>
+      <div class="forum-btn">
+        <a id="forum" href="/home">
+          <input type="submit" value="Главная страница" />
+        </a>
+      </div>
+      <div class="enter-btn">
+        <a id="enter" href="/">
+          <input type="submit" value="Выйти" />
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<center>
+  <h1>This is homepage</h1>
+</center>
+{% endblock %}
