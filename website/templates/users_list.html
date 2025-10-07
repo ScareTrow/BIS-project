@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Homepage
+Users
 {% endblock %}
 
 {% block navbar %}
@@ -11,19 +11,14 @@ Homepage
       <div class="logo">
         <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
       </div>
-      <div class="home-btn">
-        <a id="home-page" href="/home">
-          <input type="submit" value="Главная страница" />
+      <div class="all-req-btn">
+        <a id="all" href="/admin">
+          <input type="submit" value="Заявки" />
         </a>
       </div>
-      <div class="send-req-btn">
-        <a id="send" href="/send_task">
-          <input type="submit" value="Отправить заявку" />
-        </a>
-      </div>
-      <div class="show-req-btn">
-        <a id="show" href="/show_task">
-          <input type="submit" value="Мои заявки" />
+      <div class="users-btn">
+        <a id="users" href="/users_list">
+          <input type="submit" value="Пользователи" />
         </a>
       </div>
       <div class="enter-btn">
@@ -38,11 +33,11 @@ Homepage
 
 {% block content %}
 <center>
-  <h1>This is homepage</h1>
+  <h1>Пользователи</h1>
 </center>
-{% for note in notes %}
+{% for user in users %}
 <li class="list-group-item">
-  {{ note }}
+  <button type="submit" class="add-btn">{{ user }}</button>
 </li>
 {% endfor %}
 {% endblock %}

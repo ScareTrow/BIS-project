@@ -9,33 +9,22 @@ div.logo img {
 	left: 200px;
 }
 
-div.home-btn input {
-	position: absolute;
-	right: 350px;
-	top: 50px;
-	font-size: 17px;
-	background-color: white;
-	border-color: white;
-	border-width: 0px;
-}
-
-div.home-btn input:hover {
-	opacity: 0.5;
-}
 
 div.about-btn input {
 	position: absolute;
 	right: 250px;
 	top: 50px;
 	font-size: 17px;
-	background-color: white;
+	background-color: rgb(255, 255, 255);
 	border-color: white;
 	border-width: 0px;
+
 }
 
 div.about-btn input:hover {
 	opacity: 0.5;
 }
+
 
 div.enter-btn input {
 	position: absolute;
@@ -51,7 +40,7 @@ div.enter-btn input:hover {
 	opacity: 0.5;
 }
 
-div.forum-btn input {
+div.send-req-btn input {
 	position: absolute;
 	right: 200px;
 	top: 50px;
@@ -61,7 +50,36 @@ div.forum-btn input {
 	border-width: 0px;
 }
 
-div.forum-btn input:hover {
+div.send-req-btn input:hover {
+	opacity: 0.5;
+}
+
+div.home-btn input {
+	position: absolute;
+	right: 500px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.home-btn input:hover {
+	opacity: 0.5;
+}
+
+
+div.show-req-btn input {
+	position: absolute;
+	right: 370px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.show-req-btn input:hover {
 	opacity: 0.5;
 }
 
@@ -112,12 +130,11 @@ div.end-block div.tech {
 
 div.info {
 	position: absolute;
-	top: 200px;
+	top: 600px;
 	left: 300px;
 	font-size: 25px;
 	color: rgb(255, 255, 255);
 }
-
 
 div.login-form {
 	margin-top: 50px;
@@ -136,5 +153,41 @@ div.exit-btn input {
 }
 
 div.exit-btn input:hover {
+	opacity: 0.5;
+}
+
+div.note-block {
+	width: 60%;
+}
+
+div.note-area textarea {
+	margin-top: 10px;
+}
+
+div.all-req-btn input {
+	position: absolute;
+	right: 450px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.all-req-btn input:hover {
+	opacity: 0.5;
+}
+
+div.users-btn input {
+	position: absolute;
+	right: 250px;
+	top: 50px;
+	font-size: 17px;
+	background-color: white;
+	border-color: white;
+	border-width: 0px;
+}
+
+div.users-btn input:hover {
 	opacity: 0.5;
 }

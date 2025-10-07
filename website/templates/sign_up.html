@@ -46,12 +46,6 @@ Login
     <div class="surname-field">
       <input type="text" class="form-control" id="lastName" name="lastName" placeholder="Введите фамилию" />
     </div>
-    <div class="address-field">
-      <input type="text" class="form-control" id="address" name="address" placeholder="Адрес" />
-    </div>
-    <div class="phone-field">
-      <input type="text" class="form-control" id="phone" name="phone" placeholder="Телефон" />
-    </div>
     <div class="signup-password-field">
       <input type="password" class="form-control" id="password1" name="password1" placeholder="Введите пароль" />
     </div>
@@ -60,5 +54,7 @@ Login
     </div>
     <button type="submit" class="form-singup-button">Зарегистрироваться</button>
   </form>
+  <br>
+  <p style="color: red;">{{ message }}</p>
 </div>
 {% endblock %}

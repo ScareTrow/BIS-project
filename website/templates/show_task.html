@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Homepage
+Home
 {% endblock %}
 
 {% block navbar %}
@@ -38,11 +38,11 @@ Homepage
 
 {% block content %}
 <center>
-  <h1>This is homepage</h1>
+  <h1>My tasks</h1>
 </center>
-{% for note in notes %}
+{% for note in user.notes %}
 <li class="list-group-item">
-  {{ note }}
+  {{ note.data }}
 </li>
 {% endfor %}
 {% endblock %}

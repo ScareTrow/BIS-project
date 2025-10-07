@@ -11,6 +11,21 @@ Admin Page
       <div class="logo">
         <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
       </div>
+      <div class="all-req-btn">
+        <a id="all" href="/admin">
+          <input type="submit" value="Заявки" />
+        </a>
+      </div>
+      <div class="users-btn">
+        <a id="users" href="/users_list">
+          <input type="submit" value="Пользователи" />
+        </a>
+      </div>
+      <div class="enter-btn">
+        <a id="enter" href="/">
+          <input type="submit" value="Выйти" />
+        </a>
+      </div>
     </div>
   </div>
 </nav>
@@ -18,6 +33,11 @@ Admin Page
 
 {% block content %}
 <center>
-  <h1>Admin Page</h1>
+  <h1>Заявки</h1>
 </center>
+{% for note in notes %}
+<li class="list-group-item">
+  {{ note }}
+</li>
+{% endfor %}
 {% endblock %}
