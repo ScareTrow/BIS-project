@@ -1,48 +1,39 @@
 {% extends 'base.html' %}
 
-{% block title %}
-Homepage
-{% endblock %}
-
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-light">
-  <div class="collapse navbar-collapse" id="navbar">
-    <div class="navbar-nav">
-      <div class="logo">
-        <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
-      </div>
-      <div class="home-btn">
-        <a id="home-page" href="/home">
-          <input type="submit" value="Главная страница" />
-        </a>
-      </div>
-      <div class="send-req-btn">
-        <a id="send" href="/send_task">
-          <input type="submit" value="Отправить заявку" />
-        </a>
-      </div>
-      <div class="show-req-btn">
-        <a id="show" href="/show_task">
-          <input type="submit" value="Мои заявки" />
-        </a>
-      </div>
-      <div class="enter-btn">
-        <a id="enter" href="/">
-          <input type="submit" value="Выйти" />
-        </a>
-      </div>
-    </div>
-  </div>
-</nav>
-{% endblock %}
+{% block title %}Домашняя страница{% endblock %}
 
 {% block content %}
-<center>
-  <h1>This is homepage</h1>
-</center>
-{% for note in notes %}
-<li class="list-group-item">
-  {{ note }}
-</li>
-{% endfor %}
+<section class="user-homepage">
+  <header>
+    <h1>Добро пожаловать, {{ user.first_name }}!</h1>
+    <p>Это ваша личная страница</p>
+  </header>
+  <div class="quick-actions">
+    <a href="{{ url_for('views.send_task') }}" class="action-card">
+      <h3>Отправить заявку</h3>
+      <p>Создайте новую заявку о проблеме</p>
+    </a>
+    <a href="{{ url_for('views.show_task') }}" class="action-card">
+      <h3>Мои заявки</h3>
+      <p>Просмотрите статус ваших заявок</p>
+    </a>
+  </div>
+
+  {% if notes %}
+  <section class="recent-notes">
+    <h2>Активные заявки</h2>
+    <ul class="list-group">
+      {% for note in notes %}
+      <li class="list-group-item">
+        <div class="note-content">{{ note }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <div class="no-notes">
+    <p>У вас пока нет заявок. <a href="{{ url_for('views.send_task') }}">Создайте первую заявку</a></p>
+  </div>
+  {% endif %}
+</section>
 {% endblock %}

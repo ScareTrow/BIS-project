@@ -1,48 +1,71 @@
 {% extends 'base.html' %}
 
-{% block title %}
-Home
-{% endblock %}
-
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-light">
-  <div class="collapse navbar-collapse" id="navbar">
-    <div class="navbar-nav">
-      <div class="logo">
-        <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
-      </div>
-      <div class="home-btn">
-        <a id="home-page" href="/home">
-          <input type="submit" value="Главная страница" />
-        </a>
-      </div>
-      <div class="send-req-btn">
-        <a id="send" href="/send_task">
-          <input type="submit" value="Отправить заявку" />
-        </a>
-      </div>
-      <div class="show-req-btn">
-        <a id="show" href="/show_task">
-          <input type="submit" value="Мои заявки" />
-        </a>
-      </div>
-      <div class="enter-btn">
-        <a id="enter" href="/">
-          <input type="submit" value="Выйти" />
-        </a>
-      </div>
-    </div>
-  </div>
-</nav>
-{% endblock %}
+{% block title %}Мои заявки{% endblock %}
 
 {% block content %}
-<center>
-  <h1>My tasks</h1>
-</center>
-{% for note in user.notes %}
-<li class="list-group-item">
-  {{ note.data }}
-</li>
-{% endfor %}
+<section class="show-task-section">
+  <header>
+    <h1>Мои заявки</h1>
+    <p>Просмотрите статус ваших заявок</p>
+  </header>
+
+  {% if message %}
+  <div class="alert alert-info" role="alert">
+    {{ message }}
+  </div>
+  {% endif %}
+
+  {% if notes %}
+  <div class="tasks-list">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Описание</th>
+          <th>Координаты</th>
+          <th>Статус</th>
+          {% if isAdmin %}
+          <th>Действия</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for note in notes %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ note[0] }}</td>
+          <td>{{ note[1] }}</td>
+          <td>
+            {% if note[2] == 'In progress' %}
+            <span class="badge badge-warning">В процессе</span>
+            {% elif note[2] == 'pending' %}
+            <span class="badge badge-success">Выполнено</span>
+            {% else %}
+            <span class="badge badge-info">{{ note[2] }}</span>
+            {% endif %}
+          </td>
+          {% if isAdmin %}
+          <td>
+            <form method="POST" style="display: inline;">
+              <input type="hidden" name="task-id" value="{{ loop.index }}" />
+              <input type="text" name="photo" placeholder="Ссылка на фото" class="form-control form-control-sm" />
+              <button type="submit" class="btn btn-success btn-sm">Выполнено</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="no-tasks">
+    <p>У вас пока нет заявок. <a href="{{ url_for('views.send_task') }}">Создайте первую заявку</a></p>
+  </div>
+  {% endif %}
+
+  <div class="back-button">
+    <a href="{{ url_for('views.home') }}" class="btn btn-secondary">Назад</a>
+  </div>
+</section>
 {% endblock %}

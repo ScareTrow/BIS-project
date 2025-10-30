@@ -1,48 +1,38 @@
 {% extends 'base.html' %}
 
-{% block title %}
-Home
-{% endblock %}
-
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-light">
-  <div class="collapse navbar-collapse" id="navbar">
-    <div class="navbar-nav">
-      <div class="logo">
-        <img src="static/img/logo.jpg" alt="logo" width="300" height="80">
-      </div>
-      <div class="home-btn">
-        <a id="home-page" href="/home">
-          <input type="submit" value="Главная страница" />
-        </a>
-      </div>
-      <div class="send-req-btn">
-        <a id="send" href="/send_task">
-          <input type="submit" value="Отправить заявку" />
-        </a>
-      </div>
-      <div class="show-req-btn">
-        <a id="show" href="/show_task">
-          <input type="submit" value="Мои заявки" />
-        </a>
-      </div>
-      <div class="enter-btn">
-        <a id="enter" href="/">
-          <input type="submit" value="Выйти" />
-        </a>
-      </div>
-    </div>
-  </div>
-</nav>
-{% endblock %}
+{% block title %}Отправить заявку{% endblock %}
 
 {% block content %}
-<div class="note-block">
-  <form method="POST">
-    <div class="note-area">
-      <textarea name="note" id="note" class="form-control"></textarea>
+<section class="send-task-section">
+  <header>
+    <h1>Отправить новую заявку</h1>
+    <p>Опишите проблему и укажите координаты для быстрого решения</p>
+  </header>
+
+  <div class="send-task-form">
+    {% if message %}
+    <div class="alert alert-danger" role="alert">
+      {{ message }}
     </div>
-    <button type="submit" class="add-btn">Отправить</button>
-  </form>
-</div>
+    {% endif %}
+
+    <form method="POST" class="task-form">
+      <div class="form-group">
+        <label for="coordinates">Координаты</label>
+        <input type="text" class="form-control" id="coordinates" name="coordinates"
+          placeholder="Введите координаты (например, 51.1694, 71.4491)" required />
+        <small class="form-text text-muted">Укажите координаты точки проблемы</small>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Описании проблемы</label>
+        <textarea class="form-control" id="description" name="description" rows="5"
+          placeholder="Опишите проблему подробно..." required></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg">Отправить заявку</button>
+      <a href="{{ url_for('views.home') }}" class="btn btn-secondary btn-lg">Отмена</a>
+    </form>
+  </div>
+</section>
 {% endblock %}
