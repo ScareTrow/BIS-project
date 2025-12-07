@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Отправить заявку{% endblock %}
+
+{% block content %}
+<section class="send-task-section">
+  <header>
+    <h1>Отправить новую заявку</h1>
+    <p>Опишите проблему и выберите место на карте</p>
+  </header>
+
+  <div class="send-task-form">
+    <form method="POST" class="task-form" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Выберите место на карте</label>
+        <div id="map-select"
+          style="width: 100%; height: 400px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;"></div>
+        <small class="form-text text-muted">Кликните на карте, чтобы выбрать координаты</small>
+        <input type="hidden" id="latitude" name="latitude" required>
+        <input type="hidden" id="longitude" name="longitude" required>
+        <div id="coordinates-display" class="text-muted mt-2"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="category">Категория</label>
+        <select class="form-control" id="category" name="category" required>
+          <option value="food">Продукты питания</option>
+          <option value="medicine">Медицинская помощь</option>
+          <option value="shelter">Убежище/Кров</option>
+          <option value="emergency">Экстренная помощь</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Описание проблемы</label>
+        <textarea class="form-control" id="description" name="description" rows="5"
+          placeholder="Опишите проблему подробно..." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="expires_days">Срок действия</label>
+        <select class="form-control" id="expires_days" name="expires_days">
+          <option value="3">3 дня</option>
+          <option value="7">Неделя</option>
+          <option value="14">2 недели</option>
+          <option value="30">Месяц</option>
+        </select>
+      </div>
+
+
+      <div class="form-group">
+        <label for="media_files">Медиафайлы (опционально)</label>
+        <input type="file" class="form-control-file" id="media_files" name="media_files" multiple
+          accept=".png,.jpg,.jpeg,.tiff,.bmp,.gif">
+        <small class="form-text text-muted">Можно загрузить несколько файлов (PNG, JPG, JPEG, TIFF, BMP, GIF)</small>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg">Отправить заявку</button>
+      <a href="{{ url_for('views.home') }}" class="btn btn-secondary btn-lg">Отмена</a>
+    </form>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const map = L.map('map-select').setView([43.2220, 76.8512], 10);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(map);
+
+    let marker = null;
+
+    map.on('click', function (e) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      document.getElementById('latitude').value = lat;
+      document.getElementById('longitude').value = lng;
+      document.getElementById('coordinates-display').textContent =
+        `Выбрано: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+      if (marker) {
+        map.removeLayer(marker);
+      }
+
+      marker = L.marker([lat, lng]).addTo(map);
+    });
+
+    document.querySelector('.task-form').addEventListener('submit', function (e) {
+      const lat = document.getElementById('latitude').value;
+      const lng = document.getElementById('longitude').value;
+
+      if (!lat || !lng) {
+        e.preventDefault();
+        alert('Пожалуйста, выберите место на карте');
+        return false;
+      }
+    });
+  });
+</script>
+{% endblock %}

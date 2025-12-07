@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль {{ target_user.first_name }}{% endblock %}
+
+{% block content %}
+<section class="view-profile-section">
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h3 class="mb-0">Профиль</h3>
+        </div>
+        <div class="card-body text-center">
+          <div class="mb-3">
+            {% if target_user.avatar %}
+              <img src="{{ url_for('views.uploaded_file', filename=target_user.avatar) }}" 
+                   alt="Avatar" 
+                   class="rounded-circle" 
+                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #007bff;">
+            {% else %}
+              <div class="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white" 
+                   style="width: 120px; height: 120px; font-size: 2.5rem; border: 3px solid #007bff;">
+                <i class="fa fa-user"></i>
+              </div>
+            {% endif %}
+          </div>
+          <h4>{{ target_user.first_name }} {{ target_user.last_name or '' }}</h4>
+          <p class="text-muted">{{ target_user.email }}</p>
+          {% if target_user.city %}
+          <p class="text-muted">
+            <i class="fa fa-map-marker"></i> {{ target_user.city }}
+          </p>
+          {% endif %}
+          
+          <div class="rating-display mb-3">
+            <h2 class="display-4 text-primary">{{ target_user.average_rating }}</h2>
+            <div class="mb-2">
+              {% for i in range(5) %}
+                {% if i < target_user.average_rating|int %}
+                  <span class="fa fa-star text-warning"></span>
+                {% else %}
+                  <span class="fa fa-star-o text-muted"></span>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <p class="text-muted">
+              <small>На основе {{ target_user.rating_count }} оценок</small>
+            </p>
+          </div>
+          
+          {% if target_user.badge %}
+          <div class="badge-display mb-3">
+            {% if target_user.badge == 'verified_help_source' %}
+              <span class="badge badge-success badge-lg">
+                <i class="fa fa-check-circle"></i> Проверенный источник помощи
+              </span>
+            {% elif target_user.badge == 'reliable_volunteer' %}
+              <span class="badge badge-info badge-lg">
+                <i class="fa fa-heart"></i> Надежный волонтер
+              </span>
+            {% else %}
+              <span class="badge badge-secondary badge-lg">{{ target_user.badge }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Статистика</h5>
+        </div>
+        <div class="card-body">
+          <p><strong>Помог людям:</strong> {{ help_given }}</p>
+          <p><strong>Всего откликов:</strong> {{ help_total }}</p>
+          <p><strong>Всего заявок:</strong> {{ total_applications }}</p>
+          <p><strong>Активных:</strong> {{ active_applications }}</p>
+          <p><strong>Решенных:</strong> {{ resolved_applications|length }}</p>
+          {% if false_calls_count > 0 %}
+          <p><strong>Ложных вызовов:</strong> <span class="badge badge-danger">{{ false_calls_count }}</span></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-8">
+      {% if target_user.social_links %}
+      {% set social_links = target_user.social_links|from_json %}
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">Социальные сети</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap" style="gap: 8px;">
+            {% if social_links.get('instagram') %}
+            <a href="{{ social_links.instagram }}" target="_blank" class="btn btn-sm btn-outline-danger">
+              <i class="fa fa-instagram"></i> Instagram
+            </a>
+            {% endif %}
+            {% if social_links.get('vk') %}
+            <a href="{{ social_links.vk }}" target="_blank" class="btn btn-sm btn-outline-primary">
+              <i class="fa fa-vk"></i> ВКонтакте
+            </a>
+            {% endif %}
+            {% if social_links.get('telegram') %}
+            <a href="{% if social_links.telegram.startswith('http') %}{{ social_links.telegram }}{% else %}https://t.me/{{ social_links.telegram.replace('@', '') }}{% endif %}" 
+               target="_blank" 
+               class="btn btn-sm btn-outline-info">
+              <i class="fa fa-telegram"></i> Telegram
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
+      {% if received_ratings %}
+      <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0">Последние оценки</h5>
+        </div>
+        <div class="card-body">
+          <div class="list-group">
+            {% for rating in received_ratings %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center mb-2">
+                    <strong>{{ rating.rater.first_name }} {{ rating.rater.last_name or '' }}</strong>
+                    <span class="ml-2">
+                      {% for i in range(5) %}
+                        {% if i < rating.rating_value %}
+                          <span class="fa fa-star text-warning"></span>
+                        {% else %}
+                          <span class="fa fa-star-o text-muted"></span>
+                        {% endif %}
+                      {% endfor %}
+                      <span class="ml-1"><strong>{{ rating.rating_value }}/5</strong></span>
+                    </span>
+                  </div>
+                  {% if rating.comment %}
+                  <p class="mb-1"><em>"{{ rating.comment }}"</em></p>
+                  {% endif %}
+                  <small class="text-muted">
+                    {{ rating.created_at.strftime('%d.%m.%Y %H:%M') }}
+                  </small>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<style>
+.rating-display {
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  color: white;
+}
+
+.rating-display h2 {
+  color: white;
+  margin-bottom: 10px;
+}
+
+.badge-lg {
+  font-size: 1rem;
+  padding: 8px 12px;
+}
+</style>
+{% endblock %}
+

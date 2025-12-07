@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Оценить помощника{% endblock %}
+
+{% block content %}
+<section class="rate-helper-section">
+  <header>
+    <h1>Оценить помощника</h1>
+    <p>Заявка: {{ application.description[:100] }}{% if application.description|length > 100 %}...{% endif %}</p>
+  </header>
+
+  <div class="rate-form">
+    <form method="POST" class="task-form">
+      <input type="hidden" name="responder_id" value="{{ request.args.get('responder_id') }}">
+
+      <div class="form-group">
+        <label>Выберите помощника для оценки:</label>
+        <select class="form-control" name="responder_id" required>
+          {% for resp in responses %}
+          <option value="{{ resp.responder_id }}" {% if request.args.get('responder_id')|int == resp.responder_id %}selected{% endif %}>
+            {{ resp.responder.first_name }} {{ resp.responder.last_name or '' }} 
+            (Рейтинг: {{ resp.responder.average_rating }}/5.0)
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Оценка (1-5 звезд)</label>
+        <div class="rating-input">
+          <input type="radio" name="rating" value="5" id="rating5" checked>
+          <label for="rating5">⭐⭐⭐⭐⭐</label>
+          <input type="radio" name="rating" value="4" id="rating4">
+          <label for="rating4">⭐⭐⭐⭐</label>
+          <input type="radio" name="rating" value="3" id="rating3">
+          <label for="rating3">⭐⭐⭐</label>
+          <input type="radio" name="rating" value="2" id="rating2">
+          <label for="rating2">⭐⭐</label>
+          <input type="radio" name="rating" value="1" id="rating1">
+          <label for="rating1">⭐</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="comment">Комментарий (опционально)</label>
+        <textarea class="form-control" id="comment" name="comment" rows="3"
+          placeholder="Оставьте комментарий о помощи..."></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg">Отправить оценку</button>
+      <a href="{{ url_for('views.home') }}" class="btn btn-secondary btn-lg">Отмена</a>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
