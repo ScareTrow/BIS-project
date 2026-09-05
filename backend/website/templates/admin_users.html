@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Управление пользователями{% endblock %}
+
+{% block content %}
+<section class="admin-users-section">
+  <header>
+    <h1>Управление пользователями</h1>
+    {% if user.is_super_admin %}
+    <p>Создание администраторов (только для супер-администратора)</p>
+    {% endif %}
+  </header>
+
+  {% if users %}
+  <div class="users-table">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Имя</th>
+          <th>Email</th>
+          <th>Рейтинг</th>
+          <th>Бейдж</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for usr in users %}
+        <tr>
+          <td>{{ usr.id }}</td>
+          <td>{{ usr.first_name }} {{ usr.last_name or '' }}</td>
+          <td>{{ usr.email }}</td>
+          <td>
+            {% if usr.rating_count > 0 %}
+            {{ usr.average_rating }}/5.0 ({{ usr.rating_count }} оценок)
+            {% else %}
+            Нет оценок
+            {% endif %}
+          </td>
+          <td>
+            {% if usr.badge %}
+            <span class="badge badge-info">{{ usr.badge }}</span>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td>
+            {% if usr.is_super_admin %}
+            <span class="badge badge-danger">Супер-админ</span>
+            {% elif usr.isAdmin %}
+            <span class="badge badge-warning">Администратор</span>
+            {% else %}
+            <span class="badge badge-primary">Пользователь</span>
+            {% endif %}
+            {% if usr.is_blocked %}
+            <br><span class="badge badge-danger mt-1">Заблокирован</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('views.admin_user_detail', user_id=usr.id) }}" 
+               class="btn btn-sm btn-info">Просмотр</a>
+            {% if user.is_super_admin and not usr.isAdmin %}
+            <form method="POST" action="{{ url_for('views.make_admin', user_id=usr.id) }}" 
+                  style="display: inline;" onsubmit="return confirm('Сделать пользователя администратором?');">
+              <button type="submit" class="btn btn-sm btn-warning">Сделать админом</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">
+    <p>Нет пользователей</p>
+  </div>
+  {% endif %}
+
+  <div class="back-button mt-4">
+    <a href="{{ url_for('views.admin') }}" class="btn btn-secondary">Назад в панель</a>
+  </div>
+</section>
+{% endblock %}
+

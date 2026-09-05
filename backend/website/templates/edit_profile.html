@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать профиль{% endblock %}
+
+{% block content %}
+<section class="edit-profile-section">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h3 class="mb-0">Редактировать профиль</h3>
+        </div>
+        <div class="card-body">
+          <form method="POST" enctype="multipart/form-data">
+            <div class="form-group text-center mb-4">
+              <label class="d-block mb-3">
+                <strong>Аватар профиля</strong>
+              </label>
+              <div class="avatar-preview mb-3">
+                {% if user.avatar %}
+                  <img src="{{ url_for('views.uploaded_file', filename=user.avatar) }}" 
+                       alt="Avatar" 
+                       id="avatar-preview" 
+                       class="rounded-circle" 
+                       style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #007bff;">
+                {% else %}
+                  <div id="avatar-preview" 
+                       class="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white" 
+                       style="width: 150px; height: 150px; font-size: 3rem; border: 3px solid #007bff;">
+                    <i class="fa fa-user"></i>
+                  </div>
+                {% endif %}
+              </div>
+              <input type="file" 
+                     name="avatar" 
+                     id="avatar-input" 
+                     accept="image/*" 
+                     class="form-control-file"
+                     onchange="previewAvatar(this)">
+              <small class="form-text text-muted">
+                Рекомендуемый размер: 150x150px. Форматы: JPG, PNG, GIF (макс. 5MB)
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label for="first_name"><strong>Имя *</strong></label>
+              <input type="text" 
+                     class="form-control" 
+                     id="first_name" 
+                     name="first_name" 
+                     value="{{ user.first_name }}" 
+                     required>
+              {% if name_changes_remaining is defined %}
+              <small class="form-text text-muted">
+                Осталось изменений имени в этом месяце: <strong>{{ name_changes_remaining }}/3</strong>
+                {% if name_changes_remaining == 0 %}
+                  <span class="text-danger">(Лимит исчерпан)</span>
+                {% endif %}
+              </small>
+              {% endif %}
+            </div>
+
+            <div class="form-group">
+              <label for="last_name"><strong>Фамилия</strong></label>
+              <input type="text" 
+                     class="form-control" 
+                     id="last_name" 
+                     name="last_name" 
+                     value="{{ user.last_name or '' }}">
+            </div>
+
+            <div class="form-group">
+              <label for="city"><strong>Город проживания</strong></label>
+              <input type="text" 
+                     class="form-control" 
+                     id="city" 
+                     name="city" 
+                     value="{{ user.city or '' }}" 
+                     placeholder="Начните вводить название города..."
+                     autocomplete="off"
+                     list="cities-list">
+              <datalist id="cities-list"></datalist>
+              <small class="form-text text-muted">
+                Начните вводить название города для поиска
+              </small>
+            </div>
+
+            <hr class="my-4">
+            <h5 class="mb-3">Социальные сети</h5>
+            <p class="text-muted small mb-4">Укажите ссылки на ваши профили в социальных сетях (необязательно)</p>
+
+            <div class="form-group">
+              <label for="instagram">
+                <i class="fa fa-instagram text-danger"></i> Instagram
+              </label>
+              <input type="url" 
+                     class="form-control" 
+                     id="instagram" 
+                     name="instagram" 
+                     value="{{ social_links.get('instagram', '') or '' }}" 
+                     placeholder="https://instagram.com/username">
+            </div>
+
+            <div class="form-group">
+              <label for="vk">
+                <i class="fa fa-vk text-primary"></i> ВКонтакте
+              </label>
+              <input type="text" 
+                     class="form-control" 
+                     id="vk" 
+                     name="vk" 
+                     value="{{ social_links.get('vk', '') or '' }}" 
+                     placeholder="https://vk.com/username">
+              <small class="form-text text-muted">
+                Формат: <code>https://vk.com/username</code>
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label for="telegram">
+                <i class="fa fa-telegram text-info"></i> Telegram
+              </label>
+              <input type="text" 
+                     class="form-control" 
+                     id="telegram" 
+                     name="telegram" 
+                     value="{{ social_links.get('telegram', '') or '' }}" 
+                     placeholder="https://t.me/username или @username"
+                     onblur="validateTelegramLink(this)">
+              <small class="form-text text-muted">
+                Формат: <code>https://t.me/username</code> или <code>@username</code>
+              </small>
+              <div id="telegram-error" class="invalid-feedback" style="display: none;"></div>
+            </div>
+
+            <div class="form-actions mt-4">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fa fa-save"></i> Сохранить изменения
+              </button>
+              <a href="{{ url_for('views.profile') }}" class="btn btn-secondary btn-lg ml-2">
+                <i class="fa fa-times"></i> Отмена
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function previewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const preview = document.getElementById('avatar-preview');
+      if (preview.tagName === 'IMG') {
+        preview.src = e.target.result;
+      } else {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.className = 'rounded-circle';
+        img.style.width = '150px';
+        img.style.height = '150px';
+        img.style.objectFit = 'cover';
+        img.style.border = '3px solid #007bff';
+        img.id = 'avatar-preview';
+        preview.parentNode.replaceChild(img, preview);
+      }
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+let citySearchTimeout;
+const cityInput = document.getElementById('city');
+const citiesList = document.getElementById('cities-list');
+
+if (cityInput) {
+  cityInput.addEventListener('input', function() {
+    const query = this.value.trim();
+    
+    clearTimeout(citySearchTimeout);
+    
+    if (query.length < 1) {
+      citiesList.innerHTML = '';
+      return;
+    }
+    
+    citySearchTimeout = setTimeout(function() {
+      fetch(`/api/cities/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(cities => {
+          citiesList.innerHTML = '';
+          cities.forEach(city => {
+            const option = document.createElement('option');
+            option.value = city;
+            citiesList.appendChild(option);
+          });
+        })
+        .catch(error => {
+          console.error('Error fetching cities:', error);
+        });
+    }, 300);
+  });
+}
+
+function validateTelegramLink(input) {
+  const value = input.value.trim();
+  const errorDiv = document.getElementById('telegram-error');
+  
+  if (!value) {
+    input.classList.remove('is-invalid');
+    errorDiv.style.display = 'none';
+    return;
+  }
+  
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    if (value.includes('t.me/') || value.includes('telegram.me/')) {
+      input.classList.remove('is-invalid');
+      errorDiv.style.display = 'none';
+      return;
+    } else {
+      input.classList.add('is-invalid');
+      errorDiv.textContent = 'Неверный формат. Используйте: https://t.me/username';
+      errorDiv.style.display = 'block';
+      return;
+    }
+  }
+  
+  if (value.startsWith('@') || value.startsWith('t.me/')) {
+    input.classList.remove('is-invalid');
+    errorDiv.style.display = 'none';
+    return;
+  }
+  
+  input.classList.remove('is-invalid');
+  errorDiv.style.display = 'none';
+}
+</script>
+
+<style>
+.edit-profile-section {
+  padding: 20px 0;
+}
+
+.card {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: none;
+}
+
+.avatar-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.form-group label i {
+  margin-right: 5px;
+}
+
+.form-actions {
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+}
+
+/* Исправление z-index для datalist города */
+#city {
+  position: relative;
+  z-index: 1;
+}
+
+#cities-list {
+  position: relative;
+  z-index: 1000;
+}
+
+/* Убеждаемся, что форма не перекрывает хедер */
+.edit-profile-section {
+  position: relative;
+  z-index: 1;
+}
+
+nav {
+  position: relative;
+  z-index: 1000;
+}
+</style>
+{% endblock %}
+

@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Домашняя страница{% endblock %}
+
+{% block content %}
+<section class="user-homepage">
+  <header>
+    <h1>Добро пожаловать, {{ user.first_name }}!</h1>
+  </header>
+  <div class="quick-actions">
+    <a href="{{ url_for('views.send_task') }}" class="action-card">
+      <h3>Отправить заявку</h3>
+      <p>Создайте новую заявку о проблеме</p>
+    </a>
+    <a href="{{ url_for('views.applications_list') }}" class="action-card">
+      <h3>Предложить помощь</h3>
+      <p>Просмотрите заявки и предложите помощь</p>
+    </a>
+    <a href="{{ url_for('views.show_task') }}" class="action-card">
+      <h3>Мои заявки</h3>
+      <p>Просмотрите статус ваших заявок</p>
+    </a>
+    <a href="{{ url_for('views.link_telegram') }}" class="action-card">
+      <h3>Привязать Telegram</h3>
+      <p>Свяжите Telegram бота с вашим аккаунтом</p>
+    </a>
+  </div>
+
+  {% if not user.telegram_id %}
+  <div class="alert alert-info mt-3">
+    <strong>💡 Совет:</strong> Привяжите Telegram бота для удобной работы через мессенджер.
+    <a href="{{ url_for('views.link_telegram') }}">Привязать сейчас</a>
+  </div>
+  {% endif %}
+
+  <div class="sos-button-container mt-4 mb-4">
+    <button onclick="quickSOS()" class="btn btn-danger btn-lg btn-block"
+      style="background-color: #dc3545; border-color: #dc3545; font-size: 1.2em; padding: 15px;">
+      <strong>🚨 SOS - Экстренная помощь</strong>
+    </button>
+    <small class="text-muted d-block mt-2 text-center">Быстрая отправка экстренной заявки</small>
+  </div>
+
+  <script>
+    function quickSOS() {
+      if (!navigator.geolocation) {
+        alert('Геолокация не поддерживается вашим браузером');
+        return;
+      }
+
+      const confirmSOS = confirm('Отправить SOS? Ваше местоположение будет определено автоматически.');
+      if (!confirmSOS) return;
+
+      navigator.geolocation.getCurrentPosition(
+        function (position) {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          fetch('/api/sos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              latitude: lat,
+              longitude: lng
+            })
+          })
+            .then(response => response.json())
+            .then(result => {
+              alert('SOS отправлен! Ожидает модерации.');
+              location.reload();
+            })
+            .catch(error => {
+              console.error('Error sending SOS:', error);
+              alert('Ошибка при отправке SOS');
+            });
+        },
+        function (error) {
+          alert('Не удалось определить местоположение. Разрешите доступ к геолокации.');
+        }
+      );
+    }
+  </script>
+
+  {% if applications %}
+  <section class="recent-notes">
+    <h2>Мои заявки</h2>
+    <ul class="list-group">
+      {% for app in applications %}
+      <li class="list-group-item">
+        <div class="note-content">
+          <strong>{{ app.description[:100] }}{% if app.description|length > 100 %}...{% endif %}</strong>
+          <br>
+          <small>
+            {% if app.category.value == 'food' %}
+            Категория: <span class="badge badge-success">Продукты</span> |
+            {% elif app.category.value == 'medicine' %}
+            Категория: <span class="badge badge-danger">Медицина</span> |
+            {% elif app.category.value == 'shelter' %}
+            Категория: <span class="badge badge-primary">Убежище</span> |
+            {% elif app.category.value == 'emergency' %}
+            Категория: <span class="badge badge-warning">Экстренная помощь</span> |
+            {% endif %}
+            Статус: {{ app.moderation_status.value }} |
+            <a href="{{ url_for('views.application_detail', app_id=app.id) }}">Подробнее</a>
+          </small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <div class="no-notes">
+    <p>У вас пока нет заявок. <a href="{{ url_for('views.send_task') }}">Создайте первую заявку</a></p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

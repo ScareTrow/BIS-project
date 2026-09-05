@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Список заявок{% endblock %}
+
+{% block content %}
+<section class="applications-list-section">
+  <header>
+    <h1>Предложить помощь</h1>
+    <p>Выберите заявку, на которую хотите откликнуться</p>
+  </header>
+
+  <div class="filters mb-4">
+    <form method="GET" class="form-inline">
+      <div class="form-group mr-3">
+        <label for="category" class="mr-2">Категория:</label>
+        <select class="form-control" name="category" id="category">
+          <option value="">Все</option>
+          <option value="food" {% if request.args.get('category') == 'food' %}selected{% endif %}>Продукты</option>
+          <option value="medicine" {% if request.args.get('category') == 'medicine' %}selected{% endif %}>Медицина</option>
+          <option value="shelter" {% if request.args.get('category') == 'shelter' %}selected{% endif %}>Убежище</option>
+          <option value="emergency" {% if request.args.get('category') == 'emergency' %}selected{% endif %}>Экстренная помощь</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Фильтровать</button>
+    </form>
+  </div>
+
+  {% if applications %}
+  <div class="applications-grid">
+    {% for app in applications %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">
+          <span class="badge badge-secondary">#{{ app.id }}</span>
+          {% if app.category.value == 'food' %}
+            <span class="badge badge-success">Продукты</span>
+          {% elif app.category.value == 'medicine' %}
+            <span class="badge badge-danger">Медицина</span>
+          {% elif app.category.value == 'shelter' %}
+            <span class="badge badge-primary">Убежище</span>
+          {% elif app.category.value == 'emergency' %}
+            <span class="badge badge-warning">Экстренная помощь</span>
+          {% endif %}
+          {% if app.is_sos %}
+            <span class="badge badge-warning">SOS</span>
+          {% endif %}
+          {% if app.priority > 0 %}
+            <span class="badge badge-info">Приоритет: {{ app.priority }}</span>
+          {% endif %}
+        </h5>
+        <p class="card-text">{{ app.description[:200] }}{% if app.description|length > 200 %}...{% endif %}</p>
+        <p class="card-text">
+          <small class="text-muted">
+            <strong>Местоположение:</strong> {{ app.city or 'Не указан' }}{% if app.region %}, {{ app.region }}{% endif %}<br>
+            <strong>Приоритет:</strong> {{ app.priority }}<br>
+            Создано: {{ app.date.strftime('%d.%m.%Y %H:%M') }} | 
+            Действует до: {{ app.expires_at.strftime('%d.%m.%Y') if app.expires_at else 'Не указано' }}
+          </small>
+        </p>
+        <a href="{{ url_for('views.application_detail', app_id=app.id) }}" class="btn btn-primary">Подробнее</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="alert alert-info">
+    <p>Нет доступных заявок. Попробуйте изменить фильтры.</p>
+  </div>
+  {% endif %}
+
+  <div class="back-button mt-4">
+    <a href="{{ url_for('views.home') }}" class="btn btn-secondary">Назад</a>
+  </div>
+</section>
+{% endblock %}
+
