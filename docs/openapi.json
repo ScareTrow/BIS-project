@@ -1,0 +1,1510 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ASAR API route inventory and core contracts",
+    "version": "2026.09-reconstruction"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000"
+    }
+  ],
+  "paths": {
+    "/api/user/current": {
+      "get": {
+        "operationId": "get_current_user",
+        "summary": "get current user",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/user/applications": {
+      "get": {
+        "operationId": "get_user_applications",
+        "summary": "get user applications",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/user/responses": {
+      "get": {
+        "operationId": "get_user_responses",
+        "summary": "get user responses",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/stats": {
+      "get": {
+        "operationId": "get_admin_stats",
+        "summary": "get admin stats",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "operationId": "get_admin_users",
+        "summary": "get admin users",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/profile/edit": {
+      "post": {
+        "operationId": "api_edit_profile",
+        "summary": "api edit profile",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/link-telegram": {
+      "post": {
+        "operationId": "api_link_telegram",
+        "summary": "api link telegram",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}": {
+      "get": {
+        "operationId": "get_application",
+        "summary": "get application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/applications": {
+      "get": {
+        "operationId": "get_admin_applications",
+        "summary": "get admin applications",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}/make-admin": {
+      "post": {
+        "operationId": "make_admin",
+        "summary": "make admin",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}/block": {
+      "post": {
+        "operationId": "block_user",
+        "summary": "block user",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}/unblock": {
+      "post": {
+        "operationId": "unblock_user",
+        "summary": "unblock user",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}/delete": {
+      "post": {
+        "operationId": "delete_user",
+        "summary": "delete user",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/users/{user_id}": {
+      "get": {
+        "operationId": "get_user",
+        "summary": "get user",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/leaderboard": {
+      "get": {
+        "operationId": "get_leaderboard",
+        "summary": "get leaderboard",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/admin/applications/{app_id}/approve": {
+      "post": {
+        "operationId": "approve_application",
+        "summary": "approve application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/applications/{app_id}/reject": {
+      "post": {
+        "operationId": "reject_application",
+        "summary": "reject application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/applications/{app_id}/mark-false": {
+      "post": {
+        "operationId": "mark_false_application",
+        "summary": "mark false application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/applications/{app_id}/set-priority": {
+      "post": {
+        "operationId": "set_application_priority",
+        "summary": "set application priority",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/resolve": {
+      "post": {
+        "operationId": "resolve_application",
+        "summary": "resolve application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/mark-false": {
+      "post": {
+        "operationId": "mark_false_call",
+        "summary": "mark false call",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/respond": {
+      "post": {
+        "operationId": "respond_to_application",
+        "summary": "respond to application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/responses/{response_id}/accept": {
+      "post": {
+        "operationId": "accept_response",
+        "summary": "accept response",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/responses/{response_id}/reject": {
+      "post": {
+        "operationId": "reject_response",
+        "summary": "reject response",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/rate-helper": {
+      "post": {
+        "operationId": "api_rate_helper",
+        "summary": "api rate helper",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/rate-volunteer-simple": {
+      "post": {
+        "operationId": "api_rate_volunteer_simple",
+        "summary": "api rate volunteer simple",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/map/points": {
+      "get": {
+        "operationId": "get_map_points",
+        "summary": "get map points",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "JSON array, not GeoJSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MapPoint"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/applications/list": {
+      "get": {
+        "operationId": "get_applications_list_data",
+        "summary": "get applications list data",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "operationId": "get_notifications",
+        "summary": "get notifications",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/{notification_id}/read": {
+      "post": {
+        "operationId": "mark_notification_read",
+        "summary": "mark notification read",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "operationId": "mark_all_notifications_read",
+        "summary": "mark all notifications read",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications": {
+      "post": {
+        "operationId": "api_create_application",
+        "summary": "api create application",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude",
+                  "category",
+                  "description"
+                ],
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "food",
+                      "medicine",
+                      "shelter",
+                      "emergency"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "expires_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365,
+                    "default": 7
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude",
+                  "category",
+                  "description",
+                  "media_files"
+                ],
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "food",
+                      "medicine",
+                      "shelter",
+                      "emergency"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "expires_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365,
+                    "default": 7
+                  },
+                  "media_files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "verification_document": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sos": {
+      "post": {
+        "operationId": "create_sos",
+        "summary": "create sos",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude"
+                ],
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "operationId": "search",
+        "summary": "search",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/cities/search": {
+      "get": {
+        "operationId": "search_cities",
+        "summary": "search cities",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/uploads/{filename}": {
+      "get": {
+        "operationId": "api_uploaded_file",
+        "summary": "api uploaded file",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        },
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/stats/regional": {
+      "get": {
+        "operationId": "get_regional_stats",
+        "summary": "get regional stats",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/telegram-bot-info": {
+      "get": {
+        "operationId": "get_telegram_bot_info",
+        "summary": "get telegram bot info",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/news": {
+      "get": {
+        "operationId": "get_news",
+        "summary": "get news",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/news/{news_id}": {
+      "get": {
+        "operationId": "get_single_news",
+        "summary": "get single news",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        },
+        "parameters": [
+          {
+            "name": "news_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/news": {
+      "get": {
+        "operationId": "get_admin_news",
+        "summary": "get admin news",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "create_news",
+        "summary": "create news",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/news/{news_id}": {
+      "put": {
+        "operationId": "update_news",
+        "summary": "update news",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "news_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "delete_news",
+        "summary": "delete news",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "parameters": [
+          {
+            "name": "news_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "api_login",
+        "summary": "api login",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "api_logout",
+        "summary": "api logout",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/signup": {
+      "post": {
+        "operationId": "api_signup",
+        "summary": "api signup",
+        "description": "Route inventory from Flask source. General response schema unless specified below.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see route implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "MapPoint": {
+        "type": "object",
+        "required": [
+          "id",
+          "latitude",
+          "longitude",
+          "category"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "food",
+              "medicine",
+              "shelter",
+              "emergency"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "is_sos": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
