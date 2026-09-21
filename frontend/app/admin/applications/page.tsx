@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient, Application } from '@/lib/api';
 import { useStore } from '@/lib/store';
@@ -25,7 +25,7 @@ interface AdminApplication extends Application {
   responses_count?: number;
 }
 
-export default function AdminApplicationsPage() {
+function AdminApplicationsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, setUser } = useStore();
@@ -292,7 +292,7 @@ export default function AdminApplicationsPage() {
                           {app.date ? new Date(app.date).toLocaleDateString('ru-RU') : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(app.moderation_status)}
+                          {getStatusBadge(app.moderation_status || app.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {app.moderation_status === 'rejected' ? (
@@ -363,7 +363,7 @@ export default function AdminApplicationsPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-gray-900">#{app.id}</span>
-                      {getStatusBadge(app.moderation_status)}
+                      {getStatusBadge(app.moderation_status || app.status)}
                       {getCategoryBadge(app.category)}
                       {app.is_sos && (
                         <span className="badge bg-red-500 text-white">
@@ -477,3 +477,7 @@ export default function AdminApplicationsPage() {
   );
 }
 
+
+export default function AdminApplicationsPage() {
+  return <Suspense fallback={<p>Загрузка…</p>}><AdminApplicationsPageContent /></Suspense>;
+}

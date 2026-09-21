@@ -266,7 +266,7 @@ export default function ApplicationDetailPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Действует до:</span>
                 <span className="font-medium">
-                  {new Date(application.expires_at).toLocaleDateString('ru-RU', {
+                  {new Date(application.expires_at || application.date).toLocaleDateString('ru-RU', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',

@@ -11,32 +11,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
-const ProgressBarLogger = ({ validation }: { validation: PasswordValidationResult }) => {
-  useEffect(() => {
-    // #region agent log
-    const logData = {
-      location: 'sign-up/page.tsx:ProgressBarLogger',
-      message: 'Rendering progress bar',
-      data: {
-        progress: validation.progress,
-        color: validation.color,
-        strength: validation.strength,
-        width: `${Math.max(0, Math.min(100, validation.progress))}%`
-      },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'D'
-    };
-    fetch('http://127.0.0.1:7242/ingest/f28ac3a7-4b67-4e31-94dc-2caa9d98ba71', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(logData)
-    }).catch(() => { });
-    // #endregion
-  }, [validation.progress, validation.color]);
-  return null;
-};
 
 export default function SignUpPage(): JSX.Element {
 
@@ -83,35 +57,6 @@ export default function SignUpPage(): JSX.Element {
     setFormData({ ...formData, password1: password });
     if (password) {
       const validation = validatePassword(password);
-      // #region agent log
-      const hasUpper = /[A-ZА-ЯЁ]/.test(password) ? 1 : 0;
-      const hasLower = /[a-zа-яё]/.test(password) ? 1 : 0;
-      const hasNumber = /[0-9]/.test(password) ? 1 : 0;
-      const specialRegex = /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\~`]/;
-      const hasSpecial = specialRegex.test(password) ? 1 : 0;
-      const criticalCount = hasUpper + hasLower + hasNumber + hasSpecial;
-      const logData = {
-        location: 'sign-up/page.tsx:handlePasswordChange',
-        message: 'Password validation result',
-        data: {
-          passwordLength: password.length,
-          progress: validation.progress,
-          color: validation.color,
-          strength: validation.strength,
-          criticalCount,
-          errors: validation.errors
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'A'
-      };
-      fetch('http://127.0.0.1:7242/ingest/f28ac3a7-4b67-4e31-94dc-2caa9d98ba71', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(logData)
-      }).catch(() => { });
-      // #endregion
       setPasswordValidation(validation);
     } else {
       setPasswordValidation(null);
@@ -514,7 +459,6 @@ export default function SignUpPage(): JSX.Element {
 
                   {passwordValidation && (
                     <div className="mt-2 space-y-2">
-                      <ProgressBarLogger validation={passwordValidation} />
                       <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500 ease-out"

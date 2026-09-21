@@ -14,7 +14,7 @@ interface NewsItem {
   created_at: string;
   author?: {
     first_name: string;
-    last_name?: string;
+    last_name?: string | null;
   };
 }
 

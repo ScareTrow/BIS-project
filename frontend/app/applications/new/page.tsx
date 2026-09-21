@@ -14,7 +14,7 @@ const MapComponent = dynamic(() => import('@/components/common/ApplicationMap'),
 
 export default function NewApplicationPage() {
   const router = useRouter();
-  const { user, setShouldRefreshApplications } = useStore();
+  const { user, authLoading, setShouldRefreshApplications } = useStore();
   const t = useTranslation(getLanguage());
   const [formData, setFormData] = useState({
     description: '',
@@ -182,6 +182,7 @@ export default function NewApplicationPage() {
   }, [citySearch]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user || !user.is_authenticated) {
       router.push('/login');
       return;
@@ -193,12 +194,12 @@ export default function NewApplicationPage() {
 
       if (blockedUntil && blockedUntil > now) {
         setBlockedInfo({
-          blocked_until: user.blocked_until,
+          blocked_until: user.blocked_until || undefined,
           blocked_reason: user.blocked_reason || undefined
         });
       }
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     if (user && user.is_authenticated) {
@@ -257,7 +258,7 @@ export default function NewApplicationPage() {
         formDataToSend.append('verification_document', verificationDocument);
       }
 
-      const response = await fetch('http://localhost:5000/api/applications', {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || '') + '/api/applications', {
         method: 'POST',
         credentials: 'include',
         body: formDataToSend,

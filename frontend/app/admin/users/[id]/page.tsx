@@ -15,14 +15,14 @@ interface UserDetail {
   id: number;
   email: string;
   first_name: string;
-  last_name?: string;
-  avatar?: string;
-  city?: string;
+  last_name?: string | null;
+  avatar?: string | null;
+  city?: string | null;
   isAdmin: boolean;
   is_super_admin: boolean;
   is_blocked: boolean;
-  blocked_until?: string;
-  blocked_reason?: string;
+  blocked_until?: string | null;
+  blocked_reason?: string | null;
   total_applications: number;
   resolved_applications: number;
   false_calls_count: number;
@@ -30,15 +30,15 @@ interface UserDetail {
   help_total: number;
   average_rating: number;
   rating_count: number;
-  badge?: string;
+  badge?: string | null;
   received_ratings?: Array<{
     id: number;
     rating_value: number;
-    comment?: string;
+    comment?: string | null;
     created_at: string;
     rater?: {
       first_name: string;
-      last_name?: string;
+      last_name?: string | null;
     };
   }>;
 }

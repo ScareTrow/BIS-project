@@ -16,13 +16,13 @@ interface NewsItem {
     updated_at: string;
     author: {
         first_name: string;
-        last_name?: string;
+        last_name?: string | null;
     };
 }
 
 export default function AdminNewsPage() {
     const router = useRouter();
-    const { user } = useStore();
+    const { user, authLoading } = useStore();
     const [loading, setLoading] = useState(true);
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [showForm, setShowForm] = useState(false);
@@ -35,12 +35,13 @@ export default function AdminNewsPage() {
     });
 
     useEffect(() => {
+        if (authLoading) return;
         if (!user?.isAdmin) {
             router.push('/');
             return;
         }
         loadNews();
-    }, [user, router]);
+    }, [user, authLoading, router]);
 
     const loadNews = async () => {
         try {
