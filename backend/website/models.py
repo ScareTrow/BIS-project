@@ -191,7 +191,7 @@ class Notification(db.Model):
     related_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now(), nullable=False)
     
-    user = db.relationship('User', foreign_keys=[user_id], backref='notifications', lazy=True)
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('notifications', cascade='all, delete-orphan'), lazy=True)
 
     def __repr__(self):
         return f'<Notification {self.id}>'

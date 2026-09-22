@@ -3,7 +3,7 @@ import sys
 import logging
 import asyncio
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message
+from aiogram.types import Message, ErrorEvent
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -38,6 +38,7 @@ dp.message.register(create.cmd_create, Command("create"))
 dp.message.register(sos.cmd_sos, Command("sos"))
 dp.message.register(rating.cmd_rate, Command("rate"))
 dp.message.register(help.cmd_help, Command("help"))
+dp.message.register(resources.cmd_resources, Command("resources"))
 
 dp.message.register(create.cmd_create, F.text == "📝 Создать заявку")
 dp.message.register(sos.cmd_sos, F.text == "🚨 SOS - Экстренная помощь")
@@ -65,14 +66,14 @@ dp.callback_query.register(rating.handle_rating_callback, F.data.startswith("rat
 
 
 @dp.errors(ExceptionTypeFilter(TelegramAPIError))
-async def telegram_api_error_handler(update, exception):
-    logger.error(f"Telegram API error: {exception}")
+async def telegram_api_error_handler(event: ErrorEvent):
+    logger.error("Telegram API error: %s", type(event.exception).__name__)
     return True
 
 
 @dp.errors()
-async def general_error_handler(update, exception):
-    logger.error(f"Unhandled error: {exception}", exc_info=True)
+async def general_error_handler(event: ErrorEvent):
+    logger.error("Unhandled bot error: %s", type(event.exception).__name__)
     return True
 
 

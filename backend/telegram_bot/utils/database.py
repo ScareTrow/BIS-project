@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 def get_user_by_telegram_id(telegram_id):
     try:
+        from flask import has_app_context
+        if has_app_context():
+            return User.query.filter_by(telegram_id=str(telegram_id)).first()
         from backend.website import create_app
         flask_app = create_app()
         with flask_app.app_context():

@@ -11,6 +11,7 @@ import mimetypes
 import json
 import html
 import re
+from .validation import coordinates, validate_upload
 
 views = Blueprint('views', __name__)
 
@@ -2489,8 +2490,8 @@ def api_create_application():
         if not media_files or len(media_files) == 0 or all(not f.filename for f in media_files):
             return jsonify({'error': 'Необходимо приложить хотя бы один медиафайл в качестве доказательства'}), 400
     else:
-        data = request.get_json()
-        if not data:
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not data:
             return jsonify({'error': 'Неверный формат данных'}), 400
         
         latitude = data.get('latitude')
@@ -2506,7 +2507,9 @@ def api_create_application():
     if latitude is None or longitude is None:
         return jsonify({'error': 'Координаты обязательны'}), 400
     
-    if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+    try:
+        latitude, longitude = coordinates(latitude, longitude)
+    except ValueError:
         return jsonify({'error': 'Некорректные координаты'}), 400
     
     try:
@@ -2520,6 +2523,18 @@ def api_create_application():
     
     description = sanitize_description(description)
     
+    try:
+        expires_days = int(expires_days)
+        if not 1 <= expires_days <= 365:
+            raise ValueError('Invalid duration')
+        for media_file in media_files:
+            validate_upload(media_file)
+        verification = request.files.get('verification_document')
+        if verification and verification.filename:
+            validate_upload(verification, document=True)
+    except (ValueError, TypeError) as error:
+        return jsonify({'error': str(error)}), 400
+
     city, region = get_location_info(latitude, longitude)
     
     new_application = Application(
@@ -2619,16 +2634,6 @@ def api_create_application():
 @views.route('/api/sos', methods=['POST'])
 @login_required
 def create_sos():
-    from .models import User
-    if current_user.is_authenticated:
-        try:
-            db.session.refresh(current_user)
-        except Exception:
-            user_id = current_user.id
-            current_user = User.query.get(user_id)
-            if not current_user:
-                return jsonify({'error': 'Пользователь не найден'}), 401
-    
     if current_user.is_blocked:
         if current_user.blocked_until and current_user.blocked_until > datetime.now(timezone.utc):
             blocked_info = {
@@ -2646,8 +2651,8 @@ def create_sos():
     if current_user.rating_count > 0 and current_user.average_rating < 2.0:
         return jsonify({'error': 'Ваш рейтинг слишком низкий для создания заявок'}), 403
     
-    data = request.get_json()
-    if not data:
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not data:
         return jsonify({'error': 'Неверный формат данных'}), 400
     
     latitude = data.get('latitude')
@@ -2656,7 +2661,9 @@ def create_sos():
     if latitude is None or longitude is None:
         return jsonify({'error': 'Координаты обязательны'}), 400
     
-    if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+    try:
+        latitude, longitude = coordinates(latitude, longitude)
+    except ValueError:
         return jsonify({'error': 'Некорректные координаты'}), 400
     
     new_application = Application(

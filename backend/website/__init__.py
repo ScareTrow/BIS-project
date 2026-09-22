@@ -14,7 +14,7 @@ migrate = Migrate()
 load_dotenv()
 
 
-def create_app():
+def create_app(test_config=None):
     import os
     backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     instance_path = os.path.join(backend_dir, 'instance')
@@ -28,31 +28,22 @@ def create_app():
     db_port = os.getenv('DB_PORT', '5432')
     db_name = os.getenv('DB_NAME', 'asar_db')
     
-    if not db_user or not db_password:
-        raise ValueError(
-            "PostgreSQL credentials are required! "
-            "Please set DB_USER and DB_PASSWORD in your .env file. "
-            "See .env.example for reference."
-        )
-    
-    try:
-        encoded_password = quote_plus(str(db_password))
-        encoded_user = quote_plus(str(db_user))
-        
+    if test_config and test_config.get('SQLALCHEMY_DATABASE_URI'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = test_config['SQLALCHEMY_DATABASE_URI']
+    else:
+        if not db_user or not db_password:
+            raise ValueError('Set DB_USER and DB_PASSWORD in your local .env file.')
         app.config['SQLALCHEMY_DATABASE_URI'] = (
-            f"postgresql://{encoded_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
+            f'postgresql+psycopg2://{quote_plus(db_user)}:{quote_plus(db_password)}'
+            f'@{db_host}:{db_port}/{db_name}'
         )
-        print(f"Connecting to PostgreSQL database: {db_name}@{db_host}:{db_port}")
-    except Exception as e:
-        raise ValueError(
-            f"Error configuring PostgreSQL connection: {e}. "
-            "Please check your database credentials in .env file."
-        )
-    
+
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
     
+    if test_config:
+        app.config.update(test_config)
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     CORS(app, 
@@ -72,7 +63,8 @@ def create_app():
 
     from .models import User
 
-    create_database(app)
+    if app.config.get('AUTO_CREATE_DATABASE', True):
+        create_database(app)
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -80,6 +72,13 @@ def create_app():
     login_manager.login_message = login_msg
     login_manager.login_message_category = 'info'
     login_manager.init_app(app)
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Authentication required'}), 401
+        from flask import redirect, url_for
+        return redirect(url_for('auth.login', next=request.url))
 
     @login_manager.user_loader
     def load_user(user_id):

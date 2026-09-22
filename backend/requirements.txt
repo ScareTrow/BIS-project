@@ -8,3 +8,5 @@ Werkzeug>=3.0.3
 psycopg2-binary>=2.9.11
 aiogram>=3.0.0
 Flask-Migrate>=4.0.7
+
+requests>=2.31.0
