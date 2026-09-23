@@ -17,9 +17,10 @@ jest.mock('axios', () => {
     },
   }
   
-  const mockAxios = jest.fn(() => mockAxiosInstance)
-  mockAxios.create = jest.fn(() => mockAxiosInstance)
-  mockAxios.post = jest.fn()
+  const mockAxios = Object.assign(jest.fn(() => mockAxiosInstance), {
+    create: jest.fn(() => mockAxiosInstance),
+    post: jest.fn(),
+  })
   
   return {
     __esModule: true,

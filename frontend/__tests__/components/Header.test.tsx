@@ -2,6 +2,7 @@
  * Тесты для компонента Header
  */
 import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import Header from '../../components/layout/Header'
 
 // Мокаем next/navigation
@@ -35,7 +36,7 @@ describe('Header Component', () => {
 
     render(<Header />)
     // Должна быть ссылка на вход
-    // expect(screen.getByText(/вход/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login')
   })
 })
 

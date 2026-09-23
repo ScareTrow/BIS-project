@@ -46,7 +46,7 @@ class TestTelegramBot:
             # Создаем пользователя с telegram_id
             user = User(
                 email='telegram_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Telegram',
                 last_name='Test',
                 telegram_id=str(mock_message.from_user.id),
@@ -54,6 +54,7 @@ class TestTelegramBot:
             )
             db.session.add(user)
             db.session.commit()
+            db.session.refresh(user)
         
         # Мокаем get_user_by_telegram_id
         with patch('backend.telegram_bot.handlers.start.get_user_by_telegram_id') as mock_get_user:
@@ -94,13 +95,14 @@ class TestTelegramBot:
             from werkzeug.security import generate_password_hash
             user = User(
                 email='create_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Create',
                 telegram_id=str(mock_message.from_user.id),
                 city='Almaty'
             )
             db.session.add(user)
             db.session.commit()
+            db.session.refresh(user)
         
         # Мокаем require_auth
         with patch('backend.telegram_bot.handlers.create.require_auth') as mock_auth:
@@ -119,13 +121,14 @@ class TestTelegramBot:
             from werkzeug.security import generate_password_hash
             user = User(
                 email='sos_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='SOS',
                 telegram_id=str(mock_message.from_user.id),
                 city='Almaty'
             )
             db.session.add(user)
             db.session.commit()
+            db.session.refresh(user)
         
         # Мокаем require_auth
         with patch('backend.telegram_bot.handlers.sos.require_auth') as mock_auth:
@@ -146,22 +149,24 @@ class TestTelegramBot:
             from werkzeug.security import generate_password_hash
             user = User(
                 email='middleware_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Middleware',
                 telegram_id=str(mock_message.from_user.id),
                 city='Almaty'
             )
             db.session.add(user)
             db.session.commit()
+            db.session.refresh(user)
         
-        # Тест с авторизованным пользователем
-        result = await require_auth(mock_message, MagicMock())
-        assert result is not None
-        assert result.telegram_id == str(mock_message.from_user.id)
+        with app.app_context():
+            # Тест с авторизованным пользователем
+            result = await require_auth(mock_message, MagicMock())
+            assert result is not None
+            assert result.telegram_id == str(mock_message.from_user.id)
         
-        # Тест с неавторизованным пользователем
-        mock_message.from_user.id = 999999999
-        result = await require_auth(mock_message, MagicMock())
-        assert result is None
-        assert mock_message.answer.called
+            # Тест с неавторизованным пользователем
+            mock_message.from_user.id = 999999999
+            result = await require_auth(mock_message, MagicMock())
+            assert result is None
+            assert mock_message.answer.called
 

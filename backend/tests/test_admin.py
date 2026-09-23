@@ -27,7 +27,7 @@ class TestAdminPanel:
         """Тест получения статистики не-админом"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.get('/api/admin/stats')

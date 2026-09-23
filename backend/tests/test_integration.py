@@ -4,7 +4,7 @@
 import pytest
 from backend.website.models import (
     Application, ApplicationResponse, ResponseStatus,
-    Rating, ModerationStatus, ApplicationCategory, User
+    Rating, ModerationStatus, ApplicationCategory, User, Notification
 )
 from backend.website import db
 
@@ -22,8 +22,8 @@ class TestIntegrationScenarios:
             user1_data = {
                 'email': 'journey1@example.com',
                 'firstName': 'User1',
-                'password1': 'Test1234!@#$',
-                'password2': 'Test1234!@#$',
+                'password1': 'Asar8!River2',
+                'password2': 'Asar8!River2',
                 'phone': '+77001234567',
                 'city': 'Almaty'
             }
@@ -34,8 +34,8 @@ class TestIntegrationScenarios:
             user2_data = {
                 'email': 'journey2@example.com',
                 'firstName': 'User2',
-                'password1': 'Test1234!@#$',
-                'password2': 'Test1234!@#$',
+                'password1': 'Asar8!River2',
+                'password2': 'Asar8!River2',
                 'phone': '+77001234568',
                 'city': 'Almaty'
             }
@@ -60,6 +60,9 @@ class TestIntegrationScenarios:
             response = client.post('/api/applications', json=app_data)
             assert response.status_code in [200, 201]
             application_id = response.get_json().get('id') or response.get_json().get('application', {}).get('id')
+            # Responses are allowed only after moderation.
+            db.session.get(Application, application_id).moderation_status = ModerationStatus.APPROVED
+            db.session.commit()
             
             # 5. Выход пользователя 1
             client.post('/api/auth/logout')
@@ -140,8 +143,8 @@ class TestIntegrationScenarios:
             user_data = {
                 'email': 'sos_user@example.com',
                 'firstName': 'SOS',
-                'password1': 'Test1234!@#$',
-                'password2': 'Test1234!@#$',
+                'password1': 'Asar8!River2',
+                'password2': 'Asar8!River2',
                 'phone': '+77001234569',
                 'city': 'Almaty'
             }
@@ -179,8 +182,8 @@ class TestIntegrationScenarios:
             user_data = {
                 'email': 'mod_user@example.com',
                 'firstName': 'Mod',
-                'password1': 'Test1234!@#$',
-                'password2': 'Test1234!@#$',
+                'password1': 'Asar8!River2',
+                'password2': 'Asar8!River2',
                 'phone': '+77001234570',
                 'city': 'Almaty'
             }
@@ -235,16 +238,16 @@ class TestIntegrationScenarios:
             user1_data = {
                 'email': 'notif1@example.com',
                 'firstName': 'Notif1',
-                'password1': 'Test1234!@#$',
-                'password2': 'Test1234!@#$',
+                'password1': 'Asar8!River2',
+                'password2': 'Asar8!River2',
                 'phone': '+77001234571',
                 'city': 'Almaty'
             }
             user2_data = {
                 'email': 'notif2@example.com',
                 'firstName': 'Notif2',
-                'password1': 'Test1234!@#$',
-                'password2': 'Test1234!@#$',
+                'password1': 'Asar8!River2',
+                'password2': 'Asar8!River2',
                 'phone': '+77001234572',
                 'city': 'Almaty'
             }
@@ -271,6 +274,8 @@ class TestIntegrationScenarios:
             else:
                 application_id = None
             assert application_id is not None, "Failed to create application"
+            db.session.get(Application, application_id).moderation_status = ModerationStatus.APPROVED
+            db.session.commit()
             
             client.post('/api/auth/logout')
             
@@ -301,7 +306,7 @@ class TestIntegrationScenarios:
             response = client.get('/api/notifications')
             assert response.status_code == 200
             
-            notifications_data = response.get_json()
+            notifications_data = response.get_json()['notifications']
             unread_count = sum(1 for n in notifications_data if not n.get('is_read', False))
             assert unread_count > 0
             

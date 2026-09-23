@@ -25,7 +25,7 @@ class TestNotifications:
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.get('/api/notifications')
@@ -49,7 +49,7 @@ class TestNotifications:
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(f'/api/notifications/{notification_id}/read')
@@ -77,7 +77,7 @@ class TestNotifications:
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post('/api/notifications/read-all')
@@ -98,7 +98,7 @@ class TestNotifications:
             from werkzeug.security import generate_password_hash
             responder = User(
                 email='notif_responder@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Responder',
                 city='Almaty'
             )
@@ -108,7 +108,7 @@ class TestNotifications:
         # Входим как responder и откликаемся
         client.post('/api/auth/login', json={
             'email': 'notif_responder@example.com',
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(f'/api/applications/{test_application.id}/respond')
@@ -130,7 +130,7 @@ class TestNotifications:
             from werkzeug.security import generate_password_hash
             responder = User(
                 email='notif_responder2@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Responder2',
                 city='Almaty'
             )
@@ -149,7 +149,7 @@ class TestNotifications:
         # Входим как создатель заявки и принимаем отклик
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(

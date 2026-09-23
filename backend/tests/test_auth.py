@@ -17,8 +17,8 @@ class TestAuthentication:
             'email': 'newuser@example.com',
             'firstName': 'New',
             'lastName': 'User',
-            'password1': 'Test1234!@#$',
-            'password2': 'Test1234!@#$',
+            'password1': 'Asar8!River2',
+            'password2': 'Asar8!River2',
             'phone': '+77001234567',
             'city': 'Almaty'
         }
@@ -41,8 +41,8 @@ class TestAuthentication:
         user_data = {
             'email': test_user.email,
             'firstName': 'Test',
-            'password1': 'Test1234!@#$',
-            'password2': 'Test1234!@#$',
+            'password1': 'Asar8!River2',
+            'password2': 'Asar8!River2',
             'phone': '+77001234567',
             'city': 'Almaty'
         }
@@ -75,7 +75,7 @@ class TestAuthentication:
         user_data = {
             'email': 'mismatch@example.com',
             'firstName': 'Mismatch',
-            'password1': 'Test1234!@#$',
+            'password1': 'Asar8!River2',
             'password2': 'Test1234!@#',
             'phone': '+77001234567',
             'city': 'Almaty'
@@ -91,8 +91,8 @@ class TestAuthentication:
         user_data = {
             'email': 'nophone@example.com',
             'firstName': 'NoPhone',
-            'password1': 'Test1234!@#$',
-            'password2': 'Test1234!@#$',
+            'password1': 'Asar8!River2',
+            'password2': 'Asar8!River2',
             'city': 'Almaty'
         }
         
@@ -107,8 +107,8 @@ class TestAuthentication:
         user_data = {
             'email': 'nocity@example.com',
             'firstName': 'NoCity',
-            'password1': 'Test1234!@#$',
-            'password2': 'Test1234!@#$',
+            'password1': 'Asar8!River2',
+            'password2': 'Asar8!River2',
             'phone': '+77001234567'
         }
         
@@ -122,7 +122,7 @@ class TestAuthentication:
         """Тест успешного входа"""
         login_data = {
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         }
         
         response = client.post('/api/auth/login', json=login_data)
@@ -135,7 +135,7 @@ class TestAuthentication:
         """Тест входа с неверным email"""
         login_data = {
             'email': 'nonexistent@example.com',
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         }
         
         response = client.post('/api/auth/login', json=login_data)
@@ -160,7 +160,7 @@ class TestAuthentication:
         # Сначала входим
         login_data = {
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         }
         client.post('/api/auth/login', json=login_data)
         
@@ -181,7 +181,7 @@ class TestAuthentication:
         # Сначала входим
         login_data = {
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         }
         client.post('/api/auth/login', json=login_data)
         
@@ -206,7 +206,7 @@ class TestAuthentication:
         
         login_data = {
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         }
         
         response = client.post('/api/auth/login', json=login_data)

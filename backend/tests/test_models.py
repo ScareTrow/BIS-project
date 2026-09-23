@@ -21,7 +21,7 @@ class TestModels:
             from werkzeug.security import generate_password_hash
             user = User(
                 email='model_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Model',
                 last_name='Test',
                 city='Almaty'
@@ -40,7 +40,7 @@ class TestModels:
             from werkzeug.security import generate_password_hash
             user = User(
                 email='rating_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Rating',
                 rating_sum=25,
                 rating_count=5
@@ -53,7 +53,7 @@ class TestModels:
             # Тест с нулевым количеством
             user2 = User(
                 email='rating_test2@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Rating2',
                 rating_sum=0,
                 rating_count=0
@@ -111,7 +111,7 @@ class TestModels:
             from werkzeug.security import generate_password_hash
             rated_user = User(
                 email='rated_model@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Rated'
             )
             db.session.add(rated_user)
@@ -148,7 +148,7 @@ class TestModels:
             from werkzeug.security import generate_password_hash
             responder = User(
                 email='responder_model@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Responder'
             )
             db.session.add(responder)
@@ -232,7 +232,7 @@ class TestModels:
             from werkzeug.security import generate_password_hash
             user1 = User(
                 email='unique@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='User1'
             )
             db.session.add(user1)
@@ -240,7 +240,7 @@ class TestModels:
             
             user2 = User(
                 email='unique@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='User2'
             )
             db.session.add(user2)
@@ -255,7 +255,7 @@ class TestModels:
             from werkzeug.security import generate_password_hash
             user = User(
                 email='badge_test@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Badge',
                 rating_sum=40,
                 rating_count=10

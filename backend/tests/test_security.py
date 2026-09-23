@@ -14,7 +14,7 @@ class TestSecurity:
         """Тест защиты от SQL-инъекций"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         # Попытка SQL-инъекции в поиске
@@ -27,7 +27,7 @@ class TestSecurity:
         """Тест защиты от XSS в описании заявки"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         xss_payloads = [
@@ -63,7 +63,7 @@ class TestSecurity:
         """Тест хеширования паролей"""
         with app.app_context():
             from werkzeug.security import generate_password_hash, check_password_hash
-            password = 'Test1234!@#$'
+            password = 'Asar8!River2'
             hashed = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
             
             # Пароль не должен храниться в открытом виде
@@ -96,7 +96,7 @@ class TestSecurity:
         """Тест доступа к админским endpoints только для админов"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         admin_endpoints = [
@@ -119,7 +119,7 @@ class TestSecurity:
         # Проверяем, что запросы требуют правильной сессии
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         # Запрос с правильной сессией должен работать
@@ -130,7 +130,7 @@ class TestSecurity:
         """Тест ограничения размера загружаемых файлов"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         # Создаем файл больше лимита (10MB)
@@ -144,7 +144,7 @@ class TestSecurity:
         """Тест валидации входных данных"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         # Тест с невалидными координатами

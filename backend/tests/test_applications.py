@@ -19,7 +19,7 @@ class TestApplications:
         # Входим
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         app_data = {
@@ -60,7 +60,7 @@ class TestApplications:
         """Тест создания заявки с невалидным описанием"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         # Пустое описание
@@ -78,7 +78,7 @@ class TestApplications:
         """Тест защиты от XSS в описании"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         app_data = {
@@ -136,7 +136,7 @@ class TestApplications:
         """Тест создания SOS заявки"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         sos_data = {
@@ -163,7 +163,7 @@ class TestApplications:
             from werkzeug.security import generate_password_hash
             responder = User(
                 email='responder@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Responder',
                 city='Almaty'
             )
@@ -173,7 +173,7 @@ class TestApplications:
         # Входим как responder
         client.post('/api/auth/login', json={
             'email': 'responder@example.com',
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(f'/api/applications/{test_application.id}/respond')
@@ -191,7 +191,7 @@ class TestApplications:
         """Тест отклика на свою заявку (должна быть ошибка)"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(f'/api/applications/{test_application.id}/respond')
@@ -202,7 +202,7 @@ class TestApplications:
         """Тест закрытия заявки"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(f'/api/applications/{test_application.id}/resolve')
@@ -218,7 +218,7 @@ class TestApplications:
         """Тест пометки заявки как ложный вызов"""
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(f'/api/applications/{test_application.id}/mark-false')
@@ -236,7 +236,7 @@ class TestApplications:
             from werkzeug.security import generate_password_hash
             responder = User(
                 email='responder2@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Responder2',
                 city='Almaty'
             )
@@ -255,7 +255,7 @@ class TestApplications:
         # Входим как создатель заявки
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(
@@ -275,7 +275,7 @@ class TestApplications:
             from werkzeug.security import generate_password_hash
             responder = User(
                 email='responder3@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Responder3',
                 city='Almaty'
             )
@@ -294,7 +294,7 @@ class TestApplications:
         # Входим как создатель заявки
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         response = client.post(

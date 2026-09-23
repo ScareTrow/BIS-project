@@ -17,7 +17,7 @@ class TestRating:
             from werkzeug.security import generate_password_hash
             helper = User(
                 email='helper@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Helper',
                 city='Almaty'
             )
@@ -51,7 +51,7 @@ class TestRating:
         # Входим как создатель заявки
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         rating_data = {
@@ -84,7 +84,7 @@ class TestRating:
             from werkzeug.security import generate_password_hash
             helper = User(
                 email='helper2@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Helper2',
                 city='Almaty'
             )
@@ -103,13 +103,18 @@ class TestRating:
             db.session.add(application)
             db.session.commit()
             
+            db.session.add(ApplicationResponse(
+                application_id=application.id, responder_id=helper.id,
+                status=ResponseStatus.COMPLETED,
+            ))
+            db.session.commit()
             # Сохраняем ID для использования вне контекста
             helper_id = helper.id
             application_id = application.id
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         rating_data = {
@@ -130,7 +135,7 @@ class TestRating:
             from werkzeug.security import generate_password_hash
             helper = User(
                 email='helper3@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Helper3',
                 city='Almaty'
             )
@@ -165,7 +170,7 @@ class TestRating:
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         rating_data = {
@@ -186,7 +191,7 @@ class TestRating:
             from werkzeug.security import generate_password_hash
             helper = User(
                 email='helper4@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Helper4',
                 city='Almaty',
                 rating_sum=20,
@@ -214,7 +219,7 @@ class TestRating:
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         rating_data = {
@@ -241,7 +246,7 @@ class TestRating:
             from werkzeug.security import generate_password_hash
             helper = User(
                 email='helper5@example.com',
-                password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+                password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
                 first_name='Helper5',
                 city='Almaty',
                 rating_sum=36,  # 9 оценок по 4
@@ -269,7 +274,7 @@ class TestRating:
         
         client.post('/api/auth/login', json={
             'email': test_user.email,
-            'password': 'Test1234!@#$'
+            'password': 'Asar8!River2'
         })
         
         rating_data = {

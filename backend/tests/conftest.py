@@ -1,128 +1,61 @@
+"""Isolated application fixtures using the production app factory.
+
+Set ASAR_TEST_DATABASE_URL to a dedicated PostgreSQL test database to run
+this same suite against PostgreSQL. Tables in that database are recreated.
 """
-Конфигурация для pytest тестов
-"""
-import pytest
 import os
 import sys
-import tempfile
+from pathlib import Path
+import pytest
 from datetime import datetime, timezone, timedelta
 
-# Добавляем путь к backend в sys.path
-backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-project_root = os.path.dirname(backend_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
-
-from flask import Flask
-from flask_cors import CORS
-from flask_login import LoginManager
-from flask_migrate import Migrate
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from backend.website import db, create_app
 from backend.website.models import (
-    User, Application, ApplicationCategory, ModerationStatus,
-    Rating, ApplicationResponse, ResponseStatus, Notification,
-    ApplicationMedia
+    User, Application, ApplicationCategory, ModerationStatus, Rating,
+    ApplicationResponse, ResponseStatus, Notification, ApplicationMedia,
 )
-from backend.website import db
-
-
-def create_test_app():
-    """Создает тестовое приложение Flask без требования PostgreSQL"""
-    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    instance_path = os.path.join(backend_dir, 'instance')
-    app = Flask(__name__, instance_path=instance_path)
-    
-    # Используем SQLite в памяти для тестов (быстрее и не требует очистки)
-    app.config['SECRET_KEY'] = 'test-secret-key-for-testing'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
-    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
-    
-    CORS(app, 
-         origins=['http://localhost:3000', 'http://localhost:3001'],
-         supports_credentials=True,
-         allow_headers=['Content-Type', 'Authorization'],
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
-    
-    db.init_app(app)
-    migrate = Migrate()
-    migrate.init_app(app, db)
-    
-    from backend.website.views import views
-    from backend.website.auth import auth
-    
-    app.register_blueprint(views, url_prefix='/')
-    app.register_blueprint(auth, url_prefix='/')
-    
-    login_manager = LoginManager()
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'Пожалуйста, войдите в систему для доступа'
-    login_manager.login_message_category = 'info'
-    login_manager.init_app(app)
-    
-    @login_manager.user_loader
-    def load_user(user_id):
-        return db.session.get(User, int(user_id))
-    
-    return app
-
-
-@pytest.fixture(scope='session')
-def app():
-    """Создает тестовое приложение Flask"""
-    app = create_test_app()
-    
-    try:
-        with app.app_context():
-            db.create_all()
-            yield app
-            db.session.remove()
-            db.drop_all()
-    finally:
-        # SQLite в памяти не требует очистки файлов
-        pass
-
 
 @pytest.fixture(autouse=True)
-def clean_db(app):
-    """Автоматически очищает базу данных перед каждым тестом"""
-    with app.app_context():
-        # Удаляем все данные из таблиц в правильном порядке (с учетом внешних ключей)
-        try:
-            Notification.query.delete()
-            Rating.query.delete()
-            ApplicationResponse.query.delete()
-            ApplicationMedia.query.delete()
-            Application.query.delete()
-            User.query.delete()
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+def _push_request_context():
+    # Override pytest-flask's test-wide context. Each HTTP request must get
+    # its own Flask g so multiple clients cannot share a cached current_user.
     yield
-    # Очистка после теста (на случай если что-то осталось)
-    with app.app_context():
-        try:
-            db.session.rollback()
-            Notification.query.delete()
-            Rating.query.delete()
-            ApplicationResponse.query.delete()
-            ApplicationMedia.query.delete()
-            Application.query.delete()
-            User.query.delete()
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
 
+@pytest.fixture
+def app(tmp_path):
+    database_url = os.getenv('ASAR_TEST_DATABASE_URL', 'sqlite:///:memory:')
+    if database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+    if not database_url.startswith('sqlite:'):
+        from sqlalchemy.engine import make_url
+        target = make_url(database_url)
+        if not target.database or not target.database.endswith('_test'):
+            raise ValueError('ASAR_TEST_DATABASE_URL must name a disposable database ending in _test')
+    app = create_app({
+        'TESTING': True,
+        'SECRET_KEY': 'asar-test-only',
+        'SQLALCHEMY_DATABASE_URI': database_url,
+        'UPLOAD_FOLDER': str(tmp_path / 'uploads'),
+        'AUTO_CREATE_DATABASE': False,
+    })
+    with app.app_context():
+        db.create_all()
+    yield app
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+
+@pytest.fixture(autouse=True)
+def isolate_external_services(monkeypatch):
+    # Unit/integration tests do not depend on public geocoding or send messages.
+    monkeypatch.setattr('backend.website.views.get_location_info', lambda *args: ('Almaty', 'Almaty Region'))
+    monkeypatch.setattr('backend.website.views.get_full_address', lambda *args: 'Almaty, Kazakhstan')
+    monkeypatch.setattr('backend.telegram_bot.config.Config.TELEGRAM_BOT_TOKEN', None)
 
 @pytest.fixture
 def client(app):
-    """Создает тестовый клиент Flask"""
     return app.test_client()
-
 
 @pytest.fixture
 def runner(app):
@@ -135,11 +68,11 @@ def auth_headers(client):
     """Создает пользователя и возвращает заголовки авторизации"""
     user_data = {
         'email': 'test@example.com',
-        'password': 'Test1234!@#$',
+        'password': 'Asar8!River2',
         'firstName': 'Test',
         'lastName': 'User',
-        'password1': 'Test1234!@#$',
-        'password2': 'Test1234!@#$',
+        'password1': 'Asar8!River2',
+        'password2': 'Asar8!River2',
         'phone': '+77001234567',
         'city': 'Almaty'
     }
@@ -169,7 +102,7 @@ def test_user(app):
         from werkzeug.security import generate_password_hash
         user = User(
             email='test@example.com',
-            password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+            password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
             first_name='Test',
             last_name='User',
             isAdmin=False,
@@ -260,7 +193,7 @@ def test_response(app, test_application, test_user):
         # Создаем второго пользователя для отклика
         responder = User(
             email='responder@example.com',
-            password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+            password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
             first_name='Responder',
             last_name='User',
             city='Almaty'
@@ -277,6 +210,7 @@ def test_response(app, test_application, test_user):
         db.session.add(response)
         db.session.commit()
         db.session.refresh(response)
+        db.session.refresh(responder)
         return response, responder
 
 
@@ -291,7 +225,7 @@ def test_rating(app, test_user):
         # Создаем второго пользователя для рейтинга
         rated_user = User(
             email='rated@example.com',
-            password=generate_password_hash('Test1234!@#$', method='pbkdf2:sha256', salt_length=8),
+            password=generate_password_hash('Asar8!River2', method='pbkdf2:sha256', salt_length=8),
             first_name='Rated',
             last_name='User',
             city='Almaty'
@@ -323,5 +257,6 @@ def test_rating(app, test_user):
         db.session.add(rating)
         db.session.commit()
         db.session.refresh(rating)
+        db.session.refresh(rated_user)
         return rating, rated_user, application
 
