@@ -13,9 +13,12 @@ Actual execution: 29–30 September 2026. These results were produced during rec
 | Edge browser smoke | Eight public/authenticated routes returned HTTP 200; signup/login and cookie persistence passed; no page errors |
 | Administrator browser smoke | Login through the actual form and direct navigation to four admin pages passed; no page errors |
 | Live Telegram | Bot identity, account linking, request/location, SOS, resources and notification delivery passed in the user-confirmed private test chat |
-| Independent clean clone | Pending final verification after reconstruction commits are assembled |
+| Independent clean clone | Fresh venv and npm ci; 103 PostgreSQL tests passed in 187.01 s (180 warnings); 13 Jest tests passed; TypeScript and production build passed |
+| HTTP attachment round trip | Upload and byte-for-byte download through the Next.js proxy passed |
 
 Backend tests exercise registration, login, profile, requests, SOS, files, map, search, responses, moderation, ratings, news, notifications, ordinary/admin permissions, cookie CORS and malformed input. Separate HTTP clients are used for different users. Automated tests use deterministic geocoding and disable Telegram delivery. Databases are disposable and separate from any production data.
+
+The independent clean clone tested code at `409812f8f35fc925619852e1ff99d2d7ef8c6be1`. The follow-up QA commit changes only documentation (this validation record, the provenance manifest and the reconstruction notice); executable source and dependency files are identical. Python dependencies were installed in a new virtual environment from both backend requirement files. The clone contains no local `.env` or Telegram credentials. The test database URL was supplied through the process environment.
 
 The browser smoke visited `/`, `/about`, `/login`, `/sign-up`, `/news`, `/profile`, `/profile/edit` and `/applications/new`. Signup and login used the browser context's HTTP client; this does not claim every form was manually exercised. A browser reproduction found a session-loading redirect race on the new-request and admin-news pages; a failing regression was added before the fix and passed afterward.
 
@@ -37,3 +40,4 @@ Live Telegram verification used the actual aiogram dispatcher with synthetic inc
 
 The map returns a JSON array, not GeoJSON. Upload limits remain 50 MiB per file and 100 MiB per request; validation checks extension, size and emptiness, not antivirus scanning or full binary-content validation. The city lookup contains twenty major Kazakhstan cities. Existing hardcoded Russian strings remain alongside the restored ru/kk/en dictionaries. External Figma/Drive originals were not recovered. The retained dependency baseline and existing warnings have not been turned into a general dependency-upgrade or security-audit project.
 
+The clean `npm ci` audit reported 23 dependency vulnerabilities (3 low, 3 moderate, 16 high, 1 critical), including a warning for the retained Next.js 14.2.5 baseline. Dependency security upgrades remain outstanding. Functional test success is not a security certification.

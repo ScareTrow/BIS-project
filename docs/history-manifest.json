@@ -27,13 +27,13 @@
         "website/views.py"
       ],
       "related_reconstruction_commits": [
-        "b26dc427abd2eeef2a01e1dbf31bceb9bfd112cc",
-        "57d0df1449d63ec14a9ecebf6686411356f71b3e",
-        "da49f962fc50c57ee1cfd9f24961ecec2cf1d2d9",
-        "788fe4b7fd413ec738820644d0050961eda10401",
-        "e1fc2e1013b61157e2be2eeb30953091041a8c7a",
-        "8adcdc70562a2f313c4cbeedaf07785774bccefd",
-        "de48f618d2576114bd745177968c5134ce0ef8f3"
+        "3b25ffffa9ef745d8055e7a3de1b95a312e1f4de",
+        "95024789a5607496db944234662754bb4bae1c1f",
+        "49f5e8f25860a72d0132a64b439665e74f085902",
+        "5bb77912506453c3211df738d8f0cd3b8333df4d",
+        "19f2fa970082ca51c8d2baa0c1d7e8a800ca1001",
+        "b837a630749a0f8c184cfcf3eb66bedf2de2a6ef",
+        "bd3a3d915726fbcda8652b3415b55096c16c813a"
       ]
     },
     {
@@ -56,11 +56,11 @@
         "website/views.py"
       ],
       "related_reconstruction_commits": [
-        "b26dc427abd2eeef2a01e1dbf31bceb9bfd112cc",
-        "da49f962fc50c57ee1cfd9f24961ecec2cf1d2d9",
-        "788fe4b7fd413ec738820644d0050961eda10401",
-        "e1fc2e1013b61157e2be2eeb30953091041a8c7a",
-        "de48f618d2576114bd745177968c5134ce0ef8f3"
+        "3b25ffffa9ef745d8055e7a3de1b95a312e1f4de",
+        "49f5e8f25860a72d0132a64b439665e74f085902",
+        "5bb77912506453c3211df738d8f0cd3b8333df4d",
+        "19f2fa970082ca51c8d2baa0c1d7e8a800ca1001",
+        "bd3a3d915726fbcda8652b3415b55096c16c813a"
       ]
     },
     {
@@ -86,11 +86,11 @@
         "website/views.py"
       ],
       "related_reconstruction_commits": [
-        "b26dc427abd2eeef2a01e1dbf31bceb9bfd112cc",
-        "da49f962fc50c57ee1cfd9f24961ecec2cf1d2d9",
-        "788fe4b7fd413ec738820644d0050961eda10401",
-        "e1fc2e1013b61157e2be2eeb30953091041a8c7a",
-        "de48f618d2576114bd745177968c5134ce0ef8f3"
+        "3b25ffffa9ef745d8055e7a3de1b95a312e1f4de",
+        "49f5e8f25860a72d0132a64b439665e74f085902",
+        "5bb77912506453c3211df738d8f0cd3b8333df4d",
+        "19f2fa970082ca51c8d2baa0c1d7e8a800ca1001",
+        "bd3a3d915726fbcda8652b3415b55096c16c813a"
       ]
     },
     {
@@ -200,18 +200,18 @@
         "website/views.py"
       ],
       "related_reconstruction_commits": [
-        "b26dc427abd2eeef2a01e1dbf31bceb9bfd112cc",
-        "57d0df1449d63ec14a9ecebf6686411356f71b3e",
-        "da49f962fc50c57ee1cfd9f24961ecec2cf1d2d9",
-        "788fe4b7fd413ec738820644d0050961eda10401",
-        "e1fc2e1013b61157e2be2eeb30953091041a8c7a",
-        "03c6e477ae0c3b67aa2b4b38c76891cd4a722809",
-        "9653daa28d6cab8f28b235742fc4567777daa47d",
-        "fdb427d7e9d9152c29ab45eccf3452a8523e4fb2",
-        "06782f47be1a417a0eb4879bd71e19b611e142a2",
-        "8adcdc70562a2f313c4cbeedaf07785774bccefd",
-        "64596c975961a9a790998a0e2bb963e64b93fd41",
-        "de48f618d2576114bd745177968c5134ce0ef8f3"
+        "3b25ffffa9ef745d8055e7a3de1b95a312e1f4de",
+        "95024789a5607496db944234662754bb4bae1c1f",
+        "49f5e8f25860a72d0132a64b439665e74f085902",
+        "5bb77912506453c3211df738d8f0cd3b8333df4d",
+        "19f2fa970082ca51c8d2baa0c1d7e8a800ca1001",
+        "c7840bfa013e8020a9d77728ab8a50c74a3908ce",
+        "54f4dcbfd15f4ae169079b9db0a63e9827dc6daf",
+        "1afc3f54e1ea61c5a84d48c5cb619bf2b60e4e5b",
+        "85114412b4b36c035e4713012471d1652f235e63",
+        "b837a630749a0f8c184cfcf3eb66bedf2de2a6ef",
+        "db874d6032551f8b60dff0ff3f1ee35be48e6206",
+        "bd3a3d915726fbcda8652b3415b55096c16c813a"
       ]
     },
     {
@@ -313,30 +313,30 @@
         "frontend/tailwind.config.ts"
       ],
       "related_reconstruction_commits": [
-        "b26dc427abd2eeef2a01e1dbf31bceb9bfd112cc",
-        "57d0df1449d63ec14a9ecebf6686411356f71b3e",
-        "da49f962fc50c57ee1cfd9f24961ecec2cf1d2d9",
-        "788fe4b7fd413ec738820644d0050961eda10401",
-        "e1fc2e1013b61157e2be2eeb30953091041a8c7a",
-        "03c6e477ae0c3b67aa2b4b38c76891cd4a722809",
-        "9653daa28d6cab8f28b235742fc4567777daa47d",
-        "fdb427d7e9d9152c29ab45eccf3452a8523e4fb2",
-        "06782f47be1a417a0eb4879bd71e19b611e142a2",
-        "fa1b469c141520b71686a9f3402ea6313772c3f7",
-        "e95a82433569e9c3ba9f851a30758a6d5ff3f76e",
-        "8adcdc70562a2f313c4cbeedaf07785774bccefd",
-        "64596c975961a9a790998a0e2bb963e64b93fd41",
-        "de48f618d2576114bd745177968c5134ce0ef8f3",
-        "be0335ef2628cb8674a99ed3341d496fcc73aa24"
+        "3b25ffffa9ef745d8055e7a3de1b95a312e1f4de",
+        "95024789a5607496db944234662754bb4bae1c1f",
+        "49f5e8f25860a72d0132a64b439665e74f085902",
+        "5bb77912506453c3211df738d8f0cd3b8333df4d",
+        "19f2fa970082ca51c8d2baa0c1d7e8a800ca1001",
+        "c7840bfa013e8020a9d77728ab8a50c74a3908ce",
+        "54f4dcbfd15f4ae169079b9db0a63e9827dc6daf",
+        "1afc3f54e1ea61c5a84d48c5cb619bf2b60e4e5b",
+        "85114412b4b36c035e4713012471d1652f235e63",
+        "059daf0f84da691f9ac880095e9ae30e7a58e740",
+        "b28fbad50237555c6b838cea01d1d4b1e1681923",
+        "b837a630749a0f8c184cfcf3eb66bedf2de2a6ef",
+        "db874d6032551f8b60dff0ff3f1ee35be48e6206",
+        "bd3a3d915726fbcda8652b3415b55096c16c813a",
+        "627adf6a76d595c12e477dd295d1c681aef3744a"
       ]
     }
   ],
   "reconstructed_commits": [
     {
-      "commit": "b26dc427abd2eeef2a01e1dbf31bceb9bfd112cc",
+      "commit": "3b25ffffa9ef745d8055e7a3de1b95a312e1f4de",
       "author": "ScareTrow",
-      "author_date": "2026-09-01T09:07:00+05:00",
-      "subject": "Основа Flask и конфигурация окружения",
+      "author_date": "2026-09-01T09:11:00+05:00",
+      "subject": "Initialize Flask application and environment configuration",
       "files": [
         ".env.example",
         ".gitignore",
@@ -350,34 +350,37 @@
         "backend/website/settings.py",
         "package-lock.json",
         "HISTORY_RECONSTRUCTION.md"
-      ]
+      ],
+      "committer_date": "2026-09-01T09:11:00+05:00"
     },
     {
-      "commit": "57d0df1449d63ec14a9ecebf6686411356f71b3e",
+      "commit": "95024789a5607496db944234662754bb4bae1c1f",
       "author": "Nuray08",
-      "author_date": "2026-09-02T09:14:00+05:00",
-      "subject": "Описание проекта, окружения и эксплуатации",
+      "author_date": "2026-09-02T12:28:00+05:00",
+      "subject": "Document project setup and operation",
       "files": [
         "README.md",
         "RELEASE_NOTES.md",
         "backend/DATABASE_SYNC.md",
         "backend/telegram_bot/README.md"
-      ]
+      ],
+      "committer_date": "2026-09-02T12:28:00+05:00"
     },
     {
-      "commit": "e0e2254138f3df2729777a48c8ac3f0899df1041",
+      "commit": "6986b6ca4b25cc1cec3d573c108c1410e3c20bd4",
       "author": "Nuray08",
-      "author_date": "2026-09-02T09:21:00+05:00",
-      "subject": "Роли команды по матрице компетенций",
+      "author_date": "2026-09-03T15:45:00+05:00",
+      "subject": "Document team roles and responsibilities",
       "files": [
         "docs/team.md"
-      ]
+      ],
+      "committer_date": "2026-09-03T15:45:00+05:00"
     },
     {
-      "commit": "da49f962fc50c57ee1cfd9f24961ecec2cf1d2d9",
+      "commit": "49f5e8f25860a72d0132a64b439665e74f085902",
       "author": "ScareTrow",
-      "author_date": "2026-09-04T09:28:00+05:00",
-      "subject": "Модели пользователей, заявок и миграции PostgreSQL",
+      "author_date": "2026-09-04T18:02:00+05:00",
+      "subject": "Add user and application models with PostgreSQL migrations",
       "files": [
         "backend/migrations/README",
         "backend/migrations/alembic.ini",
@@ -386,13 +389,14 @@
         "backend/migrations/versions/10eca4b898b5_initial_migration.py",
         "backend/migrations/versions/2a3b4c5d6e7f_add_news_table.py",
         "backend/website/models.py"
-      ]
+      ],
+      "committer_date": "2026-09-04T18:02:00+05:00"
     },
     {
-      "commit": "788fe4b7fd413ec738820644d0050961eda10401",
+      "commit": "5bb77912506453c3211df738d8f0cd3b8333df4d",
       "author": "runasaiii",
-      "author_date": "2026-09-07T09:35:00+05:00",
-      "subject": "Шаблоны Flask, стили и визуальные ресурсы",
+      "author_date": "2026-09-05T11:19:00+05:00",
+      "subject": "Add Flask templates, styles, and visual assets",
       "files": [
         "backend/website/static/css/style.css",
         "backend/website/static/img/ASARlogoo.png",
@@ -422,23 +426,25 @@
         "backend/website/templates/sign_up.html",
         "backend/website/templates/users_list.html",
         "backend/website/templates/view_user_profile.html"
-      ]
+      ],
+      "committer_date": "2026-09-05T11:19:00+05:00"
     },
     {
-      "commit": "e1fc2e1013b61157e2be2eeb30953091041a8c7a",
+      "commit": "19f2fa970082ca51c8d2baa0c1d7e8a800ca1001",
       "author": "ScareTrow",
-      "author_date": "2026-09-08T09:42:00+05:00",
-      "subject": "REST API заявок, авторизации, модерации и новостей",
+      "author_date": "2026-09-07T14:36:00+05:00",
+      "subject": "Add authentication, application, moderation, and news APIs",
       "files": [
         "backend/website/auth.py",
         "backend/website/views.py"
-      ]
+      ],
+      "committer_date": "2026-09-07T14:36:00+05:00"
     },
     {
-      "commit": "03c6e477ae0c3b67aa2b4b38c76891cd4a722809",
+      "commit": "c7840bfa013e8020a9d77728ab8a50c74a3908ce",
       "author": "ScareTrow",
-      "author_date": "2026-09-09T09:49:00+05:00",
-      "subject": "Обработчики и уведомления Telegram-бота",
+      "author_date": "2026-09-08T17:53:00+05:00",
+      "subject": "Add Telegram bot handlers and notifications",
       "files": [
         "backend/telegram_bot/__init__.py",
         "backend/telegram_bot/bot.py",
@@ -458,13 +464,14 @@
         "backend/telegram_bot/utils/database.py",
         "backend/telegram_bot/utils/helpers.py",
         "backend/telegram_bot/utils/notifications.py"
-      ]
+      ],
+      "committer_date": "2026-09-08T17:53:00+05:00"
     },
     {
-      "commit": "9653daa28d6cab8f28b235742fc4567777daa47d",
+      "commit": "54f4dcbfd15f4ae169079b9db0a63e9827dc6daf",
       "author": "runasaiii",
-      "author_date": "2026-09-10T09:56:00+05:00",
-      "subject": "Настройка Next.js и публичные ресурсы",
+      "author_date": "2026-09-09T10:10:00+05:00",
+      "subject": "Configure Next.js and add public assets",
       "files": [
         "frontend/.gitignore",
         "frontend/next.config.js",
@@ -478,13 +485,14 @@
         "frontend/public/second.jpg",
         "frontend/tailwind.config.ts",
         "frontend/tsconfig.json"
-      ]
+      ],
+      "committer_date": "2026-09-09T10:10:00+05:00"
     },
     {
-      "commit": "fdb427d7e9d9152c29ab45eccf3452a8523e4fb2",
+      "commit": "1afc3f54e1ea61c5a84d48c5cb619bf2b60e4e5b",
       "author": "runasaiii",
-      "author_date": "2026-09-11T09:03:00+05:00",
-      "subject": "Компоненты карты, навигации и уведомлений",
+      "author_date": "2026-09-10T13:27:00+05:00",
+      "subject": "Add map, navigation, and notification components",
       "files": [
         "frontend/components/common/ApplicationMap.tsx",
         "frontend/components/common/CategoryBadge.tsx",
@@ -502,13 +510,14 @@
         "frontend/components/layout/Footer.tsx",
         "frontend/components/layout/Header.tsx",
         "frontend/components/layout/NotificationsDropdown.tsx"
-      ]
+      ],
+      "committer_date": "2026-09-10T13:27:00+05:00"
     },
     {
-      "commit": "06782f47be1a417a0eb4879bd71e19b611e142a2",
+      "commit": "85114412b4b36c035e4713012471d1652f235e63",
       "author": "runasaiii",
-      "author_date": "2026-09-11T09:10:00+05:00",
-      "subject": "Страницы заявок, профиля, администрирования и новостей",
+      "author_date": "2026-09-11T16:44:00+05:00",
+      "subject": "Add application, profile, administration, and news pages",
       "files": [
         "frontend/app/about/page.tsx",
         "frontend/app/admin/applications/page.tsx",
@@ -528,13 +537,14 @@
         "frontend/app/profile/page.tsx",
         "frontend/app/sign-up/page.tsx",
         "frontend/app/users/[id]/page.tsx"
-      ]
+      ],
+      "committer_date": "2026-09-11T16:44:00+05:00"
     },
     {
-      "commit": "fa1b469c141520b71686a9f3402ea6313772c3f7",
+      "commit": "059daf0f84da691f9ac880095e9ae30e7a58e740",
       "author": "Rakhymzhan01",
-      "author_date": "2026-09-14T09:17:00+05:00",
-      "subject": "Набор тестов backend и конфигурация pytest",
+      "author_date": "2026-09-12T09:01:00+05:00",
+      "subject": "Add backend tests and pytest configuration",
       "files": [
         "backend/pytest.ini",
         "backend/requirements-test.txt",
@@ -551,64 +561,70 @@
         "backend/tests/test_search.py",
         "backend/tests/test_security.py",
         "backend/tests/test_telegram_bot.py"
-      ]
+      ],
+      "committer_date": "2026-09-12T09:01:00+05:00"
     },
     {
-      "commit": "e95a82433569e9c3ba9f851a30758a6d5ff3f76e",
+      "commit": "b28fbad50237555c6b838cea01d1d4b1e1681923",
       "author": "Rakhymzhan01",
-      "author_date": "2026-09-15T10:24:00+05:00",
-      "subject": "Тесты API-клиента и компонентов Next.js",
+      "author_date": "2026-09-14T12:18:00+05:00",
+      "subject": "Add API client and Next.js component tests",
       "files": [
         "frontend/__tests__/api.test.ts",
         "frontend/__tests__/components/Header.test.tsx",
         "frontend/jest.config.js",
         "frontend/jest.setup.js"
-      ]
+      ],
+      "committer_date": "2026-09-14T12:18:00+05:00"
     },
     {
-      "commit": "50b231b6d5503c2dae88435449fcd90059bb9eaf",
+      "commit": "3024158bb90fba34c5d9c213a483d1ee5595e004",
       "author": "Nuray08",
-      "author_date": "2026-09-16T10:31:00+05:00",
-      "subject": "Архитектура платформы и поток SOS-заявки",
+      "author_date": "2026-09-15T15:35:00+05:00",
+      "subject": "Document platform architecture and SOS workflow",
       "files": [
         "docs/architecture.md"
-      ]
+      ],
+      "committer_date": "2026-09-15T15:35:00+05:00"
     },
     {
-      "commit": "b29e13bd9158f21da009d5ebf45d84d1af3bbaef",
+      "commit": "3b535dfda8cfb9744c8f49446087efffe48ded20",
       "author": "ScareTrow",
-      "author_date": "2026-09-17T10:38:00+05:00",
-      "subject": "ER-модель и фактические контракты REST API",
+      "author_date": "2026-09-16T18:52:00+05:00",
+      "subject": "Document database relationships and REST API contracts",
       "files": [
         "docs/api.md",
         "docs/database.md",
         "docs/openapi.json"
-      ]
+      ],
+      "committer_date": "2026-09-16T18:52:00+05:00"
     },
     {
-      "commit": "776db3e60bd57911889d49cee14d13fa3a934dfb",
+      "commit": "7e26ad8b01fadd7ff0d13e0bbfe5cf7a246493ef",
       "author": "runasaiii",
-      "author_date": "2026-09-21T10:45:00+05:00",
-      "subject": "Инвентаризация интерфейсов и ссылка на дизайн",
+      "author_date": "2026-09-17T11:09:00+05:00",
+      "subject": "Document interface inventory and design reference",
       "files": [
         "docs/ui-inventory.md"
-      ]
+      ],
+      "committer_date": "2026-09-17T11:09:00+05:00"
     },
     {
-      "commit": "b02cc9e30345f0304b45f3a4e0d96a9019b4424f",
+      "commit": "3e5e56223e81e6903d51188a93ec4419a8c40dbb",
       "author": "Rakhymzhan01",
-      "author_date": "2026-09-22T10:52:00+05:00",
-      "subject": "Postman-коллекция и протокол проверки",
+      "author_date": "2026-09-18T14:26:00+05:00",
+      "subject": "Add Postman collection and QA protocol",
       "files": [
         "docs/asar.postman_collection.json",
         "docs/qa-protocol.md"
-      ]
+      ],
+      "committer_date": "2026-09-18T14:26:00+05:00"
     },
     {
-      "commit": "8adcdc70562a2f313c4cbeedaf07785774bccefd",
+      "commit": "b837a630749a0f8c184cfcf3eb66bedf2de2a6ef",
       "author": "runasaiii",
-      "author_date": "2026-09-23T10:59:00+05:00",
-      "subject": "Восстановление frontend/lib, переводов и ресурсов Leaflet",
+      "author_date": "2026-09-20T17:43:00+05:00",
+      "subject": "Restore frontend libraries, translations, and Leaflet assets",
       "files": [
         ".gitignore",
         "frontend/lib/api.ts",
@@ -622,13 +638,14 @@
         "frontend/public/leaflet/marker-icon-2x.png",
         "frontend/public/leaflet/marker-icon.png",
         "frontend/public/leaflet/marker-shadow.png"
-      ]
+      ],
+      "committer_date": "2026-09-20T17:43:00+05:00"
     },
     {
-      "commit": "64596c975961a9a790998a0e2bb963e64b93fd41",
+      "commit": "db874d6032551f8b60dff0ff3f1ee35be48e6206",
       "author": "runasaiii",
-      "author_date": "2026-09-24T10:06:00+05:00",
-      "subject": "Исправления сборки, типов и восстановления сессии",
+      "author_date": "2026-09-21T10:00:00+05:00",
+      "subject": "Fix frontend builds, types, and session restoration",
       "files": [
         "frontend/app/admin/applications/page.tsx",
         "frontend/app/admin/news/page.tsx",
@@ -643,13 +660,14 @@
         "frontend/components/layout/AuthProvider.tsx",
         "frontend/package-lock.json",
         "frontend/package.json"
-      ]
+      ],
+      "committer_date": "2026-09-21T10:00:00+05:00"
     },
     {
-      "commit": "de48f618d2576114bd745177968c5134ce0ef8f3",
+      "commit": "bd3a3d915726fbcda8652b3415b55096c16c813a",
       "author": "ScareTrow",
-      "author_date": "2026-09-25T10:13:00+05:00",
-      "subject": "Исправления SOS, авторизации, загрузок и запуска бота",
+      "author_date": "2026-09-22T13:17:00+05:00",
+      "subject": "Fix SOS handling, authentication, uploads, and bot startup",
       "files": [
         "backend/migrations/versions/2a3b4c5d6e7f_add_news_table.py",
         "backend/requirements.txt",
@@ -659,13 +677,14 @@
         "backend/website/models.py",
         "backend/website/validation.py",
         "backend/website/views.py"
-      ]
+      ],
+      "committer_date": "2026-09-22T13:17:00+05:00"
     },
     {
-      "commit": "be0335ef2628cb8674a99ed3341d496fcc73aa24",
+      "commit": "627adf6a76d595c12e477dd295d1c681aef3744a",
       "author": "Rakhymzhan01",
-      "author_date": "2026-09-26T10:20:00+05:00",
-      "subject": "Изоляция тестовой базы и корректные сценарии QA",
+      "author_date": "2026-09-23T16:34:00+05:00",
+      "subject": "Isolate test databases and correct QA scenarios",
       "files": [
         "backend/tests/conftest.py",
         "backend/tests/test_admin.py",
@@ -679,38 +698,46 @@
         "backend/tests/test_telegram_bot.py",
         "frontend/__tests__/api.test.ts",
         "frontend/__tests__/components/Header.test.tsx"
-      ]
+      ],
+      "committer_date": "2026-09-23T16:34:00+05:00"
     },
     {
-      "commit": "6ccaabb3ad64a0344de554fdc89cd539cfd4e3a0",
+      "commit": "ab31f771bd741fc3d6e34f16456a6a3b97f6eced",
       "author": "Rakhymzhan01",
-      "author_date": "2026-09-28T10:27:00+05:00",
-      "subject": "Регрессии API, сквозных сценариев и сессии frontend",
+      "author_date": "2026-09-24T09:51:00+05:00",
+      "subject": "Add API, integration, and frontend session regression tests",
       "files": [
         "backend/tests/test_contract_regressions.py",
         "backend/tests/test_full_stack_contract.py",
         "frontend/__tests__/restored-modules.test.ts",
         "frontend/__tests__/session-gate.test.tsx"
-      ]
+      ],
+      "committer_date": "2026-09-24T09:51:00+05:00"
     },
     {
-      "commit": "f5e7e3abdb93e22ada3e39c2fd7150488ddfa7ba",
+      "commit": "437e54e0d76856f10efd9e2bf32812ff4be20a45",
       "author": "Nuray08",
-      "author_date": "2026-09-29T10:34:00+05:00",
-      "subject": "Сопоставление отчётов с фактическим состоянием проекта",
+      "author_date": "2026-09-25T12:08:00+05:00",
+      "subject": "Compare project reports with the implemented code",
       "files": [
         "docs/report-comparison.md"
-      ]
+      ],
+      "committer_date": "2026-09-25T12:08:00+05:00"
     },
     {
-      "commit": "25f7038abe754283a2fc64ef2063272c5a9640c8",
+      "commit": "7d2a4fafee10b37cbcb299858544e631983d9d2a",
       "author": "Rakhymzhan01",
-      "author_date": "2026-09-29T10:41:00+05:00",
-      "subject": "Результаты проверки восстановленного проекта",
+      "author_date": "2026-09-27T15:25:00+05:00",
+      "subject": "Record validation results for the restored project",
       "files": [
         "docs/validation.md"
-      ]
+      ],
+      "committer_date": "2026-09-27T15:25:00+05:00"
     }
   ],
-  "manifest_commit": "This manifest is added in the final provenance commit; its own hash is not recursively embedded."
+  "manifest_commit": "adeca8a50ee8d3d34e4dbcdf8de43024027b4e00 introduced the manifest. The final QA commit updates references and the reconstruction notice; its own hash is not recursively embedded.",
+  "clean_clone_verified_code_commit": "409812f8f35fc925619852e1ff99d2d7ef8c6be1",
+  "history_message_edit": "English messages; optional trailer removed. Author and committer dates are equal conditional dates across 1–30 September 2026, not actual creation timestamps.",
+  "equivalent_verified_source_commit": "adeca8a50ee8d3d34e4dbcdf8de43024027b4e00",
+  "timestamp_edit_performed_at": "2026-09-30T10:21:14.765612+05:00"
 }
