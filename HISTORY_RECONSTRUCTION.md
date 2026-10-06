@@ -10,3 +10,7 @@ The original and pre-edit histories are preserved in offline Git bundles. The tw
 New documentation, translations, client modules, fixes and QA artifacts were prepared with Codex assistance during reconstruction. The original PDFs' “formatting and wording support only” disclosure does not describe this new work.
 
 See [sources and discrepancies](docs/report-comparison.md), [validation](docs/validation.md) and [commit manifest](docs/history-manifest.json). The manifest identifies original snapshots and reconstructed changes, without claiming their artificial author dates establish real participation.
+
+## October follow-up
+
+The owner requested two retrospective scope-update commits dated 6–14 October 2026. Actual preparation starts on 15 October 2026. See [October disclosure](docs/scope-october-2026.md#history-disclosure). These are new commits on top of the existing branch, with the configured repository author, not rewritten September commits.
