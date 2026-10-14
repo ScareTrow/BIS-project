@@ -10,6 +10,11 @@ class ApplicationCategory(enum.Enum):
     MEDICINE = "medicine"
     SHELTER = "shelter"
     EMERGENCY = "emergency"
+    CLOTHING = "clothing"
+    HOUSEHOLD = "household"
+    DELIVERY = "delivery"
+    VOLUNTEERING = "volunteering"
+    SOCIAL_PROJECT = "social_project"
 
 
 class ModerationStatus(enum.Enum):
@@ -90,6 +95,9 @@ class User(db.Model, UserMixin):
 class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(10000), nullable=False)
+    needed_help = db.Column(db.Text)
+    priority_source = db.Column(db.String(24), nullable=False, default='user_normal', server_default='user_normal')
+    created_via = db.Column(db.String(16), nullable=False, default='web', server_default='web')
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     category = db.Column(Enum(ApplicationCategory), nullable=False)
@@ -134,6 +142,7 @@ class ApplicationMedia(db.Model):
 
 
 class Rating(db.Model):
+    __table_args__ = (db.UniqueConstraint('application_id', 'rater_id', 'rated_id', name='uq_rating_response_pair'),)
     id = db.Column(db.Integer, primary_key=True)
     rater_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     rated_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -147,6 +156,10 @@ class Rating(db.Model):
 
 
 class ApplicationResponse(db.Model):
+    __table_args__ = (
+        db.UniqueConstraint('id', 'application_id', name='uq_response_application'),
+        db.UniqueConstraint('application_id', 'responder_id', name='uq_response_volunteer'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('application.id'), nullable=False)
     responder_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -211,3 +224,11 @@ class News(db.Model):
 
     def __repr__(self):
         return f'<News {self.id}>'
+
+
+# Register the additive mutual-aid schema alongside the retained legacy tables.
+from .community_models import (  # noqa: E402,F401
+    Capability, UserCapability, ApplicationCapability, VolunteerPreference,
+    ApplicationNeed, Contribution, Resource, ResourceConfirmation, TriageRule,
+    ModerationAction,
+)

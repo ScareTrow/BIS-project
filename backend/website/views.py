@@ -12,8 +12,16 @@ import json
 import html
 import re
 from .validation import coordinates, validate_upload
+from .community import parse_application_extras, attach_application_extras, notify_matching, dispatch_matching, record_moderation, need_data
+from sqlalchemy.exc import IntegrityError
 
 views = Blueprint('views', __name__)
+
+
+@views.errorhandler(IntegrityError)
+def conflicting_write(error):
+    db.session.rollback()
+    return jsonify({'error': 'Данные изменились или связаны с историей помощи. Обновите страницу и повторите действие.'}), 409
 
 MAX_DESCRIPTION_LENGTH = 5000
 
@@ -893,6 +901,10 @@ def application_detail(app_id):
 def get_application(app_id):
     application = Application.query.get_or_404(app_id)
     
+    can_review = current_user.is_authenticated and (current_user.id == application.user_id or current_user.isAdmin)
+    if application.moderation_status != ModerationStatus.APPROVED and not can_review:
+        return jsonify({'error': 'Заявка недоступна'}), 404
+
     responses = ApplicationResponse.query.filter_by(application_id=app_id).all()
     user_response = None
     if current_user.is_authenticated:
@@ -969,6 +981,9 @@ def get_application(app_id):
         'user_id': application.user_id,
         'creator': creator_info,
         'priority': application.priority or 0,
+        'priority_source': application.priority_source,
+        'needed_help': application.needed_help,
+        'created_via': application.created_via,
         'city': application.city,
         'region': application.region,
         'location': f"{application.city or 'Не указан'}, {application.region or 'Не указан'}" if application.city or application.region else 'Не указано',
@@ -976,7 +991,7 @@ def get_application(app_id):
             'id': media.id,
             'file_path': media.file_path,
             'file_type': media.file_type
-        } for media in media_files],
+        } for media in media_files if can_review or media.file_type != 'application/pdf'],
         'responses': [{
             'id': resp.id,
             'responder_id': resp.responder_id,
@@ -1618,10 +1633,14 @@ def approve_application(app_id):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
     application = Application.query.get_or_404(app_id)
+    previous_status, previous_priority = application.moderation_status.value, application.priority
     application.moderation_status = ModerationStatus.APPROVED
     application.moderator_id = current_user.id
     application.moderated_at = datetime.now(timezone.utc)
+    record_moderation(application, 'approve', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
+    recipient_ids = notify_matching(application)
     db.session.commit()
+    dispatch_matching(application, recipient_ids)
     
     from .models import User
     user = User.query.get(application.user_id)
@@ -1682,9 +1701,11 @@ def reject_application(app_id):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
     application = Application.query.get_or_404(app_id)
+    previous_status, previous_priority = application.moderation_status.value, application.priority
     application.moderation_status = ModerationStatus.REJECTED
     application.moderator_id = current_user.id
     application.moderated_at = datetime.now(timezone.utc)
+    record_moderation(application, 'reject', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
     db.session.commit()
     
     from .models import User
@@ -1744,8 +1765,10 @@ def mark_false_application(app_id):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
     application = Application.query.get_or_404(app_id)
+    previous_status, previous_priority = application.moderation_status.value, application.priority
     application.is_false_call = True
     application.is_resolved = True
+    record_moderation(application, 'mark_false_call', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
     db.session.commit()
     
     return jsonify({
@@ -1766,12 +1789,15 @@ def set_application_priority(app_id):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
     application = Application.query.get_or_404(app_id)
+    previous_status, previous_priority = application.moderation_status.value, application.priority
     
     try:
         priority = int(request.json.get('priority', 0))
         if priority < 0 or priority > 5:
             return jsonify({'error': 'Приоритет должен быть от 0 до 5'}), 400
         application.priority = priority
+        application.priority_source = 'admin'
+        record_moderation(application, 'prioritize', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
         db.session.commit()
         return jsonify({
             'success': True,
@@ -1790,18 +1816,16 @@ def set_application_priority(app_id):
 @login_required
 def resolve_application(app_id):
     application = Application.query.get_or_404(app_id)
+    from .models import ApplicationNeed
+    if any(need_data(n)['still_needed'] > 0 for n in ApplicationNeed.query.filter_by(application_id=app_id)):
+        return jsonify({'error': 'Сначала закройте количественные потребности'}), 409
     
     is_owner = application.user_id == current_user.id
-    user_response = ApplicationResponse.query.filter_by(
-        application_id=app_id,
-        responder_id=current_user.id,
-        status=ResponseStatus.ACCEPTED
-    ).first()
-    is_accepted_volunteer = user_response is not None
-    
-    if not is_owner and not is_accepted_volunteer:
-        return jsonify({'error': 'Вы можете решать только свои заявки или заявки, на которые вас приняли'}), 403
-    
+    if not is_owner:
+        return jsonify({'error': 'Завершение заявки подтверждает её автор'}), 403
+    if application.moderation_status != ModerationStatus.APPROVED or application.is_false_call:
+        return jsonify({'error': 'Заявка не доступна для завершения'}), 409
+
     accepted_responses = ApplicationResponse.query.filter_by(
         application_id=app_id,
         status=ResponseStatus.ACCEPTED
@@ -1924,6 +1948,8 @@ def respond_to_application(app_id):
 def accept_response(app_id, response_id):
     application = Application.query.get_or_404(app_id)
     response = ApplicationResponse.query.get_or_404(response_id)
+    if application.moderation_status != ModerationStatus.APPROVED or application.is_resolved or application.is_false_call or response.status != ResponseStatus.PENDING:
+        return jsonify({'error': 'Отклик недоступен для этого перехода'}), 409
     
     if application.user_id != current_user.id:
         return jsonify({'error': 'Вы можете принимать отклики только на свои заявки'}), 403
@@ -1991,6 +2017,8 @@ def accept_response(app_id, response_id):
 def reject_response(app_id, response_id):
     application = Application.query.get_or_404(app_id)
     response = ApplicationResponse.query.get_or_404(response_id)
+    if application.moderation_status != ModerationStatus.APPROVED or application.is_resolved or application.is_false_call or response.status != ResponseStatus.PENDING:
+        return jsonify({'error': 'Отклик недоступен для этого перехода'}), 409
     
     if application.user_id != current_user.id:
         return jsonify({'error': 'Вы можете отклонять отклики только на свои заявки'}), 403
@@ -2497,10 +2525,18 @@ def api_create_application():
         latitude = data.get('latitude')
         longitude = data.get('longitude')
         category_str = data.get('category', 'food')
-        description = data.get('description', '').strip()
+        raw_description = data.get('description', '')
+        if not isinstance(raw_description, str):
+            return jsonify({'error': 'Описание должно быть текстом'}), 400
+        description = raw_description.strip()
         expires_days = data.get('expires_days', 7)
         media_files = []
     
+    try:
+        extras = parse_application_extras(request.form if request.mimetype == 'multipart/form-data' else data)
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+
     if not description:
         return jsonify({'error': 'Описание обязательно'}), 400
     
@@ -2536,6 +2572,11 @@ def api_create_application():
         return jsonify({'error': str(error)}), 400
 
     city, region = get_location_info(latitude, longitude)
+    supplied_city = (request.form if request.mimetype == 'multipart/form-data' else data).get('city')
+    if supplied_city is not None:
+        if not isinstance(supplied_city, str) or not supplied_city.strip() or len(supplied_city) > 200:
+            return jsonify({'error': 'Укажите город'}), 400
+        city = supplied_city.strip()
     
     new_application = Application(
         description=description,
@@ -2552,6 +2593,7 @@ def api_create_application():
     
     db.session.add(new_application)
     db.session.flush()
+    attach_application_extras(new_application, extras)
     
     if media_files:
         upload_folder = current_app.config['UPLOAD_FOLDER']
@@ -2674,6 +2716,9 @@ def create_sos():
         user_id=current_user.id,
         moderation_status=ModerationStatus.PENDING,
         is_sos=True,
+        priority=5,
+        priority_source='user_sos',
+        city=current_user.city,
         expires_at=datetime.now(timezone.utc) + timedelta(days=1)
     )
     
@@ -2951,14 +2996,23 @@ def search_cities():
     return jsonify({'cities': matching_cities[:10]})
 
 
+def permitted_upload(filename):
+    media = ApplicationMedia.query.filter_by(file_path=filename).first_or_404()
+    application = media.application
+    can_review = current_user.is_authenticated and (current_user.id == application.user_id or current_user.isAdmin)
+    if not can_review and (media.file_type == 'application/pdf' or application.moderation_status != ModerationStatus.APPROVED):
+        return jsonify({'error': 'Доступ запрещён'}), 403
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+
+
 @views.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    return permitted_upload(filename)
 
 
 @views.route('/api/uploads/<filename>')
 def api_uploaded_file(filename):
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    return permitted_upload(filename)
 
 
 @views.route('/api/stats/regional', methods=['GET'])

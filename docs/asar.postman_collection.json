@@ -40,6 +40,26 @@
     {
       "key": "responseId",
       "value": ""
+    },
+    {
+      "key": "aidApplicationId",
+      "value": ""
+    },
+    {
+      "key": "aidResponseId",
+      "value": ""
+    },
+    {
+      "key": "aidNeedId",
+      "value": ""
+    },
+    {
+      "key": "aidResourceId",
+      "value": ""
+    },
+    {
+      "key": "aidConfirmationId",
+      "value": ""
     }
   ],
   "item": [
@@ -536,6 +556,239 @@
               "pm.test(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
               "pm.test(\"Expected status\", () => pm.expect(pm.response.code).to.equal(401));"
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "October mutual aid — manual role-specific requests",
+      "description": "Log in as the owner/helper/admin required by each operation. Set aidApplicationId, aidResponseId, aidNeedId, aidResourceId and aidConfirmationId to records you created. Requests are examples, not a fully automated collection runner. Use docs/mutual-aid-implementation.md for prerequisites.",
+      "item": [
+        {
+          "name": "Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/capabilities"
+          }
+        },
+        {
+          "name": "My capabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/user/capabilities"
+          }
+        },
+        {
+          "name": "Set available",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/user/capabilities",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capability_ids\": [],\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Matching",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/applications/matching"
+          }
+        },
+        {
+          "name": "Need totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/applications/{{aidApplicationId}}/aid"
+          }
+        },
+        {
+          "name": "Accepted contribution",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/responses/{{aidResponseId}}/contributions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"need_id\": {{aidNeedId}},\n  \"quantity_promised\": 3,\n  \"quantity_delivered\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Confirm response completion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/responses/{{aidResponseId}}/complete"
+          }
+        },
+        {
+          "name": "Rate completed help",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/responses/{{aidResponseId}}/rating",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Resource offers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/resources"
+          }
+        },
+        {
+          "name": "Create clothing resource",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/resources",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Пункт выдачи одежды\",\n  \"description\": \"Вещи для семей\",\n  \"city\": \"Almaty\",\n  \"category\": \"clothing\",\n  \"latitude\": 43.22,\n  \"longitude\": 76.85\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Request reminder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/resources/{{aidResourceId}}/reminders"
+          }
+        },
+        {
+          "name": "Answer reminder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/resource-confirmations/{{aidConfirmationId}}/answer",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answer\": \"available\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Triage rules (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/triage-rules"
+          }
+        },
+        {
+          "name": "Regional demand (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/community/analytics"
           }
         }
       ]

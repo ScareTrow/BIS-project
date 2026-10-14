@@ -3,9 +3,10 @@
 import { AlertCircle, Home, Pill, ShoppingCart } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
+import { ApplicationCategory } from '@/lib/api';
 
 interface CategoryBadgeProps {
-  category: 'food' | 'medicine' | 'shelter' | 'emergency';
+  category: ApplicationCategory;
 }
 
 export default function CategoryBadge({ category }: CategoryBadgeProps) {
@@ -45,9 +46,13 @@ export default function CategoryBadge({ category }: CategoryBadgeProps) {
       textColor: 'text-white',
       borderColor: 'border-red-600'
     },
+    ...Object.fromEntries(['clothing', 'household', 'delivery', 'volunteering', 'social_project'].map(key => [key, {
+      label: t(`categories.${key}`), className: 'badge-primary', icon: Home,
+      bgColor: 'bg-blue-100', textColor: 'text-blue-800', borderColor: 'border-blue-300',
+    }])),
   };
 
-  const config = categoryConfig[category] || categoryConfig.emergency;
+  const config = (categoryConfig as Record<string, typeof categoryConfig.food>)[category] || categoryConfig.food;
   const Icon = config.icon;
 
   return (

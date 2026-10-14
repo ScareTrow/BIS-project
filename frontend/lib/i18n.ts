@@ -1,5 +1,11 @@
 export type Language = 'ru' | 'kk' | 'en';
 export const translations: Record<string, readonly [string, string, string]> = {
+  "categories.clothing": ["Вещи", "Киім мен заттар", "Clothing and essentials"],
+  "categories.household": ["Бытовая помощь", "Тұрмыстық көмек", "Everyday help"],
+  "categories.delivery": ["Доставка", "Жеткізу", "Delivery"],
+  "categories.volunteering": ["Волонтёрство", "Еріктілік", "Volunteering"],
+  "categories.social_project": ["Социальные инициативы", "Әлеуметтік бастамалар", "Social initiatives"],
+
   "admin.applications.approveError": [
     "Не удалось одобрить заявку",
     "Өтінімді мақұлдау мүмкін болмады",
@@ -411,9 +417,9 @@ export const translations: Record<string, readonly [string, string, string]> = {
     "Contact"
   ],
   "footer.description": [
-    "Платформа экстренной помощи и обмена ресурсами",
-    "Шұғыл көмек және ресурстармен алмасу платформасы",
-    "Emergency aid and resource sharing"
+    "Платформа взаимопомощи и экстренного реагирования",
+    "Өзара көмек және төтенше жағдайларға әрекет ету платформасы",
+    "Mutual aid and emergency response"
   ],
   "footer.quickLinks": [
     "Разделы",
@@ -446,9 +452,9 @@ export const translations: Record<string, readonly [string, string, string]> = {
     "Create request"
   ],
   "home.hero.subtitle": [
-    "Помогаем друг другу, делимся ресурсами",
-    "Бір-бірімізге көмектесіп, ресурстармен бөлісеміз",
-    "Help each other and share resources"
+    "Помощь с продуктами, вещами, бытовыми задачами и социальными инициативами",
+    "Күнделікті көмек, ресурстармен бөлісу және әлеуметтік бастамалар",
+    "Everyday help, shared resources, volunteering and social initiatives"
   ],
   "home.hero.title": [
     "Помощь рядом",

@@ -2,7 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "ASAR API route inventory and core contracts",
-    "version": "2026.09-reconstruction"
+    "version": "2026.09-reconstruction",
+    "description": " October mutual-aid routes added; general inventory entries are not exhaustive payload schemas."
   },
   "servers": [
     {
@@ -1020,7 +1021,12 @@
                       "food",
                       "medicine",
                       "shelter",
-                      "emergency"
+                      "emergency",
+                      "clothing",
+                      "household",
+                      "delivery",
+                      "volunteering",
+                      "social_project"
                     ]
                   },
                   "description": {
@@ -1031,6 +1037,60 @@
                     "minimum": 1,
                     "maximum": 365,
                     "default": 7
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "needed_help": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "sos"
+                    ],
+                    "default": "normal"
+                  },
+                  "capability_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "uniqueItems": true,
+                    "maxItems": 30
+                  },
+                  "needs": {
+                    "type": "array",
+                    "maxItems": 30,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "resource_name",
+                        "unit",
+                        "quantity_needed"
+                      ],
+                      "properties": {
+                        "resource_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "unit": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 32
+                        },
+                        "quantity_needed": {
+                          "type": "number",
+                          "exclusiveMinimum": true,
+                          "minimum": 0,
+                          "multipleOf": 0.001
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -1062,7 +1122,12 @@
                       "food",
                       "medicine",
                       "shelter",
-                      "emergency"
+                      "emergency",
+                      "clothing",
+                      "household",
+                      "delivery",
+                      "volunteering",
+                      "social_project"
                     ]
                   },
                   "description": {
@@ -1084,6 +1149,30 @@
                   "verification_document": {
                     "type": "string",
                     "format": "binary"
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "needed_help": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "sos"
+                    ],
+                    "default": "normal"
+                  },
+                  "capability_ids": {
+                    "type": "string",
+                    "description": "JSON encoded integer array"
+                  },
+                  "needs": {
+                    "type": "string",
+                    "description": "JSON encoded need array"
                   }
                 }
               }
@@ -1454,6 +1543,629 @@
             "description": "Invalid input"
           }
         }
+      }
+    },
+    "/api/capabilities": {
+      "get": {
+        "operationId": "get_capabilities_get",
+        "summary": "get capabilities",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        }
+      }
+    },
+    "/api/user/capabilities": {
+      "get": {
+        "operationId": "preferences_get",
+        "summary": "preferences",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "preferences_put",
+        "summary": "preferences",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/matching": {
+      "get": {
+        "operationId": "matching_get",
+        "summary": "matching",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/applications/{app_id}/aid": {
+      "get": {
+        "operationId": "application_aid_get",
+        "summary": "application aid",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/responses/{response_id}/contributions": {
+      "put": {
+        "operationId": "save_contribution_put",
+        "summary": "save contribution",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/responses/{response_id}/complete": {
+      "post": {
+        "operationId": "complete_response_post",
+        "summary": "complete response",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          },
+          "201": {
+            "description": "Created where applicable; see implementation"
+          }
+        },
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/responses/{response_id}/rating": {
+      "post": {
+        "operationId": "rate_response_post",
+        "summary": "rate response",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          },
+          "201": {
+            "description": "Created where applicable; see implementation"
+          }
+        },
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/resources": {
+      "get": {
+        "operationId": "resources_get",
+        "summary": "resources",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        }
+      },
+      "post": {
+        "operationId": "resources_post",
+        "summary": "resources",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          },
+          "201": {
+            "description": "Created where applicable; see implementation"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/resources/{resource_id}/reminders": {
+      "post": {
+        "operationId": "create_reminder_post",
+        "summary": "create reminder",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          },
+          "201": {
+            "description": "Created where applicable; see implementation"
+          }
+        },
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/resource-confirmations": {
+      "get": {
+        "operationId": "confirmations_get",
+        "summary": "confirmations",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/resource-confirmations/{confirmation_id}/answer": {
+      "post": {
+        "operationId": "confirm_resource_post",
+        "summary": "confirm resource",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          },
+          "201": {
+            "description": "Created where applicable; see implementation"
+          }
+        },
+        "parameters": [
+          {
+            "name": "confirmation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/triage-rules": {
+      "get": {
+        "operationId": "triage_rules_get",
+        "summary": "triage rules",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "triage_rules_post",
+        "summary": "triage rules",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          },
+          "201": {
+            "description": "Created where applicable; see implementation"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/community/analytics": {
+      "get": {
+        "operationId": "analytics_get",
+        "summary": "analytics",
+        "tags": [
+          "Mutual aid"
+        ],
+        "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response; see implementation for envelope"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permission"
+          },
+          "404": {
+            "description": "Not found or not visible"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate change"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
       }
     }
   },

@@ -14,6 +14,13 @@ async def cmd_create(message: Message, state: FSMContext):
         return
     
     try:
+        from backend.website.models import ApplicationCategory
+        parts = (message.text or '').split(maxsplit=1)
+        category = parts[1].strip() if len(parts) > 1 else 'household'
+        if category not in [c.value for c in ApplicationCategory]:
+            await message.answer('Категории: food, clothing, household, delivery, volunteering, social_project, medicine, shelter, emergency')
+            return
+        await state.update_data(category=category)
         help_text = (
             "<b>Создание заявки</b>\n\n"
             "1️⃣ Отправь описание заявки текстом или с фото\n"

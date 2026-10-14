@@ -1,10 +1,11 @@
 'use client';
+import RequestAid from '@/components/community/RequestAid';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiClient, Application, ApplicationResponse } from '@/lib/api';
 import CategoryBadge from '@/components/common/CategoryBadge';
-import { MapPin, User, Check, X, Star, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { MapPin, User, Check, X, Star } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useStore } from '@/lib/store';
@@ -37,7 +38,6 @@ export default function ApplicationDetailPage() {
   const [responses, setResponses] = useState<ApplicationResponse[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [userResponse, setUserResponse] = useState<ApplicationResponse | null>(null);
-  const [acceptedVolunteers, setAcceptedVolunteers] = useState<any[]>([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -56,7 +56,6 @@ export default function ApplicationDetailPage() {
       // Сохраняем информацию об отклике текущего пользователя (если он есть, независимо от статуса)
       setUserResponse((data as any).user_response || null);
       // Сохраняем информацию о принятых волонтерах (для автора заявки)
-      setAcceptedVolunteers((data as any).accepted_volunteers || []);
     } catch (error) {
       console.error('Error loading application:', error);
     } finally {
@@ -104,17 +103,6 @@ export default function ApplicationDetailPage() {
     }
   };
 
-  const handleRateVolunteer = async (helperId: number, isPositive: boolean) => {
-    try {
-      await apiClient.rateVolunteer(Number(params.id), helperId, isPositive);
-      alert(isPositive ? t('alerts.ratingPositive') : t('alerts.ratingNegative'));
-      loadApplication();
-    } catch (error: any) {
-      console.error('Error rating volunteer:', error);
-      alert(error.response?.data?.message || error.message || t('alerts.ratingError'));
-    }
-  };
-
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -137,6 +125,7 @@ export default function ApplicationDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+        <RequestAid applicationId={application.id} responses={responses} isAuthor={application.user_id === user?.id} onChange={loadApplication} />
       <div className="mb-6">
         <button
           onClick={() => router.back()}
@@ -335,65 +324,6 @@ export default function ApplicationDetailPage() {
             </div>
           )}
 
-          {application.is_resolved && acceptedVolunteers.length > 0 && (application as any).user_id === user?.id && (
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">Оцените волонтеров</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Пожалуйста, оцените волонтеров, которые помогли с этой заявкой
-              </p>
-              <div className="space-y-3">
-                {acceptedVolunteers.map((volunteer) => (
-                  <div
-                    key={volunteer.responder_id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <User className="w-5 h-5 text-gray-500" />
-                      <div>
-                        <Link 
-                          href={`/users/${volunteer.responder_id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {volunteer.responder?.first_name || 'Пользователь'} {volunteer.responder?.last_name || ''}
-                        </Link>
-                        {volunteer.responder?.average_rating && (
-                          <p className="text-sm text-gray-500">
-                            Рейтинг: {volunteer.responder.average_rating.toFixed(1)}/5.0
-                          </p>
-                        )}
-                        {volunteer.is_rated && (
-                          <p className="text-sm text-green-600 font-medium mt-1">
-                            ✓ Оценен ({volunteer.rating_value === 5 ? '👍 Плюс' : '👎 Минус'})
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {!volunteer.is_rated && (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleRateVolunteer(volunteer.responder_id, true)}
-                          className="btn btn-success text-sm flex items-center space-x-1"
-                          title="Плюс"
-                        >
-                          <ThumbsUp className="w-4 h-4" />
-                          <span>Плюс</span>
-                        </button>
-                        <button
-                          onClick={() => handleRateVolunteer(volunteer.responder_id, false)}
-                          className="btn btn-danger text-sm flex items-center space-x-1"
-                          title="Минус"
-                        >
-                          <ThumbsDown className="w-4 h-4" />
-                          <span>Минус</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="flex space-x-4">
             {!application.is_resolved && !userResponse && (application as any).user_id !== user?.id && (
               <button
@@ -409,7 +339,7 @@ export default function ApplicationDetailPage() {
               </div>
             )}
             {!application.is_resolved && 
-             ((application as any).user_id === user?.id || userResponse?.status === 'accepted') && (
+             application.user_id === user?.id && (
               <button
                 onClick={handleResolve}
                 className="btn btn-success flex-1"

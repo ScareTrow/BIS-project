@@ -1,10 +1,14 @@
 'use client';
 
 import CategoryBadge from '@/components/common/CategoryBadge';
-import { Application } from '@/lib/api';
+import { Application, ApplicationCategory } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { communityApi, Resource } from '@/lib/community-api';
 import { useMap } from 'react-leaflet';
+const CircleMarker = dynamic(()=>import('react-leaflet').then(mod=>mod.CircleMarker),{ssr:false});
+const Popup = dynamic(()=>import('react-leaflet').then(mod=>mod.Popup),{ssr:false});
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
@@ -30,9 +34,10 @@ const MapInitializer = dynamic(
 interface MapViewProps {
   applications: Application[];
   center?: [number, number];
+  city?: string;
 }
 
-type CategoryFilter = 'food' | 'medicine' | 'shelter' | 'emergency' | 'all';
+type CategoryFilter = ApplicationCategory | 'all';
 
 // Компонент для обновления центра карты
 function MapCenterController({ center }: { center?: [number, number] }) {
@@ -47,10 +52,14 @@ function MapCenterController({ center }: { center?: [number, number] }) {
   return null;
 }
 
-export default function MapView({ applications, center }: MapViewProps) {
+export default function MapView({ applications, center, city }: MapViewProps) {
   const [isClient, setIsClient] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [mapKey, setMapKey] = useState(0);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [showResources, setShowResources] = useState(true);
+  const [resourceError, setResourceError] = useState('');
+  useEffect(() => { communityApi.resources(city).then(setResources).catch(e=>setResourceError(e.message)); },[city]);
 
   useEffect(() => {
     setIsClient(true);
@@ -81,18 +90,15 @@ export default function MapView({ applications, center }: MapViewProps) {
     );
   }
 
-  const categories: { key: CategoryFilter; label: string; category: 'food' | 'medicine' | 'shelter' | 'emergency' }[] = [
-    { key: 'food', label: 'ПРОДУКТЫ', category: 'food' },
-    { key: 'medicine', label: 'МЕДИЦИНА', category: 'medicine' },
-    { key: 'shelter', label: 'УБЕЖИЩЕ', category: 'shelter' },
-    { key: 'emergency', label: 'ЭКСТРЕННАЯ ПОМОЩЬ', category: 'emergency' }
-  ];
+  const categories: { key: CategoryFilter; category: ApplicationCategory }[] = ['food','clothing','household','delivery','volunteering','social_project','medicine','shelter','emergency'].map(c=>({key:c as ApplicationCategory,category:c as ApplicationCategory}));
 
   return (
     <div className="w-full max-w-full overflow-hidden">
+      {resourceError && <p role="alert">Не удалось загрузить ресурсы: {resourceError}</p>}
       <div className="bg-white rounded-lg shadow-md p-4 mb-4">
         <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-sm text-gray-600 font-semibold">Легенда:</span>
+          <label className="flex gap-2"><input type="checkbox" checked={showResources} onChange={e=>setShowResources(e.target.checked)} />Ресурсы (круглые метки)</label>
+          <span className="text-sm text-gray-600 font-semibold">Категории заявок:</span>
           {categories.map(({ key, category }) => (
             <button
               key={key}
@@ -137,6 +143,7 @@ export default function MapView({ applications, center }: MapViewProps) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+              {showResources && resources.map(r=><CircleMarker key={`resource-${r.id}`} center={[r.latitude,r.longitude]} radius={10} pathOptions={{color:r.availability==='available'?'#15803d':'#a16207'}}><Popup><strong>{r.name}</strong><p>{r.availability==='available'?'Доступен':r.availability==='outdated'?'Информация устарела':'Недоступен'}</p><Link href={`/resources#resource-${r.id}`}>Подробнее о ресурсе</Link></Popup></CircleMarker>)}
               {filteredApplications.map((app) => (
                 <ApplicationMarker key={app.id} application={app} />
               ))}

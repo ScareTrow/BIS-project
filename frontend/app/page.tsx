@@ -532,7 +532,7 @@ export default function HomePage() {
           ) : viewMode === 'list' ? (
             <ListView applications={applications} />
           ) : (
-            <MapView applications={applications} center={mapCenter} />
+            <MapView applications={applications} center={mapCenter} city={selectedCity} />
           )}
         </div>
 

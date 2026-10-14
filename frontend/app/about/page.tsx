@@ -19,7 +19,7 @@ export default function AboutPage() {
             </h1>
             <p className="text-xl text-gray-600">
               {language === 'ru' 
-                ? 'Платформа для экстренной помощи и обмена ресурсами в Казахстане'
+                ? 'Платформа взаимопомощи и экстренного реагирования в Казахстане'
                 : language === 'kk'
                 ? 'Қазақстанда шұғыл көмек және ресурстар алмасу платформасы'
                 : 'Platform for emergency help and resource exchange in Kazakhstan'}
@@ -30,10 +30,10 @@ export default function AboutPage() {
             <div className="prose max-w-none">
               <p className="text-lg text-gray-700 mb-6">
                 {language === 'ru'
-                  ? 'ASAR.kz - это платформа для экстренной помощи и обмена ресурсами в чрезвычайных ситуациях. Наша миссия - помочь людям быстро находить помощь и оказывать поддержку друг другу в трудные моменты.'
+                  ? 'ASAR.kz помогает людям находить поддержку в повседневной жизни и при чрезвычайных ситуациях: продукты, вещи, бытовые задачи, волонтёрство и социальные инициативы. Создавайте заявки, предлагайте ресурсы и помогайте друг другу.'
                   : language === 'kk'
                   ? 'ASAR.kz - бұл төтенше жағдайларда шұғыл көмек және ресурстар алмасу платформасы. Біздің миссиямыз - адамдарға тез көмек табуға және қиын сәттерде бір-біріне қолдау көрсетуге көмектесу.'
-                  : 'ASAR.kz is a platform for emergency help and resource exchange in emergency situations. Our mission is to help people quickly find help and support each other in difficult times.'}
+                  : 'ASAR.kz connects people for everyday mutual aid and emergency response: food, clothing, household tasks, volunteering and social initiatives. Request help, share resources and support your community.'}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">

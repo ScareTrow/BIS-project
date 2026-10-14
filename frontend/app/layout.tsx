@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
   title: "ASAR.kz - Экстренная помощь и обмен ресурсами",
-  description: "Платформа для экстренной помощи и обмена ресурсами в Казахстане",
+  description: "Платформа взаимопомощи и экстренного реагирования в Казахстане",
 };
 
 export default function RootLayout({

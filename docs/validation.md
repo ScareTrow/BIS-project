@@ -41,3 +41,23 @@ Live Telegram verification used the actual aiogram dispatcher with synthetic inc
 The map returns a JSON array, not GeoJSON. Upload limits remain 50 MiB per file and 100 MiB per request; validation checks extension, size and emptiness, not antivirus scanning or full binary-content validation. The city lookup contains twenty major Kazakhstan cities. Existing hardcoded Russian strings remain alongside the restored ru/kk/en dictionaries. External Figma/Drive originals were not recovered. The retained dependency baseline and existing warnings have not been turned into a general dependency-upgrade or security-audit project.
 
 The clean `npm ci` audit reported 23 dependency vulnerabilities (3 low, 3 moderate, 16 high, 1 critical), including a warning for the retained Next.js 14.2.5 baseline. Dependency security upgrades remain outstanding. Functional test success is not a security certification.
+
+
+## October mutual-aid update (actual execution: 15 October 2026)
+
+The new Git timestamps 6 and 14 October are conditional retrospective labels.
+Checks for this implementation were run on 15 October, with external Telegram
+and geocoding disabled and disposable SQLite databases:
+
+- Full backend suite: **118 passed** (Python 3.12.14, 239 existing deprecation warnings).
+- After final creation/response permission adjustments: **49 passed** in the affected application, contract and mutual-aid suites.
+- After adding database uniqueness for response ratings: **32 passed** in mutual-aid, rating, model and full-stack contract suites.
+- Frontend: **13 passed in 4 Jest suites**; final TypeScript check passed.
+- Next.js production build: passed for all 19 public/dynamic routes, including `/resources` and `/admin/community`.
+- Static additive migration: tested against a pre-update SQLite schema, preserving existing user ID 42, seeding capabilities, and allowing a repeated upgrade.
+
+A production-build regression caused by eager Leaflet marker imports was fixed
+by loading those marker components on the client; the rebuilt production output
+passed. Local PostgreSQL and actual Telegram transport were not exercised here.
+The existing database was not changed. See [implementation limits and deployment
+steps](mutual-aid-implementation.md) before applying the revision to PostgreSQL.

@@ -63,6 +63,7 @@ dp.message.register(
 
 dp.callback_query.register(rating.handle_rate_callback, F.data.startswith("rate_"))
 dp.callback_query.register(rating.handle_rating_callback, F.data.startswith("rating_"))
+dp.callback_query.register(resources.confirm_resource_callback, F.data.startswith("resource_confirm_"))
 
 
 @dp.errors(ExceptionTypeFilter(TelegramAPIError))

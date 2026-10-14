@@ -1,5 +1,7 @@
 # REST contract used by Next.js
 
+For the new capabilities, contributions, resources, confirmations and triage endpoints see [the October REST additions](mutual-aid-implementation.md#rest-additions). The contracts below remain available for compatibility.
+
 The authoritative implementations are `backend/website/views.py` and `auth.py`. [OpenAPI inventory](openapi.json) lists their API routes; schemas are specified for the central creation and map contracts. Other inventory entries intentionally have general response schemas.
 
 | Operation | Request | Response |

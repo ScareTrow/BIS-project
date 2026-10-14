@@ -91,6 +91,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-3">
+            <Link href="/resources" className="text-blue-700 px-2 py-2">Ресурсы</Link>
             {user?.is_authenticated ? (
               <>
                 <Link href="/" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors px-3 py-2 rounded-md hover:bg-gray-100">

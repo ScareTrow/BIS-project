@@ -88,15 +88,12 @@ async def process_location(message: Message, state: FSMContext):
                 await message.answer("Сначала отправьте описание заявки")
                 return
             
-            category_str = data.get('category', 'emergency')
-            category_map = {
-                'food': ApplicationCategory.FOOD,
-                'medicine': ApplicationCategory.MEDICINE,
-                'shelter': ApplicationCategory.SHELTER,
-                'emergency': ApplicationCategory.EMERGENCY
-            }
-            app_category = category_map.get(category_str.lower(), ApplicationCategory.EMERGENCY)
-            
+            category_str = data.get('category', 'household')
+            try:
+                app_category = ApplicationCategory(category_str)
+            except ValueError:
+                app_category = ApplicationCategory.HOUSEHOLD
+
             new_app = Application(
                 description=description,
                 latitude=location.latitude,
@@ -104,12 +101,16 @@ async def process_location(message: Message, state: FSMContext):
                 category=app_category,
                 expires_at=datetime.now(timezone.utc) + timedelta(days=3),
                 is_sos=False,
+                city=user.city,
+                created_via='telegram',
                 user_id=user.id,
                 moderation_status=ModerationStatus.PENDING
             )
             
             db.session.add(new_app)
             db.session.flush()
+            from backend.website.community import apply_triage
+            apply_triage(new_app)
             
             photo_file_id = data.get('photo_file_id')
             if photo_file_id:
@@ -183,6 +184,10 @@ async def process_sos_location(message: Message, state: FSMContext):
                 category=ApplicationCategory.EMERGENCY,
                 expires_at=datetime.now(timezone.utc) + timedelta(days=1),
                 is_sos=True,
+                city=user.city,
+                priority=5,
+                priority_source='user_sos',
+                created_via='telegram',
                 user_id=user.id,
                 moderation_status=ModerationStatus.PENDING
             )

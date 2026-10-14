@@ -1,5 +1,7 @@
 # Database model
 
+The revised mutual-aid additions and the conceptual-to-physical mapping are documented in [the October implementation](mutual-aid-implementation.md). The diagram below records the retained pre-update core.
+
 Reconstructed from `backend/website/models.py`. PostgreSQL is the production storage; SQLite is used only by the fast default test suite.
 
 ```mermaid

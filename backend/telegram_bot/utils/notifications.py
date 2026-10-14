@@ -1,4 +1,5 @@
 import logging
+from html import escape
 import asyncio
 import threading
 from aiogram import Bot
@@ -7,7 +8,7 @@ from backend.telegram_bot.config import Config
 logger = logging.getLogger(__name__)
 
 
-async def send_notification_async(telegram_id, title, message, notification_type=None):
+async def send_notification_async(telegram_id, title, message, notification_type=None, reply_markup=None):
     if not telegram_id:
         logger.warning(f"send_notification_async called with empty telegram_id")
         return False
@@ -30,13 +31,14 @@ async def send_notification_async(telegram_id, title, message, notification_type
         }
         
         emoji = emoji_map.get(notification_type, '🔔')
-        text = f"{emoji} <b>{title}</b>\n\n{message}"
+        text = f"{emoji} <b>{escape(str(title))}</b>\n\n{escape(str(message))}"
         
         logger.info(f"Sending Telegram notification to {telegram_id}: {title}")
         await bot.send_message(
             chat_id=telegram_id,
             text=text,
-            parse_mode='HTML'
+            parse_mode='HTML',
+            reply_markup=reply_markup,
         )
         logger.info(f"Successfully sent Telegram notification to {telegram_id}")
         return True
@@ -51,7 +53,7 @@ async def send_notification_async(telegram_id, title, message, notification_type
                 logger.warning(f"Error closing bot session: {e}")
 
 
-def send_notification(telegram_id, title, message, notification_type=None):
+def send_notification(telegram_id, title, message, notification_type=None, reply_markup=None):
     """
     Синхронная обертка для отправки уведомлений в Telegram.
     Запускает асинхронную функцию в отдельном потоке с новым event loop.
@@ -68,7 +70,7 @@ def send_notification(telegram_id, title, message, notification_type=None):
             try:
                 logger.info(f"Running send_notification_async in thread for telegram_id: {telegram_id}")
                 result = new_loop.run_until_complete(
-                    send_notification_async(telegram_id, title, message, notification_type)
+                    send_notification_async(telegram_id, title, message, notification_type, reply_markup)
                 )
                 logger.info(f"Notification thread completed for telegram_id: {telegram_id}, result: {result}")
                 return result

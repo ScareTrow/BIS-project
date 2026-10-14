@@ -120,6 +120,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-8">
       <div className="container mx-auto px-4">
+        <Link href="/admin/community" className="inline-block mb-4 text-blue-700 underline">Правила приоритета и региональная аналитика</Link>
         <div className="mb-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>

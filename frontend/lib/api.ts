@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+export type ApplicationCategory = 'food' | 'medicine' | 'shelter' | 'emergency' | 'clothing' | 'household' | 'delivery' | 'volunteering' | 'social_project';
+
 export interface User {
   id: number; email: string; first_name: string; last_name?: string | null;
   isAdmin: boolean; is_super_admin?: boolean; is_authenticated?: boolean;
@@ -13,7 +15,7 @@ export interface ApplicationResponse {
   responder?: Pick<User, 'id' | 'first_name' | 'last_name' | 'avatar'> | null;
 }
 export interface Application {
-  id: number; number?: number; description: string; category: 'food' | 'medicine' | 'shelter' | 'emergency';
+  id: number; number?: number; description: string; category: ApplicationCategory;
   latitude: number; longitude: number; date: string; status: string;
   moderation_status?: string; is_sos: boolean; is_resolved: boolean; is_false_call: boolean;
   user_id: number; priority: number; city?: string | null; region?: string | null;
@@ -40,7 +42,7 @@ export interface NewsItem {
 }
 type NewsInput = { title: string; content: string; news_type: string; is_published: boolean };
 const origin = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-const http = axios.create({ baseURL: origin + '/api', withCredentials: true });
+export const http = axios.create({ baseURL: origin + '/api', withCredentials: true });
 http.interceptors.response.use(
   response => response,
   error => {

@@ -60,6 +60,9 @@ def create_app(test_config=None):
 
     app.register_blueprint(views, url_prefix='/')
     app.register_blueprint(auth, url_prefix='/')
+    from .community import community, register_commands
+    app.register_blueprint(community)
+    register_commands(app)
 
     from .models import User
 
@@ -158,6 +161,12 @@ def create_database(app):
                 db.create_all()
                 print("Database tables created")
                 return
+
+            if 'application' in existing_tables:
+                columns = {c['name'] for c in inspector.get_columns('application')}
+                if 'priority_source' not in columns:
+                    print('Existing database requires: flask --app main:app db upgrade')
+                    return
             
             db.create_all()
             
