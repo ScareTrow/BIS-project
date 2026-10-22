@@ -7,11 +7,11 @@ from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 from urllib.parse import unquote
 import os
-import mimetypes
 import json
 import html
 import re
-from .validation import coordinates, validate_upload
+from .validation import coordinates, validate_upload, validate_photos, UploadValidationError
+from .application_service import save_photos, save_media_file
 from .community import parse_application_extras, attach_application_extras, notify_matching, dispatch_matching, record_moderation, need_data
 from sqlalchemy.exc import IntegrityError
 
@@ -23,11 +23,13 @@ def conflicting_write(error):
     db.session.rollback()
     return jsonify({'error': 'Данные изменились или связаны с историей помощи. Обновите страницу и повторите действие.'}), 409
 
-MAX_DESCRIPTION_LENGTH = 5000
+MAX_DESCRIPTION_LENGTH = 1000
 
 def validate_description(description):
     if not description or len(description.strip()) == 0:
         return False, "Описание не может быть пустым"
+    if len(description.strip()) < 10:
+        return False, "Описание должно содержать минимум 10 символов"
     
     if len(description) > MAX_DESCRIPTION_LENGTH:
         return False, f"Описание слишком длинное (максимум {MAX_DESCRIPTION_LENGTH} символов)"
@@ -450,112 +452,13 @@ def get_admin_users():
 @login_required
 def send_task():
     if request.method == 'POST':
-        from .models import User
-        if current_user.is_blocked:
-            if current_user.blocked_until and current_user.blocked_until > datetime.now(timezone.utc):
-                flash('Вы заблокированы и не можете создавать заявки', 'error')
-                return redirect(url_for('views.home'))
-            else:
-                current_user.is_blocked = False
-                current_user.blocked_until = None
-                db.session.commit()
-        
-        if current_user.rating_count > 0 and current_user.average_rating < 2.0:
-            flash('Ваш рейтинг слишком низкий для создания заявок', 'error')
-            return redirect(url_for('views.home'))
-        
-        try:
-            latitude = float(request.form.get('latitude'))
-            longitude = float(request.form.get('longitude'))
-        except (ValueError, TypeError):
-            flash('Некорректные координаты', 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        category_str = request.form.get('category')
-        description = request.form.get('description', '').strip()
-        
-        is_valid, error_message = validate_description(description)
-        if not is_valid:
-            flash(error_message, 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        description = sanitize_description(description)
-        
-        try:
-            expires_days = int(request.form.get('expires_days', 7))
-        except (ValueError, TypeError):
-            expires_days = 7
-        
-        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
-            flash('Некорректные координаты', 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        try:
-            category = ApplicationCategory(category_str)
-        except ValueError:
-            flash('Некорректная категория', 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        city, region = get_location_info(latitude, longitude)
-        
-        new_application = Application(
-            description=description,
-            latitude=latitude,
-            longitude=longitude,
-            category=category,
-            user_id=current_user.id,
-            moderation_status=ModerationStatus.PENDING,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
-            city=city,
-            region=region,
-            priority=0
-        )
-        
-        db.session.add(new_application)
-        db.session.flush()
-        
-        if 'media_files' in request.files:
-            files = request.files.getlist('media_files')
-            upload_folder = current_app.config['UPLOAD_FOLDER']
-            
-            for file in files:
-                if file and file.filename:
-                    try:
-                        filename = secure_filename(file.filename)
-                        if not filename:
-                            continue
-                        
-                        file.seek(0, os.SEEK_END)
-                        file_size = file.tell()
-                        file.seek(0)
-                        if file_size > 50 * 1024 * 1024:
-                            flash(f'Файл {filename} слишком большой (макс. 50MB)', 'error')
-                            continue
-                        
-                        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                        unique_filename = f"app_{new_application.id}_{timestamp}_{filename}"
-                        file_path = os.path.join(upload_folder, unique_filename)
-                        
-                        file.save(file_path)
-                        
-                        file_type, _ = mimetypes.guess_type(file_path)
-                        if not file_type:
-                            file_type = 'application/octet-stream'
-                        
-                        media = ApplicationMedia(
-                            application_id=new_application.id,
-                            file_path=unique_filename,
-                            file_type=file_type
-                        )
-                        db.session.add(media)
-                    except Exception as e:
-                        current_app.logger.error(f"Error saving media file: {e}")
-                        flash(f'Ошибка при сохранении файла {file.filename}', 'error')
-        
-            db.session.commit()
-        flash('Заявка создана и отправлена на модерацию', 'success')
-        return redirect(url_for('views.home'))
-    
+        response = current_app.make_response(api_create_application())
+        result = response.get_json()
+        if response.status_code == 201:
+            flash(result['message'], 'success')
+            return redirect(url_for('views.application_detail', app_id=result['id']))
+        flash(result.get('error', 'Не удалось создать заявку'), 'error')
+        return render_template('send_task.html', user=current_user), response.status_code
     return render_template('send_task.html', user=current_user)
 
 
@@ -2500,177 +2403,60 @@ def api_create_application():
     if user.rating_count > 0 and user.average_rating < 2.0:
         return jsonify({'error': 'Ваш рейтинг слишком низкий для создания заявок'}), 403
     
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        latitude = request.form.get('latitude')
-        longitude = request.form.get('longitude')
-        category_str = request.form.get('category', 'food')
-        description = request.form.get('description', '').strip()
-        expires_days = request.form.get('expires_days', '7')
-        
-        try:
-            latitude = float(latitude) if latitude else None
-            longitude = float(longitude) if longitude else None
-            expires_days = int(expires_days) if expires_days else 7
-        except (ValueError, TypeError):
-            return jsonify({'error': 'Некорректные данные'}), 400
-        
-        media_files = request.files.getlist('media_files')
-        if not media_files or len(media_files) == 0 or all(not f.filename for f in media_files):
-            return jsonify({'error': 'Необходимо приложить хотя бы один медиафайл в качестве доказательства'}), 400
-    else:
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict) or not data:
-            return jsonify({'error': 'Неверный формат данных'}), 400
-        
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        category_str = data.get('category', 'food')
-        raw_description = data.get('description', '')
-        if not isinstance(raw_description, str):
-            return jsonify({'error': 'Описание должно быть текстом'}), 400
-        description = raw_description.strip()
-        expires_days = data.get('expires_days', 7)
-        media_files = []
-    
+    data = request.form if request.mimetype == 'multipart/form-data' else request.get_json(silent=True)
+    if not isinstance(data, dict) and request.mimetype != 'multipart/form-data':
+        return jsonify(error='Неверный формат данных'), 400
+    if data is None:
+        return jsonify(error='Неверный формат данных'), 400
     try:
-        extras = parse_application_extras(request.form if request.mimetype == 'multipart/form-data' else data)
-    except ValueError as error:
-        return jsonify({'error': str(error)}), 400
-
-    if not description:
-        return jsonify({'error': 'Описание обязательно'}), 400
-    
-    if latitude is None or longitude is None:
-        return jsonify({'error': 'Координаты обязательны'}), 400
-    
-    try:
-        latitude, longitude = coordinates(latitude, longitude)
-    except ValueError:
-        return jsonify({'error': 'Некорректные координаты'}), 400
-    
-    try:
-        category = ApplicationCategory(category_str)
-    except ValueError:
-        return jsonify({'error': 'Некорректная категория'}), 400
-    
-    is_valid, error_message = validate_description(description)
-    if not is_valid:
-        return jsonify({'error': error_message}), 400
-    
-    description = sanitize_description(description)
-    
-    try:
-        expires_days = int(expires_days)
+        latitude, longitude = coordinates(data.get('latitude'), data.get('longitude'))
+        description = data.get('description', '')
+        if not isinstance(description, str):
+            raise ValueError('Описание должно быть текстом')
+        description = description.strip()
+        valid, error = validate_description(description)
+        if not valid:
+            raise ValueError(error)
+        category = ApplicationCategory(data.get('category', 'food'))
+        fields = data.to_dict() if request.mimetype == 'multipart/form-data' else dict(data)
+        extras = parse_application_extras(fields)
+        expires_days = int(data.get('expires_days', 1 if extras['priority'] == 'sos' else 7))
         if not 1 <= expires_days <= 365:
-            raise ValueError('Invalid duration')
-        for media_file in media_files:
-            validate_upload(media_file)
+            raise ValueError('Срок заявки должен быть от 1 до 365 дней')
+        photos = request.files.getlist('media_files')
+        validate_photos(photos)
         verification = request.files.get('verification_document')
         if verification and verification.filename:
             validate_upload(verification, document=True)
+        supplied_city = data.get('city')
+        if supplied_city is not None and (not isinstance(supplied_city, str) or not supplied_city.strip() or len(supplied_city) > 200):
+            raise ValueError('Укажите город (до 200 символов)')
+    except UploadValidationError as error:
+        return jsonify(error=str(error)), error.status_code
     except (ValueError, TypeError) as error:
-        return jsonify({'error': str(error)}), 400
-
-    city, region = get_location_info(latitude, longitude)
-    supplied_city = (request.form if request.mimetype == 'multipart/form-data' else data).get('city')
-    if supplied_city is not None:
-        if not isinstance(supplied_city, str) or not supplied_city.strip() or len(supplied_city) > 200:
-            return jsonify({'error': 'Укажите город'}), 400
-        city = supplied_city.strip()
-    
-    new_application = Application(
-        description=description,
-        latitude=latitude,
-        longitude=longitude,
-        category=category,
-        user_id=user.id,
-        moderation_status=ModerationStatus.PENDING,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
-        city=city,
-        region=region,
-        priority=0
-    )
-    
-    db.session.add(new_application)
-    db.session.flush()
-    attach_application_extras(new_application, extras)
-    
-    if media_files:
-        upload_folder = current_app.config['UPLOAD_FOLDER']
-        for file in media_files:
-            if file and file.filename:
-                try:
-                    filename = secure_filename(file.filename)
-                    if not filename:
-                        continue
-                    
-                    file.seek(0, os.SEEK_END)
-                    file_size = file.tell()
-                    file.seek(0)
-                    if file_size > 50 * 1024 * 1024:  # 50 МБ на файл
-                        db.session.rollback()
-                        return jsonify({'error': f'Файл {filename} слишком большой (макс. 50MB)'}), 400
-                    
-                    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_filename = f"app_{new_application.id}_{timestamp}_{filename}"
-                    file_path = os.path.join(upload_folder, unique_filename)
-                    
-                    file.save(file_path)
-                    
-                    file_type, _ = mimetypes.guess_type(file_path)
-                    if not file_type:
-                        file_type = 'application/octet-stream'
-                    
-                    media = ApplicationMedia(
-                        application_id=new_application.id,
-                        file_path=unique_filename,
-                        file_type=file_type
-                    )
-                    db.session.add(media)
-                except Exception as e:
-                    current_app.logger.error(f"Error saving media file: {e}")
-                    db.session.rollback()
-                    return jsonify({'error': f'Ошибка при сохранении файла {file.filename}'}), 500
-    
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        verification_doc = request.files.get('verification_document')
-        if verification_doc and verification_doc.filename:
-            if category in [ApplicationCategory.FOOD, ApplicationCategory.MEDICINE, ApplicationCategory.SHELTER]:
-                try:
-                    filename = secure_filename(verification_doc.filename)
-                    if filename and (filename.endswith('.pdf') or verification_doc.content_type == 'application/pdf'):
-                        verification_doc.seek(0, os.SEEK_END)
-                        file_size = verification_doc.tell()
-                        verification_doc.seek(0)
-                        if file_size > 50 * 1024 * 1024:
-                            db.session.rollback()
-                            return jsonify({'error': 'Документ подтверждения слишком большой (макс. 50MB)'}), 400
-                        
-                        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                        unique_filename = f"verify_{new_application.id}_{timestamp}_{filename}"
-                        file_path = os.path.join(upload_folder, unique_filename)
-                        
-                        verification_doc.save(file_path)
-                        
-                        verification_media = ApplicationMedia(
-                            application_id=new_application.id,
-                            file_path=unique_filename,
-                            file_type='application/pdf'
-                        )
-                        db.session.add(verification_media)
-                except Exception as e:
-                    current_app.logger.error(f"Error saving verification document: {e}")
-                    pass
-    
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'id': new_application.id,
-        'application_id': new_application.id,
-        'application': {'id': new_application.id},
-        'message': 'Заявка создана и отправлена на модерацию'
-    })
+        return jsonify(error=str(error)), 400
+    city, region = (supplied_city.strip(), None) if supplied_city else (user.city, None)
+    # Explicit coordinates are sufficient to publish SOS without a slow geocoder.
+    if not city and extras['priority'] != 'sos':
+        city, region = get_location_info(latitude, longitude)
+    application = Application(description=sanitize_description(description), latitude=latitude,
+        longitude=longitude, category=category, user_id=user.id,
+        moderation_status=ModerationStatus.PENDING, status='pending',
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days), city=city, region=region)
+    try:
+        db.session.add(application)
+        db.session.flush()
+        attach_application_extras(application, extras)
+        save_photos(application, photos)
+        if verification and verification.filename:
+            save_media_file(application, verification, 'application/pdf')
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return jsonify(success=True, id=application.id, application_id=application.id,
+        application=dict(id=application.id),
+        message='Заявка отправлена на модерацию'), 201
 
 
 @views.route('/api/sos', methods=['POST'])

@@ -34,7 +34,7 @@
       <div class="form-group">
         <label for="description">Описание проблемы</label>
         <textarea class="form-control" id="description" name="description" rows="5"
-          placeholder="Опишите проблему подробно..." required></textarea>
+          placeholder="Опишите проблему подробно..." minlength="10" maxlength="1000" required></textarea>
       </div>
 
       <div class="form-group">
@@ -49,10 +49,10 @@
 
 
       <div class="form-group">
-        <label for="media_files">Медиафайлы (опционально)</label>
-        <input type="file" class="form-control-file" id="media_files" name="media_files" multiple
-          accept=".png,.jpg,.jpeg,.tiff,.bmp,.gif">
-        <small class="form-text text-muted">Можно загрузить несколько файлов (PNG, JPG, JPEG, TIFF, BMP, GIF)</small>
+        <label for="media_files">Фото (обязательно)</label>
+        <input type="file" class="form-control-file" id="media_files" name="media_files" multiple required
+          accept="image/jpeg,image/png,.png,.jpg,.jpeg">
+        <small class="form-text text-muted">От 1 до 3 фотографий JPEG/PNG, до 10 МБ каждая</small>
       </div>
 
       <button type="submit" class="btn btn-primary btn-lg">Отправить заявку</button>

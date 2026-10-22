@@ -1,10 +1,18 @@
 """Validation shared by the JSON and multipart application endpoints."""
 import math
+import io
 from pathlib import Path
-from werkzeug.utils import secure_filename
+from PIL import Image, UnidentifiedImageError
 
-MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'}
-MAX_FILE_BYTES = 50 * 1024 * 1024
+MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.png'}
+MAX_FILE_BYTES = 10 * 1024 * 1024
+MAX_PHOTOS = 3
+
+
+class UploadValidationError(ValueError):
+    def __init__(self, message, status_code=400):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def coordinates(latitude, longitude):
@@ -22,16 +30,37 @@ def coordinates(latitude, longitude):
 
 
 def validate_upload(file, *, document=False):
-    filename = secure_filename(file.filename or '')
+    filename = file.filename or ''
     extension = Path(filename).suffix.lower()
     allowed = {'.pdf'} if document else MEDIA_EXTENSIONS
     if not filename or extension not in allowed:
-        raise ValueError('Unsupported file extension')
+        raise UploadValidationError('Поддерживаются только JPEG и PNG' if not document else 'Нужен PDF документ', 415)
     file.stream.seek(0, 2)
     size = file.stream.tell()
     file.stream.seek(0)
     if size == 0:
-        raise ValueError('Empty files are not accepted')
+        raise UploadValidationError('Файл пуст')
     if size > MAX_FILE_BYTES:
-        raise ValueError('Maximum file size is 50 MB')
+        raise UploadValidationError('Файл слишком большой (максимум 10 МБ)', 413)
+    content = file.stream.read()
+    file.stream.seek(0)
+    if document:
+        if not content.startswith(b'%PDF-'):
+            raise UploadValidationError('Недопустимое содержимое PDF', 415)
+    else:
+        try:
+            with Image.open(io.BytesIO(content)) as image:
+                expected = 'PNG' if extension == '.png' else 'JPEG'
+                if image.format != expected:
+                    raise UploadValidationError('Содержимое файла не соответствует JPEG/PNG', 415)
+                image.verify()
+        except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError) as error:
+            raise UploadValidationError('Файл не является корректным изображением JPEG/PNG', 415) from error
     return filename
+
+
+def validate_photos(files):
+    if not 1 <= len(files) <= MAX_PHOTOS:
+        raise UploadValidationError('Приложите от 1 до 3 фотографий JPEG/PNG')
+    for file in files:
+        validate_upload(file)

@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.exceptions import HTTPException
 import os
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
@@ -95,6 +96,12 @@ def create_app(test_config=None):
                 'max_size': '100 МБ'
             }), 413
         return 'Файл слишком большой', 413
+
+    @app.errorhandler(HTTPException)
+    def api_http_error(error):
+        if request.path.startswith('/api/'):
+            return jsonify(error=error.description), error.code
+        return error
     
     @app.template_filter('from_json')
     def from_json_filter(value):
