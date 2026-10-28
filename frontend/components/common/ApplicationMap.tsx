@@ -9,6 +9,7 @@ import LeafletIconFix from './LeafletIconFix';
 interface ApplicationMapProps {
   center: [number, number];
   onLocationSelect: (lat: number, lng: number) => void;
+  selected?: boolean;
 }
 
 function LocationMarker({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) {
@@ -48,7 +49,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export default function ApplicationMap({ center, onLocationSelect }: ApplicationMapProps) {
+export default function ApplicationMap({ center, onLocationSelect, selected = true }: ApplicationMapProps) {
   const markerRef = useRef<L.Marker>(null);
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function ApplicationMap({ center, onLocationSelect }: Application
   }, [center]);
 
   return (
+    <div style={{ height: '360px', width: '100%' }}>
     <MapContainer
       center={center}
       zoom={10}
@@ -82,7 +84,7 @@ export default function ApplicationMap({ center, onLocationSelect }: Application
         subdomains="abcd"
         maxZoom={20}
       />
-      <Marker 
+      {selected && <Marker
         position={center} 
         ref={markerRef}
         icon={new L.Icon.Default({
@@ -90,9 +92,10 @@ export default function ApplicationMap({ center, onLocationSelect }: Application
           iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
           shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
         })}
-      />
+      />}
       <LocationMarker onLocationSelect={onLocationSelect} />
     </MapContainer>
+    </div>
   );
 }
 
