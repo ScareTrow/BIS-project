@@ -11,7 +11,7 @@ import json
 import html
 import re
 from .validation import coordinates, validate_upload, validate_photos, UploadValidationError
-from .application_service import save_photos, save_media_file
+from .application_service import save_photos, save_media_file, visible_requests, lifecycle
 from .community import parse_application_extras, attach_application_extras, notify_matching, dispatch_matching, record_moderation, need_data
 from sqlalchemy.exc import IntegrityError
 
@@ -877,7 +877,8 @@ def get_application(app_id):
         'date': application.date.isoformat() if application.date else None,
         'expires_at': application.expires_at.isoformat() if application.expires_at else None,
         'duration_days': duration_days,
-        'status': application.moderation_status.value if application.moderation_status else 'pending',
+        'status': lifecycle(application),
+        'moderation_status': application.moderation_status.value,
         'is_sos': application.is_sos,
         'is_resolved': application.is_resolved,
         'is_false_call': application.is_false_call,
@@ -2199,27 +2200,8 @@ def get_map_points():
     
     city = request.args.get('city', '').strip()
     
-    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-        conditions = [
-            or_(
-                Application.moderation_status == ModerationStatus.APPROVED,
-                and_(
-                    Application.user_id == current_user.id,
-                    Application.moderation_status == ModerationStatus.PENDING
-                )
-            ),
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        ]
-    else:
-        conditions = [
-            Application.moderation_status == ModerationStatus.APPROVED,
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        ]
-    
-    query = Application.query.filter(*conditions)
-    
+    query = visible_requests(current_user, request.args.get('status', 'active'))
+
     if city and city != 'all':
         query = query.filter(
             func.coalesce(Application.city, '').ilike(f'%{city}%')
@@ -2235,6 +2217,9 @@ def get_map_points():
                   app.user_id == current_user.id)
         points.append({
             'id': app.id,
+            'status': lifecycle(app),
+            'is_resolved': app.is_resolved,
+            'is_false_call': app.is_false_call,
             'latitude': app.latitude,
             'longitude': app.longitude,
             'category': app.category.value if app.category else 'food',
@@ -2247,6 +2232,14 @@ def get_map_points():
             'is_own': is_own
         })
     
+    if request.args.get('format') == 'geojson':
+        response = jsonify(type='FeatureCollection', features=[dict(
+            type='Feature', id=point['id'],
+            geometry=dict(type='Point', coordinates=[point['longitude'], point['latitude']]),
+            properties=point,
+        ) for point in points])
+        response.mimetype = 'application/geo+json'
+        return response
     return jsonify(points)
 
 
@@ -2257,26 +2250,8 @@ def get_applications_list_data():
     
     city = request.args.get('city', '').strip()
     
-    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-        query = Application.query.filter(
-            or_(
-                Application.moderation_status == ModerationStatus.APPROVED,
-                and_(
-                    Application.user_id == current_user.id,
-                    Application.moderation_status == ModerationStatus.PENDING
-                )
-            ),
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        )
-    else:
-        query = Application.query.filter_by(
-            moderation_status=ModerationStatus.APPROVED
-        ).filter(
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        )
-    
+    query = visible_requests(current_user, request.args.get('status', 'active'))
+
     if city and city != 'all':
         query = query.filter(
             func.coalesce(Application.city, '').ilike(f'%{city}%')
@@ -2293,6 +2268,9 @@ def get_applications_list_data():
                   app.user_id == current_user.id)
         apps_data.append({
             'id': app.id,
+            'status': lifecycle(app),
+            'is_resolved': app.is_resolved,
+            'is_false_call': app.is_false_call,
             'number': app.id,
             'category': app.category.value if app.category else 'food',
             'description': description_preview,
