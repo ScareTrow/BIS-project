@@ -14,6 +14,7 @@ export interface ApplicationResponse {
   id: number; responder_id: number; status: string; created_at: string;
   responder?: Pick<User, 'id' | 'first_name' | 'last_name' | 'avatar'> | null;
 }
+export type ApplicationStatus = 'active' | 'open' | 'in_progress' | 'completed';
 export interface Application {
   id: number; number?: number; description: string; category: ApplicationCategory;
   latitude: number; longitude: number; date: string; status: string;
@@ -35,6 +36,10 @@ export interface SearchResult {
   total: number;
 }
 interface AuthResult { success: boolean; user: User; message?: string }
+interface MapFeatures {
+  type: 'FeatureCollection';
+  features: { id: number; geometry: { type: 'Point'; coordinates: [number, number] }; properties: Application }[];
+}
 interface Result { success: boolean; message?: string; id?: number; error?: string }
 export interface NewsItem {
   id: number; title: string; content: string; news_type: string; is_published: boolean;
@@ -55,8 +60,13 @@ const get = <T>(path: string, params?: object): Promise<T> => http.get<T>(path, 
 const post = <T = Result>(path: string, body?: unknown): Promise<T> => http.post<T>(path, body).then(r => r.data);
 
 export const apiClient = {
-  getApplications: (_forceRefresh = false, city?: string) => get<Application[]>('/map/points', { city }),
-  getApplicationsList: (_forceRefresh = false, city?: string) => get<Application[]>('/applications/list', { city }),
+  getApplications: async (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => {
+    const data = await get<MapFeatures | Application[]>('/map/points', { city, status, format: 'geojson' });
+    if (Array.isArray(data)) return data;
+    return data.features.map(feature => ({ ...feature.properties, id: feature.id,
+      latitude: feature.geometry.coordinates[1], longitude: feature.geometry.coordinates[0] }));
+  },
+  getApplicationsList: (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => get<Application[]>('/applications/list', { city, status }),
   getApplication: (id: number) => get<Application>('/applications/' + id),
   createApplication: (data: FormData | { latitude: number; longitude: number; category: string; description: string; expires_days?: number }) => post('/applications', data),
   createSOS: (latitude: number, longitude: number) => post('/sos', { latitude, longitude }),

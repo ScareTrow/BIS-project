@@ -22,7 +22,7 @@ export default function ApplicationMarker({ application }: ApplicationMarkerProp
   const [icon, setIcon] = useState<L.DivIcon | null>(null);
 
   useEffect(() => {
-    const color = categoryColors[application.category] || '#6c757d';
+    const color = application.is_sos ? '#dc2626' : categoryColors[application.category] || '#6c757d';
     const customIcon = L.divIcon({
       className: 'custom-marker',
       html: `
@@ -56,6 +56,7 @@ export default function ApplicationMarker({ application }: ApplicationMarkerProp
         <div className="p-2 min-w-[200px]">
           <div className="flex items-center space-x-2 mb-2">
             <CategoryBadge category={application.category} />
+            {application.moderation_status === 'pending' && <span className="badge bg-yellow-100 text-yellow-900">На модерации</span>}
             {application.is_sos && (
               <span className="badge badge-danger">SOS</span>
             )}
