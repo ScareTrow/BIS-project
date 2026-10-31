@@ -75,6 +75,22 @@ def test_json_cannot_bypass_required_photo(app, client, test_user):
                           description='Нужна помощь продуктами', category='food'))
     assert response.status_code == 400
 
+def test_map_status_filter_and_own_pending(app, client, test_user, test_application):
+    login(client, test_user)
+    with app.app_context():
+        pending = Application(user_id=test_user.id, description='My pending request',
+            latitude=43.22, longitude=76.85, category=ApplicationCategory.FOOD)
+        finished = Application(user_id=test_user.id, description='Completed request',
+            latitude=43.22, longitude=76.85, category=ApplicationCategory.FOOD,
+            moderation_status=ModerationStatus.APPROVED, is_resolved=True)
+        db.session.add_all([pending, finished])
+        db.session.commit()
+        pending_id, finished_id = pending.id, finished.id
+    for path in ['/api/map/points', '/api/applications/list']:
+        assert {p['id'] for p in client.get(path + '?status=open').json} == {test_application.id, pending_id}
+        assert {p['id'] for p in app.test_client().get(path + '?status=completed').json} == {finished_id}
+        assert client.get(path + '?status=invalid').status_code == 400
+
 def test_optional_verification_document_is_preserved_and_private(app, client, test_user):
     login(client, test_user)
     response = submit(client, verification_document=(io.BytesIO(b'%PDF-1.4\nverification'), 'verification.pdf'))
@@ -85,6 +101,24 @@ def test_optional_verification_document_is_preserved_and_private(app, client, te
         filename = document.file_path
     assert client.get('/api/uploads/' + filename).status_code == 200
     assert app.test_client().get('/api/uploads/' + filename).status_code == 403
+
+def test_map_in_progress_filter(app, client, test_user, test_application, test_response):
+    response, _helper = test_response
+    login(client, test_user)
+    assert client.post(f'/api/applications/{test_application.id}/responses/{response.id}/accept').status_code == 200
+    guest = app.test_client()
+    assert guest.get('/api/map/points?status=open').json == []
+    assert guest.get('/api/map/points?status=in_progress').json[0]['id'] == test_application.id
+
+def test_geojson_points_preserve_coordinate_order(client, test_application):
+    response = client.get('/api/map/points?format=geojson&status=open')
+    assert response.mimetype == 'application/geo+json'
+    assert response.json['type'] == 'FeatureCollection'
+    feature = response.json['features'][0]
+    assert feature['type'] == 'Feature'
+    assert feature['id'] == test_application.id
+    assert feature['geometry'] == {'type': 'Point', 'coordinates': [76.8512, 43.222]}
+    assert feature['properties']['status'] == 'open'
 
 def test_partial_file_write_is_rolled_back(app, client, test_user, monkeypatch):
     from werkzeug.datastructures import FileStorage
