@@ -31,6 +31,7 @@ from .models import (
     Rating,
 )
 from .validation import coordinates
+from .notifications import create_notification
 
 community = Blueprint("community", __name__)
 PRIORITIES = {"normal": 0, "high": 3, "sos": 5}
@@ -376,6 +377,25 @@ def preferences():
     )
 
 
+@community.route('/api/user/location', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def volunteer_location():
+    pref = db.session.get(VolunteerPreference, current_user.id)
+    if request.method == 'PUT':
+        data = payload()
+        latitude, longitude = coordinates(data.get('latitude'), data.get('longitude'))
+        if pref is None:
+            pref = VolunteerPreference(user_id=current_user.id)
+            db.session.add(pref)
+        pref.latitude, pref.longitude = latitude, longitude
+        db.session.commit()
+    elif request.method == 'DELETE' and pref:
+        pref.latitude = pref.longitude = None
+        db.session.commit()
+    return jsonify(latitude=pref.latitude if pref else None,
+                   longitude=pref.longitude if pref else None)
+
+
 @community.get("/api/applications/matching")
 @login_required
 def matching():
@@ -524,15 +544,9 @@ def complete_response(response_id):
     if Contribution.query.filter_by(response_id=response.id, status="promised").first():
         return jsonify(error="Сначала доставьте обещанные ресурсы"), 409
     response.status = ResponseStatus.COMPLETED
-    db.session.add(
-        Notification(
-            user_id=response.responder_id,
-            title="Помощь подтверждена",
-            message=f"Автор подтвердил помощь по заявке #{response.application_id}",
-            notification_type="response_completed",
-            related_application_id=response.application_id,
-        )
-    )
+    create_notification(user_id=response.responder_id, title="Помощь подтверждена",
+        message=f"Автор подтвердил помощь по заявке #{response.application_id}",
+        notification_type="response_completed", related_application_id=response.application_id)
     db.session.commit()
     return jsonify(success=True)
 
@@ -569,15 +583,9 @@ def rate_response(response_id):
     helper.rating_sum = sum(r.rating_value for r in received)
     helper.rating_count = len(received)
     helper.update_badge()
-    db.session.add(
-        Notification(
-            user_id=helper.id,
-            title="Новая оценка",
-            message=f"Ваша помощь по заявке #{response.application_id} оценена на {score}/5",
-            notification_type="rating_received",
-            related_application_id=response.application_id,
-        )
-    )
+    create_notification(user_id=helper.id, title="Новая оценка",
+        message=f"Ваша помощь по заявке #{response.application_id} оценена на {score}/5",
+        notification_type="rating_received", related_application_id=response.application_id)
     db.session.commit()
     return jsonify(success=True, id=rating.id), 201
 

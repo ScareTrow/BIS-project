@@ -40,6 +40,16 @@ dp.message.register(rating.cmd_rate, Command("rate"))
 dp.message.register(help.cmd_help, Command("help"))
 dp.message.register(resources.cmd_resources, Command("resources"))
 
+
+@dp.message(Command('location'))
+async def volunteer_location_prompt(message: Message, state: FSMContext):
+    from backend.telegram_bot.middleware.auth import require_auth
+    if not await require_auth(message, state):
+        return
+    await state.clear()
+    await state.set_state(ApplicationStates.waiting_volunteer_location)
+    await message.answer('Отправьте свою геолокацию для оповещений о заявках в радиусе 10 км. Точка не будет показана в публичном профиле.')
+
 dp.message.register(create.cmd_create, F.text == "📝 Создать заявку")
 dp.message.register(sos.cmd_sos, F.text == "🚨 SOS - Экстренная помощь")
 dp.message.register(help.cmd_help, F.text == "ℹ️ Помощь")
@@ -48,8 +58,10 @@ dp.message.register(rating.handle_rating_comment, rating.RatingStates.waiting_co
 dp.message.register(
     common.process_description,
     ApplicationStates.waiting_description,
-    F.photo | F.text
+    F.photo | F.document | F.text
 )
+dp.message.register(common.process_photo, ApplicationStates.waiting_photo)
+dp.message.register(common.save_volunteer_location, ApplicationStates.waiting_volunteer_location, F.location)
 dp.message.register(
     common.process_location,
     ApplicationStates.waiting_location,

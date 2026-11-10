@@ -35,6 +35,8 @@ class VolunteerPreference(db.Model):
     is_available = db.Column(
         db.Boolean, nullable=False, default=False, server_default=db.false()
     )
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
     updated_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,

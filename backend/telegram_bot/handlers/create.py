@@ -14,6 +14,8 @@ async def cmd_create(message: Message, state: FSMContext):
         return
     
     try:
+        await state.clear()
+        await state.update_data(sos_mode=False)
         from backend.website.models import ApplicationCategory
         parts = (message.text or '').split(maxsplit=1)
         category = parts[1].strip() if len(parts) > 1 else 'household'
@@ -23,9 +25,10 @@ async def cmd_create(message: Message, state: FSMContext):
         await state.update_data(category=category)
         help_text = (
             "<b>Создание заявки</b>\n\n"
-            "1️⃣ Отправь описание заявки текстом или с фото\n"
-            "2️⃣ Отправь геолокацию (Location)\n\n"
-            "💡 <i>Можно отправить фото с подписью или просто текст</i>"
+            "1️⃣ Отправь описание (10–1000 символов), можно с фото\n"
+            "2️⃣ Приложи фото JPEG/PNG до 10 МБ\n"
+            "3️⃣ Отправь геолокацию (Location)\n\n"
+            "💡 <i>Заявка появится после проверки модератором</i>"
         )
         
         sent_msg = await message.answer(help_text, parse_mode="HTML")

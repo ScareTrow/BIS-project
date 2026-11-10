@@ -34,12 +34,9 @@ async def send_notification_async(telegram_id, title, message, notification_type
         text = f"{emoji} <b>{escape(str(title))}</b>\n\n{escape(str(message))}"
         
         logger.info(f"Sending Telegram notification to {telegram_id}: {title}")
-        await bot.send_message(
-            chat_id=telegram_id,
-            text=text,
-            parse_mode='HTML',
-            reply_markup=reply_markup,
-        )
+        await asyncio.wait_for(bot.send_message(
+            chat_id=telegram_id, text=text, parse_mode='HTML', reply_markup=reply_markup,
+        ), timeout=25)
         logger.info(f"Successfully sent Telegram notification to {telegram_id}")
         return True
     except Exception as e:
@@ -58,7 +55,7 @@ def send_notification(telegram_id, title, message, notification_type=None, reply
     Синхронная обертка для отправки уведомлений в Telegram.
     Запускает асинхронную функцию в отдельном потоке с новым event loop.
     """
-    if not telegram_id:
+    if not Config.TELEGRAM_BOT_TOKEN or not telegram_id:
         logger.warning(f"send_notification called with empty telegram_id")
         return False
     

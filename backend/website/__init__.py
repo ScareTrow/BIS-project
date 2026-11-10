@@ -174,6 +174,11 @@ def create_database(app):
                 if 'priority_source' not in columns:
                     print('Existing database requires: flask --app main:app db upgrade')
                     return
+            if 'volunteer_preferences' in existing_tables:
+                columns = {c['name'] for c in inspector.get_columns('volunteer_preferences')}
+                if not {'latitude', 'longitude'}.issubset(columns):
+                    print('Existing database requires: flask --app main:app db upgrade')
+                    return
             
             db.create_all()
             
