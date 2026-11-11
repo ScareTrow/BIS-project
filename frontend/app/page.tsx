@@ -4,6 +4,7 @@ import CursorEffect from '@/components/home/CursorEffect';
 import ListView from '@/components/home/ListView';
 import MapView from '@/components/home/MapView';
 import ViewToggle from '@/components/home/ViewToggle';
+import SOSDialog from '@/components/home/SOSDialog';
 import { apiClient, Application, ApplicationStatus } from '@/lib/api';
 import { getLanguage, useTranslation } from '@/lib/i18n';
 import { CityData, getCityByName, kazakhstanCities, searchKazakhstanCities } from '@/lib/kazakhstanCities';
@@ -15,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function HomePage() {
   const { viewMode, setViewMode, user, language, setLanguage: setLang, shouldRefreshApplications, setShouldRefreshApplications } = useStore();
+  const [showSOS, setShowSOS] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus>('open');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,6 +281,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showSOS && <SOSDialog onClose={() => setShowSOS(false)} onCreated={(_id, point) => {
+        setShowSOS(false);
+        setMapCenter(point);
+        setStatusFilter('open');
+        setViewMode('map');
+        loadApplications(true, selectedCity, 'open');
+        loadStats(true, selectedCity);
+      }} />}
       <CursorEffect>
         <div className="hero-section py-12 mb-8">
           <div className="container mx-auto px-4 relative z-10">
@@ -292,30 +302,7 @@ export default function HomePage() {
               {user?.is_authenticated ? (
                 <div className="flex gap-4 justify-center">
                   <button
-                    onClick={async () => {
-                      if (!navigator.geolocation) {
-                        alert(t('alerts.geolocationNotSupported'));
-                        return;
-                      }
-                      const confirmSOS = confirm('Отправить SOS? Ваше местоположение будет определено автоматически.');
-                      if (!confirmSOS) return;
-                      navigator.geolocation.getCurrentPosition(
-                        async (position) => {
-                          try {
-                            await apiClient.createSOS(position.coords.latitude, position.coords.longitude);
-                            alert(t('alerts.sosSent'));
-                            loadApplications(true, selectedCity);
-                            loadStats(true, selectedCity);
-                          } catch (error) {
-                            console.error('Error sending SOS:', error);
-                            alert(t('alerts.sosError'));
-                          }
-                        },
-                        (error) => {
-                          alert(t('alerts.locationError'));
-                        }
-                      );
-                    }}
+                    onClick={() => setShowSOS(true)}
                     className="sos-button bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center"
                   >
                     <AlertCircle className="inline w-5 h-5 mr-2" />

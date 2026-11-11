@@ -162,7 +162,7 @@ export default function NewApplicationPage() {
           Срочная помощь — SOS
         </label>
         <p className="text-sm text-gray-600">
-          Заявка, включая SOS, появится публично после проверки администратором.
+          Обычная заявка появится после проверки. SOS публикуется сразу; не более трёх SOS в час.
         </p>
         <LocationMap
           selected={form.latitude !== '' && form.longitude !== ''}
@@ -320,7 +320,7 @@ export default function NewApplicationPage() {
           </p>
         )}
         <button className="btn btn-primary" disabled={busy}>
-          {busy ? "Отправка..." : "Отправить на проверку"}
+          {busy ? "Отправка..." : form.priority === 'sos' ? 'Опубликовать SOS' : "Отправить на проверку"}
         </button>
       </form>
     </main>

@@ -145,6 +145,7 @@ export default function ApplicationDetailPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-4">
           Заявка #{application.id}
         </h1>
+        {application.rejection_reason && <p className="text-red-700">Причина отклонения: {application.rejection_reason}</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

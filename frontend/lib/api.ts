@@ -18,7 +18,7 @@ export type ApplicationStatus = 'active' | 'open' | 'in_progress' | 'completed';
 export interface Application {
   id: number; number?: number; description: string; category: ApplicationCategory;
   latitude: number; longitude: number; date: string; status: string;
-  moderation_status?: string; is_sos: boolean; is_resolved: boolean; is_false_call: boolean;
+  moderation_status?: string; rejection_reason?: string | null; is_sos: boolean; is_resolved: boolean; is_false_call: boolean;
   user_id: number; priority: number; city?: string | null; region?: string | null;
   location?: string; address?: string; expires_at?: string | null; duration_days?: number;
   creator?: { id: number; first_name: string; last_name?: string | null; avatar?: string | null };
@@ -69,7 +69,10 @@ export const apiClient = {
   getApplicationsList: (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => get<Application[]>('/applications/list', { city, status }),
   getApplication: (id: number) => get<Application>('/applications/' + id),
   createApplication: (data: FormData | { latitude: number; longitude: number; category: string; description: string; expires_days?: number }) => post('/applications', data),
-  createSOS: (latitude: number, longitude: number) => post('/sos', { latitude, longitude }),
+  createSOS: (data: FormData) => post('/sos', data),
+  getVolunteerLocation: () => get<{ latitude: number | null; longitude: number | null }>('/user/location'),
+  saveVolunteerLocation: (latitude: number, longitude: number) => http.put('/user/location', { latitude, longitude }),
+  clearVolunteerLocation: () => http.delete('/user/location'),
   login: (email: string, password: string) => post<AuthResult>('/auth/login', { email, password }),
   signup: (data: { email: string; firstName: string; lastName?: string; password1: string; password2: string; phone: string; city: string; cityHidden?: boolean; telegram_id?: string }) => post<AuthResult>('/auth/signup', data),
   logout: () => post('/auth/logout'),
@@ -88,7 +91,7 @@ export const apiClient = {
   getAdminUsers: () => get<(User & { total_applications: number; resolved_applications: number; false_calls_count: number; help_given: number; average_rating: number; is_super_admin: boolean; is_blocked: boolean })[]>('/admin/users'),
   getAdminApplications: (status = 'all') => get<Application[]>('/admin/applications', { status }),
   approveApplication: (id: number) => post('/admin/applications/' + id + '/approve'),
-  rejectApplication: (id: number) => post('/admin/applications/' + id + '/reject'),
+  rejectApplication: (id: number, reason: string) => post('/admin/applications/' + id + '/reject', { reason }),
   markFalseApplication: (id: number) => post('/admin/applications/' + id + '/mark-false'),
   setApplicationPriority: (id: number, priority: number) => post('/admin/applications/' + id + '/set-priority', { priority }),
   makeAdmin: (id: number) => post('/admin/users/' + id + '/make-admin'),

@@ -103,10 +103,15 @@ function AdminApplicationsPageContent() {
   };
 
   const handleReject = async (appId: number) => {
-    if (!confirm('Вы уверены, что хотите отклонить эту заявку?')) return;
+    const reason = prompt('Укажите причину отклонения. Автор получит это объяснение.');
+    if (reason === null) return;
+    if (!reason.trim() || reason.trim().length > 1000) {
+      alert('Укажите причину от 1 до 1000 символов');
+      return;
+    }
 
     try {
-      await apiClient.rejectApplication(appId);
+      await apiClient.rejectApplication(appId, reason.trim());
       await loadApplications(statusFilter);
     } catch (error) {
       console.error('Error rejecting application:', error);
@@ -293,6 +298,7 @@ function AdminApplicationsPageContent() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(app.moderation_status || app.status)}
+                          {app.is_sos && !app.moderated_at && <span className="block text-xs text-yellow-800">Ожидает проверки после публикации</span>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {app.moderation_status === 'rejected' ? (
@@ -322,7 +328,7 @@ function AdminApplicationsPageContent() {
                           >
                             Просмотр
                           </Link>
-                          {app.moderation_status === 'pending' && (
+                          {(app.moderation_status === 'pending' || (app.is_sos && !app.moderated_at && app.moderation_status === 'approved')) && (
                             <>
                               <button
                                 onClick={() => handleApprove(app.id)}
@@ -371,6 +377,7 @@ function AdminApplicationsPageContent() {
                           SOS
                         </span>
                       )}
+                      {app.is_sos && !app.moderated_at && <span className="badge bg-yellow-100 text-yellow-900">Опубликована, ожидает проверки</span>}
                       {app.priority !== undefined && app.priority > 0 && (
                         <span className="badge bg-blue-500 text-white">
                           <Star className="w-3 h-3 mr-1" />
@@ -433,7 +440,7 @@ function AdminApplicationsPageContent() {
                       <Eye className="w-4 h-4 mr-1" />
                       Просмотр
                     </Link>
-                    {app.moderation_status === 'pending' && (
+                    {(app.moderation_status === 'pending' || (app.is_sos && !app.moderated_at && app.moderation_status === 'approved')) && (
                       <>
                         <button
                           onClick={() => handleApprove(app.id)}
