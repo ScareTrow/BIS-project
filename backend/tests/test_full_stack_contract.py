@@ -1,11 +1,11 @@
 """Production-route contracts used by the restored Next.js client."""
-import base64
+from backend.tests.request_helpers import png_bytes
 import io
 from backend.website import db
 from backend.website.models import User
 
 PASSWORD = 'Asar8!River2'
-PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=')
+PNG = png_bytes()
 
 
 def sign_in(client, email, password=PASSWORD):
@@ -29,7 +29,7 @@ def test_request_moderation_response_and_rating(app, client, test_user, admin_us
         'description': 'Food request from a full workflow',
         'media_files': (io.BytesIO(PNG), 'proof.png'),
     })
-    assert response.status_code == 200, response.json
+    assert response.status_code == 201, response.json
     application_id = response.json['id']
     admin = app.test_client()
     sign_in(admin, admin_user.email, 'Admin1234!@#$')
