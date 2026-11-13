@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import NewApplicationPage from '../app/applications/new/page';
+import SOSDialog from '../components/home/SOSDialog';
 import HomePage from '../app/page';
 import { apiClient } from '../lib/api';
 import { useStore } from '../lib/store';
@@ -81,6 +82,25 @@ test('description is bounded and clearing latitude does not become zero', async 
   submitRequest();
   expect(await screen.findByRole('alert')).toHaveTextContent('Выберите точку');
   expect(screen.getByLabelText('Широта')).toHaveValue(null);
+});
+
+test('SOS supports manual location after denied geolocation and preserves data on error', async () => {
+  const created = jest.fn();
+  render(<SOSDialog onClose={jest.fn()} onCreated={created} />);
+  expect(screen.getByRole('status')).toHaveTextContent('Выберите точку');
+  expect(screen.getByRole('button', { name: 'Подтвердить и отправить SOS' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Выбрать точку' }));
+  const input = screen.getByLabelText<HTMLInputElement>(/Фото:/);
+  const photo = new File(['png'], 'proof.png', { type: 'image/png' });
+  fireEvent.change(input, { target: { files: [photo] } });
+  jest.mocked(apiClient.createSOS).mockRejectedValueOnce(new Error('Лимит SOS достигнут'));
+  fireEvent.submit(screen.getByRole('button', { name: 'Подтвердить и отправить SOS' }).closest('form')!);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Лимит SOS');
+  expect(created).not.toHaveBeenCalled();
+  expect(input.files?.[0]).toBe(photo);
+  jest.mocked(apiClient.createSOS).mockResolvedValueOnce({ success: true, id: 7 });
+  fireEvent.submit(screen.getByRole('button', { name: 'Подтвердить и отправить SOS' }).closest('form')!);
+  await waitFor(() => expect(created).toHaveBeenCalledWith(7, [0, 0]));
 });
 
 test('status selection reaches the map API', async () => {

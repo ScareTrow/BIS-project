@@ -1,6 +1,7 @@
 """
 Тесты для CRUD операций с заявками
 """
+from backend.tests.request_helpers import post_request
 import pytest
 from datetime import datetime, timezone, timedelta
 from backend.website.models import (
@@ -30,7 +31,7 @@ class TestApplications:
             'expires_days': 7
         }
         
-        response = client.post('/api/applications', json=app_data)
+        response = post_request(client, app_data)
         assert response.status_code in [200, 201]
         data = response.get_json()
         assert 'id' in data or 'application' in data
@@ -53,7 +54,7 @@ class TestApplications:
             'description': 'Need food'
         }
         
-        response = client.post('/api/applications', json=app_data)
+        response = post_request(client, app_data)
         assert response.status_code == 401
     
     def test_create_application_invalid_description(self, client, test_user):
@@ -71,7 +72,7 @@ class TestApplications:
             'description': ''
         }
         
-        response = client.post('/api/applications', json=app_data)
+        response = post_request(client, app_data)
         assert response.status_code == 400
     
     def test_create_application_xss_protection(self, client, test_user):
@@ -88,7 +89,7 @@ class TestApplications:
             'description': '<script>alert("xss")</script>'
         }
         
-        response = client.post('/api/applications', json=app_data)
+        response = post_request(client, app_data)
         # Должно быть отклонено или санитизировано
         assert response.status_code in [200, 201, 400]
         
@@ -144,7 +145,7 @@ class TestApplications:
             'longitude': 76.8512
         }
         
-        response = client.post('/api/sos', json=sos_data)
+        response = post_request(client, sos_data, '/api/sos')
         assert response.status_code in [200, 201]
         
         # Проверяем в БД

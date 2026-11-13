@@ -68,7 +68,7 @@ class TestAdminPanel:
             'password': 'Admin1234!@#$'
         })
         
-        response = client.post(f'/api/admin/applications/{test_application_pending.id}/reject')
+        response = client.post(f'/api/admin/applications/{test_application_pending.id}/reject', json={'reason': 'Уточните описание заявки'})
         assert response.status_code in [200, 201]
         
         # Проверяем в БД

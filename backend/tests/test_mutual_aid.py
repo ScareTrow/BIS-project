@@ -1,5 +1,6 @@
 """Revised TSIS journeys: matching, shared quantities, resources and triage."""
 
+from backend.tests.request_helpers import post_request
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import importlib.util
@@ -25,6 +26,7 @@ from backend.website.models import (
     ResourceConfirmation,
     Resource,
     ModerationAction,
+    VolunteerPreference,
 )
 
 
@@ -74,10 +76,13 @@ def test_social_request_matching_and_private_moderation(
         ).status_code
         == 200
     )
+    with app.app_context():
+        db.session.get(User, helper.id).telegram_id = '12345'
+        pref = db.session.get(VolunteerPreference, helper.id)
+        pref.latitude, pref.longitude = 43.22, 76.85
+        db.session.commit()
     login(client, test_user)
-    created = client.post(
-        "/api/applications",
-        json={
+    created = post_request(client, {
             "description": "Нужна доставка вещей",
             "latitude": 43.22,
             "longitude": 76.85,
@@ -87,7 +92,7 @@ def test_social_request_matching_and_private_moderation(
             "needs": [{"resource_name": "Наборы", "unit": "шт", "quantity_needed": 10}],
         },
     )
-    assert created.status_code == 200, created.json
+    assert created.status_code == 201, created.json
     aid = created.json["id"]
     assert volunteer.get(f"/api/applications/{aid}").status_code == 404
     assert volunteer.get(f"/api/applications/{aid}/aid").status_code == 404
@@ -362,9 +367,7 @@ def test_triage_keeps_user_sos_and_checks_admin(app, client, test_user, admin_us
         == 400
     )
     for priority, expected in [("normal", 3), ("sos", 5)]:
-        made = client.post(
-            "/api/applications",
-            json={
+        made = post_request(client, {
                 "description": "срочно нужна бытовая помощь",
                 "latitude": 0,
                 "longitude": 0,
@@ -372,7 +375,7 @@ def test_triage_keeps_user_sos_and_checks_admin(app, client, test_user, admin_us
                 "priority": priority,
             },
         )
-        assert made.status_code == 200
+        assert made.status_code == 201
         detail = client.get(f"/api/applications/{made.json['id']}").json
         assert detail["priority"] == expected
         assert detail["priority_source"] == (
