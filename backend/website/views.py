@@ -14,6 +14,9 @@ from .validation import coordinates, validate_upload, validate_photos, UploadVal
 from .community import parse_application_extras, attach_application_extras, record_moderation, need_data
 from .application_service import check_requester, save_photos, save_media_file, publish_sos, notify_nearby, visible_requests, lifecycle, pending_review
 from .notifications import create_notification
+from .storage import save_upload, serve_upload
+from uuid import uuid4
+from pathlib import Path
 from sqlalchemy.exc import IntegrityError
 
 views = Blueprint('views', __name__)
@@ -551,26 +554,19 @@ def api_edit_profile():
             file = request.files['avatar']
             if file and file.filename:
                 try:
+                    validate_upload(file)
+                    extension = Path(file.filename).suffix.lower()
+                    unique_filename = f"avatar_{current_user.id}_{uuid4().hex}{extension}"
+                    save_upload(file, unique_filename, 'image/png' if extension == '.png' else 'image/jpeg')
                     if current_user.avatar:
-                        old_avatar_path = os.path.join(
-                            current_app.config['UPLOAD_FOLDER'],
-                            unquote(current_user.avatar)
-                        )
-                        if os.path.exists(old_avatar_path):
-                            try:
-                                os.remove(old_avatar_path)
-                            except (OSError, PermissionError) as e:
-                                current_app.logger.warning(f"Error removing old avatar: {e}")
-                                pass
-                    
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_filename = f"avatar_{current_user.id}_{timestamp}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-                    file.save(file_path)
+                        db.session.info.setdefault('retired_uploads', []).append(unquote(current_user.avatar))
                     current_user.avatar = unique_filename
+                except UploadValidationError as error:
+                    db.session.rollback()
+                    return jsonify({'error': str(error)}), error.status_code
                 except Exception as e:
-                    current_app.logger.error(f"Error saving avatar: {e}")
+                    db.session.rollback()
+                    current_app.logger.warning('Unable to save avatar')
                     return jsonify({'error': 'Ошибка при сохранении аватара'}), 500
         
         db.session.commit()
@@ -685,27 +681,22 @@ def edit_profile():
             file = request.files['avatar']
             if file and file.filename:
                 try:
+                    validate_upload(file)
+                    extension = Path(file.filename).suffix.lower()
+                    unique_filename = f"avatar_{current_user.id}_{uuid4().hex}{extension}"
+                    save_upload(file, unique_filename, 'image/png' if extension == '.png' else 'image/jpeg')
                     if current_user.avatar:
-                        old_avatar_path = os.path.join(
-                            current_app.config['UPLOAD_FOLDER'],
-                            unquote(current_user.avatar)
-                        )
-                        if os.path.exists(old_avatar_path):
-                            try:
-                                os.remove(old_avatar_path)
-                            except (OSError, PermissionError) as e:
-                                current_app.logger.warning(f"Error removing old avatar: {e}")
-                                pass
-                    
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_filename = f"avatar_{current_user.id}_{timestamp}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-                    file.save(file_path)
+                        db.session.info.setdefault('retired_uploads', []).append(unquote(current_user.avatar))
                     current_user.avatar = unique_filename
+                except UploadValidationError as error:
+                    db.session.rollback()
+                    flash(str(error), 'error')
+                    return redirect(url_for('views.edit_profile'))
                 except Exception as e:
-                    current_app.logger.error(f"Error saving avatar: {e}")
+                    db.session.rollback()
+                    current_app.logger.warning('Unable to save avatar')
                     flash('Ошибка при сохранении аватара', 'error')
+                    return redirect(url_for('views.edit_profile'))
         
         db.session.commit()
         flash('Профиль успешно обновлен', 'success')
@@ -2583,12 +2574,15 @@ def search_cities():
 
 
 def permitted_upload(filename):
+    from .models import User
+    if User.query.filter_by(avatar=filename).first():
+        return serve_upload(filename)
     media = ApplicationMedia.query.filter_by(file_path=filename).first_or_404()
     application = media.application
     can_review = current_user.is_authenticated and (current_user.id == application.user_id or current_user.isAdmin)
     if not can_review and (media.file_type == 'application/pdf' or application.moderation_status != ModerationStatus.APPROVED):
         return jsonify({'error': 'Доступ запрещён'}), 403
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    return serve_upload(filename)
 
 
 @views.route('/uploads/<filename>')

@@ -15,6 +15,7 @@ from .models import (
 )
 from .notifications import create_notification
 from .validation import validate_photos
+from .storage import save_upload
 
 CATEGORY_NAMES = dict(food='Продукты', medicine='Медицина', shelter='Убежище',
     emergency='Экстренная помощь', clothing='Вещи', household='Бытовая помощь',
@@ -46,12 +47,8 @@ def save_photos(application, files):
 
 
 def save_media_file(application, file, file_type):
-    folder = Path(current_app.config['UPLOAD_FOLDER'])
-    folder.mkdir(parents=True, exist_ok=True)
     filename = f'app_{application.id}_{uuid4().hex}{Path(file.filename).suffix.lower()}'
-    target = folder / filename
-    db.session.info.setdefault('new_uploads', []).append(str(target))
-    file.save(target)
+    save_upload(file, filename, file_type)
     db.session.add(ApplicationMedia(application_id=application.id, file_path=filename, file_type=file_type))
 
 

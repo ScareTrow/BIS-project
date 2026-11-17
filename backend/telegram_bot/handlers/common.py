@@ -7,7 +7,8 @@ from aiogram.types import Message
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import HTTPException
 
-from backend.website import create_app, db
+from backend.website import db
+from backend.telegram_bot.utils.database import get_app as create_app
 from backend.website.models import Application, ApplicationCategory, ModerationStatus
 from backend.website.application_service import check_requester, publish_sos, save_photos
 from backend.website.validation import coordinates, validate_photos, MAX_FILE_BYTES

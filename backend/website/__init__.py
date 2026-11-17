@@ -21,7 +21,30 @@ def create_app(test_config=None):
     instance_path = os.path.join(backend_dir, 'instance')
     app = Flask(__name__, instance_path=instance_path)
 
+    production = os.getenv('ASAR_ENV') == 'production'
+    app.config.update(
+        AUTO_CREATE_DATABASE=not production,
+        SESSION_COOKIE_SECURE=production,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SUPABASE_URL=os.getenv('SUPABASE_URL', ''),
+        SUPABASE_SECRET_KEY=os.getenv('SUPABASE_SECRET_KEY', ''),
+        SUPABASE_STORAGE_BUCKET=os.getenv('SUPABASE_STORAGE_BUCKET', 'asar-files'),
+        TELEGRAM_BOT_TOKEN=os.getenv('TELEGRAM_BOT_TOKEN', ''),
+        TELEGRAM_WEBHOOK_SECRET=os.getenv('TELEGRAM_WEBHOOK_SECRET', ''),
+    )
     app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "default_secret")
+    if production:
+        if len(app.config['SECRET_KEY']) < 32:
+            raise ValueError('Production SECRET_KEY must contain at least 32 characters.')
+        if not all(app.config[name] for name in ('SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_STORAGE_BUCKET')):
+            raise ValueError('Configure private Supabase Storage before deploying.')
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True, 'pool_size': 3, 'max_overflow': 2,
+            'connect_args': {'sslmode': 'require', 'connect_timeout': 10},
+        }
     
     db_user = os.getenv('DB_USER')
     db_password = os.getenv('DB_PASSWORD')
@@ -48,13 +71,13 @@ def create_app(test_config=None):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     CORS(app, 
-         origins=['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+         origins=[os.getenv('WEB_APP_URL', 'http://localhost:3000').rstrip('/')] if production else ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
     db.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db, directory=os.path.join(backend_dir, 'migrations'))
 
     from .views import views
     from .auth import auth
@@ -64,6 +87,8 @@ def create_app(test_config=None):
     from .community import community, register_commands
     app.register_blueprint(community)
     register_commands(app)
+    from .deployment import register_deployment
+    register_deployment(app)
 
     from .models import User
 

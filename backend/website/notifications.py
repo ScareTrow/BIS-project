@@ -1,6 +1,4 @@
 """Persist notices with the workflow; dispatch Telegram only after commit."""
-from pathlib import Path
-
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
@@ -29,6 +27,7 @@ def dispatch_committed_notices(session):
     from flask import current_app
     from backend.telegram_bot.utils.notifications import send_notification
     session.info.pop('new_uploads', None)
+    _remove_uploads(session.info.pop('retired_uploads', []))
     for notice in session.info.pop('telegram_notices', []):
         try:
             send_notification(**notice)
@@ -39,5 +38,15 @@ def dispatch_committed_notices(session):
 @event.listens_for(Session, 'after_rollback')
 def discard_uncommitted_effects(session):
     session.info.pop('telegram_notices', None)
-    for filename in session.info.pop('new_uploads', []):
-        Path(filename).unlink(missing_ok=True)
+    session.info.pop('retired_uploads', None)
+    _remove_uploads(session.info.pop('new_uploads', []))
+
+
+def _remove_uploads(filenames):
+    from flask import current_app
+    from .storage import delete_upload
+    for filename in filenames:
+        try:
+            delete_upload(filename)
+        except Exception:
+            current_app.logger.warning('Unable to remove unused upload')
