@@ -58,7 +58,7 @@ export default function SOSDialog({ onClose, onCreated }: {
       <form onSubmit={submit} className="bg-white rounded-lg p-6 max-w-xl mx-auto space-y-4">
         <div className="flex justify-between gap-4">
           <h2 id="sos-title" className="text-2xl font-bold text-red-700">Экстренный SOS</h2>
-          <button type="button" autoFocus disabled={busy} onClick={onClose} aria-label="Закрыть SOS">Закрыть</button>
+          <button type="button" autoFocus disabled={busy} onClick={onClose} className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label="Закрыть SOS">Закрыть</button>
         </div>
         <p>SOS появится на карте сразу. Волонтёры в радиусе 10 км получат оповещение. Не более трёх SOS за час.</p>
         <p role="status">{message}</p>
@@ -67,8 +67,8 @@ export default function SOSDialog({ onClose, onCreated }: {
           setMessage('Точка выбрана вручную.');
         }} />
         <p>{point ? `Выбранная точка: ${point[0].toFixed(5)}, ${point[1].toFixed(5)}` : 'Точка ещё не выбрана'}</p>
-        <label className="block">Фото: от 1 до 3, JPEG/PNG, до 10 МБ каждое
-          <input className="block mt-2" type="file" required multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+        <label className="form-field">Фото: от 1 до 3, JPEG/PNG, до 10 МБ каждое
+          <input className="form-file" type="file" required multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png"
             onChange={event => setPhotos(Array.from(event.target.files || []))} />
         </label>
         {error && <p role="alert" className="text-red-700">{error}</p>}

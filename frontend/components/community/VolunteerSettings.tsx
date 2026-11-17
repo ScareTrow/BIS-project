@@ -56,8 +56,8 @@ export default function VolunteerSettings() {
         <p>Загрузка...</p>
       ) : (
         <>
-          <label className="flex gap-2">
-            <input
+          <label className="flex items-start gap-3 text-sm text-gray-700">
+            <input className="form-checkbox"
               type="checkbox"
               checked={available}
               onChange={(e) => setAvailable(e.target.checked)}
@@ -66,8 +66,8 @@ export default function VolunteerSettings() {
           </label>
           <div className="grid sm:grid-cols-2 gap-3">
             {catalog.map((c) => (
-              <label className="flex gap-2" key={c.id}>
-                <input
+              <label className="flex items-start gap-3 text-sm text-gray-700" key={c.id}>
+                <input className="form-checkbox"
                   type="checkbox"
                   checked={ids.includes(c.id)}
                   onChange={(e) =>

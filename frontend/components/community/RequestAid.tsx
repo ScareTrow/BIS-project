@@ -93,11 +93,11 @@ export default function RequestAid({
                 );
               }}
             >
-              <label>
+              <label className="form-field">
                 Обещаю
                 <input
                   aria-label={`Обещаю ${n.resource_name}`}
-                  className="block border p-2 w-32"
+                  className="form-input w-32"
                   type="number"
                   min="0.001"
                   step="0.001"
@@ -114,11 +114,11 @@ export default function RequestAid({
                   }
                 />
               </label>
-              <label>
+              <label className="form-field">
                 Доставлено
                 <input
                   aria-label={`Доставлено ${n.resource_name}`}
-                  className="block border p-2 w-32"
+                  className="form-input w-32"
                   type="number"
                   min="0"
                   step="0.001"
@@ -147,7 +147,7 @@ export default function RequestAid({
         responses
           .filter((r) => r.status === "accepted")
           .map((r) => (
-            <div className="flex gap-3 items-center" key={r.id}>
+            <div className="flex flex-wrap gap-3 items-center" key={r.id}>
               <span>
                 {r.responder?.first_name || `Волонтёр #${r.responder_id}`}
               </span>
@@ -173,7 +173,7 @@ export default function RequestAid({
               </span>
               <select
                 aria-label="Оценка помощи"
-                className="border p-2"
+                className="form-select w-28"
                 value={scores[r.id] || 5}
                 onChange={(e) =>
                   setScores({ ...scores, [r.id]: Number(e.target.value) })

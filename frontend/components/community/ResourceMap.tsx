@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { Resource } from "@/lib/community-api";
 export default function ResourceMap({ resources }: { resources: Resource[] }) {
   return (
-    <div className="h-80 overflow-hidden rounded border">
+    <div className="h-80 overflow-hidden rounded-lg border border-gray-200">
       <MapContainer
         key={resources[0]?.city || "all"}
         center={

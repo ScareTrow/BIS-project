@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { Analytics } from "@/lib/community-api";
 export default function HeatMap({ points }: { points: Analytics["heatmap"] }) {
   return (
-    <div className="h-80">
+    <div className="h-80 overflow-hidden rounded-lg border border-gray-200">
       <MapContainer
         center={
           points[0] ? [points[0].latitude, points[0].longitude] : [43.22, 76.85]
