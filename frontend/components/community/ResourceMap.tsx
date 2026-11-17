@@ -1,4 +1,6 @@
 "use client";
+
+import { mapTiles } from '@/lib/mapTiles';
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { Resource } from "@/lib/community-api";
 export default function ResourceMap({ resources }: { resources: Resource[] }) {
@@ -14,10 +16,7 @@ export default function ResourceMap({ resources }: { resources: Resource[] }) {
         zoom={10}
         style={{ height: "100%", width: "100%" }}
       >
-        <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <TileLayer {...mapTiles} />
         {resources.map((r) => (
           <CircleMarker
             key={r.id}

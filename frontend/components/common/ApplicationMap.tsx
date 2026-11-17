@@ -1,5 +1,7 @@
 'use client';
 
+import { mapTiles } from '@/lib/mapTiles';
+
 import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -78,12 +80,7 @@ export default function ApplicationMap({ center, onLocationSelect, selected = tr
     >
       <LeafletIconFix />
       <MapUpdater center={center} />
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        subdomains="abcd"
-        maxZoom={20}
-      />
+      <TileLayer {...mapTiles} />
       {selected && <Marker
         position={center} 
         ref={markerRef}

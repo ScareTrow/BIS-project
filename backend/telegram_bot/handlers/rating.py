@@ -4,7 +4,8 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from backend.telegram_bot.utils.database import get_user_by_telegram_id
-from backend.website import create_app, db
+from backend.website import db
+from backend.telegram_bot.utils.database import get_app as create_app
 from backend.website.models import Application, ApplicationResponse, ResponseStatus, Rating, User
 
 logger = logging.getLogger(__name__)

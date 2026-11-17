@@ -46,8 +46,7 @@ export interface NewsItem {
   created_at: string; updated_at: string; author: { id: number; first_name: string; last_name?: string | null };
 }
 type NewsInput = { title: string; content: string; news_type: string; is_published: boolean };
-const origin = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-export const http = axios.create({ baseURL: origin + '/api', withCredentials: true });
+export const http = axios.create({ baseURL: '/api', withCredentials: true });
 http.interceptors.response.use(
   response => response,
   error => {

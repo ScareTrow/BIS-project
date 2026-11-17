@@ -72,26 +72,7 @@ function initMap() {
     try {
         map = L.map('map').setView([43.2220, 76.8512], 10);
 
-        let tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            subdomains: 'abcd',
-            maxZoom: 20
-        });
-
-        let fallbackUsed = false;
-        tileLayer.on('tileerror', function (error, tile) {
-            if (!fallbackUsed) {
-                fallbackUsed = true;
-                map.removeLayer(tileLayer);
-                const fallbackLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                    maxZoom: 19
-                });
-                fallbackLayer.addTo(map);
-            }
-        });
-
-        tileLayer.addTo(map);
+        L.tileLayer(asarMapTiles.url, asarMapTiles.options).addTo(map);
         loadMapPoints();
 
         if (isAuthenticated) {

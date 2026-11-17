@@ -330,21 +330,22 @@ async def test_bot_uses_same_photo_and_hourly_rules(app, client, test_user, monk
             assert Application.query.count() == ApplicationMedia.query.count() == 3
 
 
-def test_volunteer_location_migration_preserves_existing_rows():
+def test_volunteer_location_migration_preserves_existing_rows(app, test_user):
     import importlib.util
-    from sqlalchemy import create_engine, text, inspect
+    from sqlalchemy import text, inspect
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
     path = Path(__file__).parents[1] / 'migrations/versions/20261117_volunteer_location.py'
     spec = importlib.util.spec_from_file_location('location_migration', path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = create_engine('sqlite:///:memory:')
+    with app.app_context():
+        engine = db.engine
     with engine.begin() as connection:
-        connection.execute(text('CREATE TABLE volunteer_preferences (user_id INTEGER PRIMARY KEY, is_available BOOLEAN NOT NULL)'))
-        connection.execute(text('INSERT INTO volunteer_preferences VALUES (42, 1)'))
+        connection.execute(text('ALTER TABLE volunteer_preferences DROP COLUMN latitude, DROP COLUMN longitude'))
+        connection.execute(text('INSERT INTO volunteer_preferences (user_id, is_available, updated_at) VALUES (:user_id, true, now())'), {'user_id': test_user.id})
         with Operations.context(MigrationContext.configure(connection)):
             migration.upgrade()
             migration.upgrade()
         assert {'latitude', 'longitude'}.issubset({c['name'] for c in inspect(connection).get_columns('volunteer_preferences')})
-        assert connection.execute(text('SELECT user_id, is_available, latitude FROM volunteer_preferences')).one() == (42, 1, None)
+        assert connection.execute(text('SELECT user_id, is_available, latitude FROM volunteer_preferences')).one() == (test_user.id, True, None)

@@ -1,7 +1,7 @@
 """Isolated application fixtures using the production app factory.
 
-Set ASAR_TEST_DATABASE_URL to a dedicated PostgreSQL test database to run
-this same suite against PostgreSQL. Tables in that database are recreated.
+Set ASAR_TEST_DATABASE_URL to a dedicated PostgreSQL test database.
+Tables in that database are recreated. No substitute database is used.
 """
 import os
 import sys
@@ -24,14 +24,15 @@ def _push_request_context():
 
 @pytest.fixture
 def app(tmp_path):
-    database_url = os.getenv('ASAR_TEST_DATABASE_URL', 'sqlite:///:memory:')
+    database_url = os.getenv('ASAR_TEST_DATABASE_URL', '')
     if database_url.startswith('postgresql://'):
         database_url = database_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
-    if not database_url.startswith('sqlite:'):
-        from sqlalchemy.engine import make_url
-        target = make_url(database_url)
-        if not target.database or not target.database.endswith('_test'):
-            raise ValueError('ASAR_TEST_DATABASE_URL must name a disposable database ending in _test')
+    from sqlalchemy.engine import make_url
+    if not database_url.startswith('postgresql+psycopg2://'):
+        raise ValueError('Set ASAR_TEST_DATABASE_URL to a dedicated PostgreSQL test database')
+    target = make_url(database_url)
+    if not target.database or not target.database.endswith('_test'):
+        raise ValueError('ASAR_TEST_DATABASE_URL must name a disposable database ending in _test')
     app = create_app({
         'TESTING': True,
         'SECRET_KEY': 'asar-test-only',
