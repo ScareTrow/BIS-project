@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api";
 import { communityApi, Capability, NeedInput } from "@/lib/community-api";
 import { useStore } from "@/lib/store";
 import { useTranslation } from "@/lib/i18n";
+import { validateRequestPhotos } from "@/lib/requestValidation";
 const LocationMap = dynamic(
   () => import("@/components/common/ApplicationMap"),
   { ssr: false },
@@ -32,8 +33,8 @@ export default function NewApplicationPage() {
     needed_help: "",
     city: "",
     category: "food",
-    latitude: 43.222,
-    longitude: 76.8512,
+    latitude: "",
+    longitude: "",
     priority: "normal",
   });
   const [catalog, setCatalog] = useState<Capability[]>([]);
@@ -65,27 +66,24 @@ export default function NewApplicationPage() {
       setError("Укажите город и описание");
       return;
     }
-    if (photos.some((f) => f.size === 0 || f.size > 50 * 1024 * 1024)) {
-      setError("Файл должен быть непустым, не больше 50 MiB");
+    if (!form.latitude || !form.longitude) {
+      setError("Выберите точку на карте или укажите координаты");
       return;
     }
-    const fields = { ...form, capability_ids: ids, needs, expires_days: 7 };
+    if (form.description.trim().length < 10 || form.description.trim().length > 1000) {
+      setError("Описание должно содержать от 10 до 1000 символов");
+      return;
+    }
+    const photoError = validateRequestPhotos(photos);
+    if (photoError) { setError(photoError); return; }
+    const fields = { ...form, latitude: Number(form.latitude), longitude: Number(form.longitude), capability_ids: ids, needs, expires_days: 7 };
     setBusy(true);
     try {
-      let result;
-      if (photos.length) {
-        const data = new FormData();
-        Object.entries(fields).forEach(([key, value]) =>
-          data.append(
-            key,
-            typeof value === "object" ? JSON.stringify(value) : String(value),
-          ),
-        );
-        photos.forEach((f) => data.append("media_files", f));
-        result = await apiClient.createApplication(data);
-      } else {
-        result = await apiClient.createApplication(fields);
-      }
+      const data = new FormData();
+      Object.entries(fields).forEach(([key, value]) =>
+        data.append(key, typeof value === "object" ? JSON.stringify(value) : String(value)));
+      photos.forEach((f) => data.append("media_files", f));
+      const result = await apiClient.createApplication(data);
       setShouldRefreshApplications(true);
       router.push(`/applications/${result.id}`);
     } catch (e) {
@@ -134,7 +132,8 @@ export default function NewApplicationPage() {
           <textarea
             className="block border rounded p-2 w-full"
             required
-            maxLength={5000}
+            minLength={10}
+            maxLength={1000}
             rows={4}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -163,12 +162,13 @@ export default function NewApplicationPage() {
           Срочная помощь — SOS
         </label>
         <p className="text-sm text-gray-600">
-          Заявка, включая SOS, появится публично после проверки администратором.
+          Обычная заявка появится после проверки. SOS публикуется сразу; не более трёх SOS в час.
         </p>
         <LocationMap
-          center={[form.latitude, form.longitude]}
+          selected={form.latitude !== '' && form.longitude !== ''}
+          center={[form.latitude === '' ? 43.222 : Number(form.latitude), form.longitude === '' ? 76.8512 : Number(form.longitude)]}
           onLocationSelect={(latitude: number, longitude: number) =>
-            setForm((f) => ({ ...f, latitude, longitude }))
+            setForm((f) => ({ ...f, latitude: String(latitude), longitude: String(longitude) }))
           }
         />
         <div className="grid grid-cols-2 gap-3">
@@ -183,7 +183,7 @@ export default function NewApplicationPage() {
               required
               value={form.latitude}
               onChange={(e) =>
-                setForm({ ...form, latitude: Number(e.target.value) })
+                setForm({ ...form, latitude: e.target.value })
               }
             />
           </label>
@@ -198,7 +198,7 @@ export default function NewApplicationPage() {
               required
               value={form.longitude}
               onChange={(e) =>
-                setForm({ ...form, longitude: Number(e.target.value) })
+                setForm({ ...form, longitude: e.target.value })
               }
             />
           </label>
@@ -303,12 +303,13 @@ export default function NewApplicationPage() {
           </button>
         </fieldset>
         <label className="block">
-          Фото (необязательно)
+          Фото: от 1 до 3, JPEG/PNG, до 10 МБ каждое
           <input
             className="block mt-2"
             type="file"
             multiple
-            accept="image/*"
+            required
+            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
             onChange={(e) => setPhotos(Array.from(e.target.files || []))}
           />
         </label>
@@ -319,7 +320,7 @@ export default function NewApplicationPage() {
           </p>
         )}
         <button className="btn btn-primary" disabled={busy}>
-          {busy ? "Отправка..." : "Отправить на проверку"}
+          {busy ? "Отправка..." : form.priority === 'sos' ? 'Опубликовать SOS' : "Отправить на проверку"}
         </button>
       </form>
     </main>

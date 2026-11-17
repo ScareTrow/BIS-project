@@ -14,15 +14,17 @@ async def cmd_sos(message: Message, state: FSMContext):
         return
     
     try:
+        await state.clear()
+        await state.update_data(sos_mode=True)
         sos_text = (
             "🚨 <b>SOS - Экстренная ситуация!</b>\n\n"
-            "📍 Отправь геолокацию (Location) для создания SOS заявки\n\n"
-            "⚠️ <i>Эта заявка будет приоритетной и видна всем пользователям</i>"
+            "📷 Отправь фото JPEG/PNG до 10 МБ, затем геолокацию\n\n"
+            "⚠️ <i>SOS публикуется сразу. Лимит — 3 SOS за час.</i>"
         )
         
         sent_msg = await message.answer(sos_text, parse_mode="HTML")
         await state.update_data(help_message_id=sent_msg.message_id)
-        await state.set_state(ApplicationStates.waiting_sos_location)
+        await state.set_state(ApplicationStates.waiting_photo)
     except Exception as e:
         logger.error(f"Error in cmd_sos: {e}")
         await message.answer("😔 Произошла ошибка. Попробуй позже")

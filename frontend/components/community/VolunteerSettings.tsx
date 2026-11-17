@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Capability, communityApi } from "@/lib/community-api";
+import VolunteerLocation from './VolunteerLocation';
 
 export default function VolunteerSettings() {
   const [catalog, setCatalog] = useState<Capability[]>([]);
@@ -104,6 +105,7 @@ export default function VolunteerSettings() {
         </>
       )}
       {message && <p role="status">{message}</p>}
+      <VolunteerLocation />
     </section>
   );
 }

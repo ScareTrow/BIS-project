@@ -1,4 +1,6 @@
 'use client';
+
+import { mapTiles } from '@/lib/mapTiles';
 import RequestAid from '@/components/community/RequestAid';
 
 import { useEffect, useState } from 'react';
@@ -145,6 +147,7 @@ export default function ApplicationDetailPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-4">
           Заявка #{application.id}
         </h1>
+        {application.rejection_reason && <p className="text-red-700">Причина отклонения: {application.rejection_reason}</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -176,10 +179,7 @@ export default function ApplicationDetailPage() {
                   className="w-full h-full"
                 >
                   <LeafletIconFix />
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+                  <TileLayer {...mapTiles} />
                   <Marker 
                     position={[application.latitude, application.longitude]}
                   />

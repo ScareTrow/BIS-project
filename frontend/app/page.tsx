@@ -4,7 +4,8 @@ import CursorEffect from '@/components/home/CursorEffect';
 import ListView from '@/components/home/ListView';
 import MapView from '@/components/home/MapView';
 import ViewToggle from '@/components/home/ViewToggle';
-import { apiClient, Application } from '@/lib/api';
+import SOSDialog from '@/components/home/SOSDialog';
+import { apiClient, Application, ApplicationStatus } from '@/lib/api';
 import { getLanguage, useTranslation } from '@/lib/i18n';
 import { CityData, getCityByName, kazakhstanCities, searchKazakhstanCities } from '@/lib/kazakhstanCities';
 import { useStore } from '@/lib/store';
@@ -15,6 +16,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function HomePage() {
   const { viewMode, setViewMode, user, language, setLanguage: setLang, shouldRefreshApplications, setShouldRefreshApplications } = useStore();
+  const [showSOS, setShowSOS] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus>('open');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, active: 0, emergency: 0, city: '' });
@@ -120,14 +123,14 @@ export default function HomePage() {
     determineUserCity();
   }, [user]);
 
-  const loadApplications = useCallback(async (forceRefresh: boolean = false, city?: string) => {
+  const loadApplications = useCallback(async (forceRefresh: boolean = false, city?: string, status: ApplicationStatus = statusFilter) => {
     try {
       setLoading(true);
       const filterCity = city || selectedCity || 'Алматы';
       console.log('Загрузка заявок...', { viewMode, forceRefresh, city: filterCity });
       const data = viewMode === 'list'
-        ? await apiClient.getApplicationsList(forceRefresh, filterCity)
-        : await apiClient.getApplications(forceRefresh, filterCity);
+        ? await apiClient.getApplicationsList(forceRefresh, filterCity, status)
+        : await apiClient.getApplications(forceRefresh, filterCity, status);
       console.log('Заявки загружены:', data?.length || 0);
       setApplications(data || []);
     } catch (error) {
@@ -136,7 +139,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [viewMode, selectedCity]);
+  }, [viewMode, selectedCity, statusFilter]);
 
   const loadStats = useCallback(async (forceRefresh: boolean = false, city?: string) => {
     try {
@@ -206,8 +209,8 @@ export default function HomePage() {
         if (lastApplicationId) {
           setTimeout(async () => {
             const currentData = viewMode === 'list'
-              ? await apiClient.getApplicationsList(true, selectedCity)
-              : await apiClient.getApplications(true, selectedCity);
+              ? await apiClient.getApplicationsList(true, selectedCity, statusFilter)
+              : await apiClient.getApplications(true, selectedCity, statusFilter);
             const found = currentData.some((app: Application) => String(app.id) === lastApplicationId);
             console.log('Проверка новой заявки после повторной загрузки:', { lastApplicationId, found, applicationsCount: currentData.length });
 
@@ -278,6 +281,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showSOS && <SOSDialog onClose={() => setShowSOS(false)} onCreated={(_id, point) => {
+        setShowSOS(false);
+        setMapCenter(point);
+        setStatusFilter('open');
+        setViewMode('map');
+        loadApplications(true, selectedCity, 'open');
+        loadStats(true, selectedCity);
+      }} />}
       <CursorEffect>
         <div className="hero-section py-12 mb-8">
           <div className="container mx-auto px-4 relative z-10">
@@ -291,30 +302,7 @@ export default function HomePage() {
               {user?.is_authenticated ? (
                 <div className="flex gap-4 justify-center">
                   <button
-                    onClick={async () => {
-                      if (!navigator.geolocation) {
-                        alert(t('alerts.geolocationNotSupported'));
-                        return;
-                      }
-                      const confirmSOS = confirm('Отправить SOS? Ваше местоположение будет определено автоматически.');
-                      if (!confirmSOS) return;
-                      navigator.geolocation.getCurrentPosition(
-                        async (position) => {
-                          try {
-                            await apiClient.createSOS(position.coords.latitude, position.coords.longitude);
-                            alert(t('alerts.sosSent'));
-                            loadApplications(true, selectedCity);
-                            loadStats(true, selectedCity);
-                          } catch (error) {
-                            console.error('Error sending SOS:', error);
-                            alert(t('alerts.sosError'));
-                          }
-                        },
-                        (error) => {
-                          alert(t('alerts.locationError'));
-                        }
-                      );
-                    }}
+                    onClick={() => setShowSOS(true)}
                     className="sos-button bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center"
                   >
                     <AlertCircle className="inline w-5 h-5 mr-2" />
@@ -521,6 +509,15 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+              <label className="text-sm">Статус заявки
+                <select aria-label="Статус заявки" className="block border rounded p-2" value={statusFilter}
+                  onChange={event => setStatusFilter(event.target.value as ApplicationStatus)}>
+                  <option value="open">Открытые</option>
+                  <option value="in_progress">В работе</option>
+                  <option value="completed">Завершённые</option>
+                  <option value="active">Все активные</option>
+                </select>
+              </label>
               <ViewToggle />
             </div>
           </div>

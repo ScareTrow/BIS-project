@@ -1,6 +1,7 @@
 """
 Интеграционные тесты - полные пользовательские сценарии
 """
+from backend.tests.request_helpers import post_request
 import pytest
 from backend.website.models import (
     Application, ApplicationResponse, ResponseStatus,
@@ -57,7 +58,7 @@ class TestIntegrationScenarios:
                 'description': 'Need food assistance',
                 'expires_days': 7
             }
-            response = client.post('/api/applications', json=app_data)
+            response = post_request(client, app_data)
             assert response.status_code in [200, 201]
             application_id = response.get_json().get('id') or response.get_json().get('application', {}).get('id')
             # Responses are allowed only after moderation.
@@ -160,7 +161,7 @@ class TestIntegrationScenarios:
                 'latitude': 43.2220,
                 'longitude': 76.8512
             }
-            response = client.post('/api/sos', json=sos_data)
+            response = post_request(client, sos_data, '/api/sos')
             assert response.status_code in [200, 201]
             
             # 3. Проверка SOS заявки
@@ -200,7 +201,7 @@ class TestIntegrationScenarios:
                 'category': 'medicine',
                 'description': 'Need medicine'
             }
-            response = client.post('/api/applications', json=app_data)
+            response = post_request(client, app_data)
             assert response.status_code in [200, 201]
             response_data = response.get_json()
             if response_data:
@@ -267,7 +268,7 @@ class TestIntegrationScenarios:
                 'category': 'shelter',
                 'description': 'Need shelter'
             }
-            response = client.post('/api/applications', json=app_data)
+            response = post_request(client, app_data)
             response_data = response.get_json()
             if response_data:
                 application_id = response_data.get('id') or response_data.get('application_id') or (response_data.get('application', {}) or {}).get('id')

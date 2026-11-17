@@ -7,12 +7,16 @@ from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 from urllib.parse import unquote
 import os
-import mimetypes
 import json
 import html
 import re
-from .validation import coordinates, validate_upload
-from .community import parse_application_extras, attach_application_extras, notify_matching, dispatch_matching, record_moderation, need_data
+from .validation import coordinates, validate_upload, validate_photos, UploadValidationError
+from .community import parse_application_extras, attach_application_extras, record_moderation, need_data
+from .application_service import check_requester, save_photos, save_media_file, publish_sos, notify_nearby, visible_requests, lifecycle, pending_review
+from .notifications import create_notification
+from .storage import save_upload, serve_upload
+from uuid import uuid4
+from pathlib import Path
 from sqlalchemy.exc import IntegrityError
 
 views = Blueprint('views', __name__)
@@ -23,11 +27,13 @@ def conflicting_write(error):
     db.session.rollback()
     return jsonify({'error': 'Данные изменились или связаны с историей помощи. Обновите страницу и повторите действие.'}), 409
 
-MAX_DESCRIPTION_LENGTH = 5000
+MAX_DESCRIPTION_LENGTH = 1000
 
 def validate_description(description):
     if not description or len(description.strip()) == 0:
         return False, "Описание не может быть пустым"
+    if len(description.strip()) < 10:
+        return False, "Описание должно содержать минимум 10 символов"
     
     if len(description) > MAX_DESCRIPTION_LENGTH:
         return False, f"Описание слишком длинное (максимум {MAX_DESCRIPTION_LENGTH} символов)"
@@ -99,30 +105,6 @@ def get_full_address(latitude, longitude):
         pass
     return None
 
-def create_notification(user_id, title, message, notification_type, related_application_id=None, related_user_id=None, send_telegram=False):
-    notification = Notification(
-        user_id=user_id,
-        title=title,
-        message=message,
-        notification_type=notification_type,
-        related_application_id=related_application_id,
-        related_user_id=related_user_id
-    )
-    db.session.add(notification)
-    db.session.flush()
-    
-    if send_telegram:
-        try:
-            from backend.telegram_bot.bot import bot
-            from .models import User
-            user = User.query.get(user_id)
-            if user and user.telegram_id:
-                telegram_message = f"🔔 {title}\n\n{message}"
-                bot.send_message(chat_id=int(user.telegram_id), text=telegram_message)
-        except Exception as e:
-            current_app.logger.error(f"Error sending Telegram notification: {e}")
-    
-    return notification
 
 
 @views.route('/api/user/current')
@@ -313,7 +295,7 @@ def admin():
     from sqlalchemy import func
     
     total_applications = Application.query.count()
-    pending_applications = Application.query.filter_by(moderation_status=ModerationStatus.PENDING).count()
+    pending_applications = Application.query.filter(pending_review()).count()
     approved_applications = Application.query.filter_by(moderation_status=ModerationStatus.APPROVED).count()
     rejected_applications = Application.query.filter_by(moderation_status=ModerationStatus.REJECTED).count()
     
@@ -354,7 +336,7 @@ def get_admin_stats():
     from sqlalchemy import func
     
     total_applications = Application.query.count()
-    pending_applications = Application.query.filter_by(moderation_status=ModerationStatus.PENDING).count()
+    pending_applications = Application.query.filter(pending_review()).count()
     approved_applications = Application.query.filter_by(moderation_status=ModerationStatus.APPROVED).count()
     rejected_applications = Application.query.filter_by(moderation_status=ModerationStatus.REJECTED).count()
     
@@ -450,112 +432,13 @@ def get_admin_users():
 @login_required
 def send_task():
     if request.method == 'POST':
-        from .models import User
-        if current_user.is_blocked:
-            if current_user.blocked_until and current_user.blocked_until > datetime.now(timezone.utc):
-                flash('Вы заблокированы и не можете создавать заявки', 'error')
-                return redirect(url_for('views.home'))
-            else:
-                current_user.is_blocked = False
-                current_user.blocked_until = None
-                db.session.commit()
-        
-        if current_user.rating_count > 0 and current_user.average_rating < 2.0:
-            flash('Ваш рейтинг слишком низкий для создания заявок', 'error')
-            return redirect(url_for('views.home'))
-        
-        try:
-            latitude = float(request.form.get('latitude'))
-            longitude = float(request.form.get('longitude'))
-        except (ValueError, TypeError):
-            flash('Некорректные координаты', 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        category_str = request.form.get('category')
-        description = request.form.get('description', '').strip()
-        
-        is_valid, error_message = validate_description(description)
-        if not is_valid:
-            flash(error_message, 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        description = sanitize_description(description)
-        
-        try:
-            expires_days = int(request.form.get('expires_days', 7))
-        except (ValueError, TypeError):
-            expires_days = 7
-        
-        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
-            flash('Некорректные координаты', 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        try:
-            category = ApplicationCategory(category_str)
-        except ValueError:
-            flash('Некорректная категория', 'error')
-            return render_template('send_task.html', user=current_user)
-        
-        city, region = get_location_info(latitude, longitude)
-        
-        new_application = Application(
-            description=description,
-            latitude=latitude,
-            longitude=longitude,
-            category=category,
-            user_id=current_user.id,
-            moderation_status=ModerationStatus.PENDING,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
-            city=city,
-            region=region,
-            priority=0
-        )
-        
-        db.session.add(new_application)
-        db.session.flush()
-        
-        if 'media_files' in request.files:
-            files = request.files.getlist('media_files')
-            upload_folder = current_app.config['UPLOAD_FOLDER']
-            
-            for file in files:
-                if file and file.filename:
-                    try:
-                        filename = secure_filename(file.filename)
-                        if not filename:
-                            continue
-                        
-                        file.seek(0, os.SEEK_END)
-                        file_size = file.tell()
-                        file.seek(0)
-                        if file_size > 50 * 1024 * 1024:
-                            flash(f'Файл {filename} слишком большой (макс. 50MB)', 'error')
-                            continue
-                        
-                        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                        unique_filename = f"app_{new_application.id}_{timestamp}_{filename}"
-                        file_path = os.path.join(upload_folder, unique_filename)
-                        
-                        file.save(file_path)
-                        
-                        file_type, _ = mimetypes.guess_type(file_path)
-                        if not file_type:
-                            file_type = 'application/octet-stream'
-                        
-                        media = ApplicationMedia(
-                            application_id=new_application.id,
-                            file_path=unique_filename,
-                            file_type=file_type
-                        )
-                        db.session.add(media)
-                    except Exception as e:
-                        current_app.logger.error(f"Error saving media file: {e}")
-                        flash(f'Ошибка при сохранении файла {file.filename}', 'error')
-        
-            db.session.commit()
-        flash('Заявка создана и отправлена на модерацию', 'success')
-        return redirect(url_for('views.home'))
-    
+        response = current_app.make_response(api_create_application())
+        result = response.get_json()
+        if response.status_code == 201:
+            flash(result['message'], 'success')
+            return redirect(url_for('views.application_detail', app_id=result['id']))
+        flash(result.get('error', 'Не удалось создать заявку'), 'error')
+        return render_template('send_task.html', user=current_user), response.status_code
     return render_template('send_task.html', user=current_user)
 
 
@@ -671,26 +554,19 @@ def api_edit_profile():
             file = request.files['avatar']
             if file and file.filename:
                 try:
+                    validate_upload(file)
+                    extension = Path(file.filename).suffix.lower()
+                    unique_filename = f"avatar_{current_user.id}_{uuid4().hex}{extension}"
+                    save_upload(file, unique_filename, 'image/png' if extension == '.png' else 'image/jpeg')
                     if current_user.avatar:
-                        old_avatar_path = os.path.join(
-                            current_app.config['UPLOAD_FOLDER'],
-                            unquote(current_user.avatar)
-                        )
-                        if os.path.exists(old_avatar_path):
-                            try:
-                                os.remove(old_avatar_path)
-                            except (OSError, PermissionError) as e:
-                                current_app.logger.warning(f"Error removing old avatar: {e}")
-                                pass
-                    
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_filename = f"avatar_{current_user.id}_{timestamp}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-                    file.save(file_path)
+                        db.session.info.setdefault('retired_uploads', []).append(unquote(current_user.avatar))
                     current_user.avatar = unique_filename
+                except UploadValidationError as error:
+                    db.session.rollback()
+                    return jsonify({'error': str(error)}), error.status_code
                 except Exception as e:
-                    current_app.logger.error(f"Error saving avatar: {e}")
+                    db.session.rollback()
+                    current_app.logger.warning('Unable to save avatar')
                     return jsonify({'error': 'Ошибка при сохранении аватара'}), 500
         
         db.session.commit()
@@ -805,27 +681,22 @@ def edit_profile():
             file = request.files['avatar']
             if file and file.filename:
                 try:
+                    validate_upload(file)
+                    extension = Path(file.filename).suffix.lower()
+                    unique_filename = f"avatar_{current_user.id}_{uuid4().hex}{extension}"
+                    save_upload(file, unique_filename, 'image/png' if extension == '.png' else 'image/jpeg')
                     if current_user.avatar:
-                        old_avatar_path = os.path.join(
-                            current_app.config['UPLOAD_FOLDER'],
-                            unquote(current_user.avatar)
-                        )
-                        if os.path.exists(old_avatar_path):
-                            try:
-                                os.remove(old_avatar_path)
-                            except (OSError, PermissionError) as e:
-                                current_app.logger.warning(f"Error removing old avatar: {e}")
-                                pass
-                    
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_filename = f"avatar_{current_user.id}_{timestamp}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-                    file.save(file_path)
+                        db.session.info.setdefault('retired_uploads', []).append(unquote(current_user.avatar))
                     current_user.avatar = unique_filename
+                except UploadValidationError as error:
+                    db.session.rollback()
+                    flash(str(error), 'error')
+                    return redirect(url_for('views.edit_profile'))
                 except Exception as e:
-                    current_app.logger.error(f"Error saving avatar: {e}")
+                    db.session.rollback()
+                    current_app.logger.warning('Unable to save avatar')
                     flash('Ошибка при сохранении аватара', 'error')
+                    return redirect(url_for('views.edit_profile'))
         
         db.session.commit()
         flash('Профиль успешно обновлен', 'success')
@@ -974,7 +845,9 @@ def get_application(app_id):
         'date': application.date.isoformat() if application.date else None,
         'expires_at': application.expires_at.isoformat() if application.expires_at else None,
         'duration_days': duration_days,
-        'status': application.moderation_status.value if application.moderation_status else 'pending',
+        'status': lifecycle(application),
+        'moderation_status': application.moderation_status.value,
+        'rejection_reason': None,
         'is_sos': application.is_sos,
         'is_resolved': application.is_resolved,
         'is_false_call': application.is_false_call,
@@ -1012,6 +885,10 @@ def get_application(app_id):
         'is_author': current_user.is_authenticated and application.user_id == current_user.id,
         'accepted_volunteers': accepted_volunteers if current_user.is_authenticated and application.user_id == current_user.id else []
     }
+    if can_review and application.moderation_status == ModerationStatus.REJECTED:
+        from .models import ModerationAction
+        decision = ModerationAction.query.filter_by(application_id=app_id, action='reject').order_by(ModerationAction.id.desc()).first()
+        app_data['rejection_reason'] = decision.reason if decision else None
     
     return jsonify(app_data)
 
@@ -1059,9 +936,7 @@ def admin_applications():
         return redirect(url_for('views.index'))
     status = request.args.get('status', 'pending')
     if status == 'pending':
-        applications = Application.query.filter_by(
-            moderation_status=ModerationStatus.PENDING
-        ).order_by(Application.date.desc()).all()
+        applications = Application.query.filter(pending_review()).order_by(Application.date.desc()).all()
     elif status == 'approved':
         applications = Application.query.filter_by(
             moderation_status=ModerationStatus.APPROVED
@@ -1087,9 +962,7 @@ def get_admin_applications():
     status = request.args.get('status', 'all')
     
     if status == 'pending':
-        applications = Application.query.filter_by(
-            moderation_status=ModerationStatus.PENDING
-        ).order_by(Application.date.desc()).all()
+        applications = Application.query.filter(pending_review()).order_by(Application.date.desc()).all()
     elif status == 'approved':
         applications = Application.query.filter_by(
             moderation_status=ModerationStatus.APPROVED
@@ -1630,133 +1503,47 @@ def get_leaderboard():
 @login_required
 def approve_application(app_id):
     if not current_user.isAdmin:
-        return jsonify({'error': 'Доступ запрещен'}), 403
-    
+        return jsonify(error='Доступ запрещен'), 403
     application = Application.query.get_or_404(app_id)
     previous_status, previous_priority = application.moderation_status.value, application.priority
     application.moderation_status = ModerationStatus.APPROVED
     application.moderator_id = current_user.id
     application.moderated_at = datetime.now(timezone.utc)
-    record_moderation(application, 'approve', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
-    recipient_ids = notify_matching(application)
+    application.status = lifecycle(application)
+    record_moderation(application, 'approve', previous_status, previous_priority,
+                      (request.get_json(silent=True) or {}).get('reason'))
+    notify_nearby(application)
+    if previous_status != 'approved':
+        create_notification(application.user_id, 'Заявка одобрена',
+            f'Ваша заявка #{application.id} одобрена и видна волонтёрам',
+            'application_approved', application.id)
     db.session.commit()
-    dispatch_matching(application, recipient_ids)
-    
-    from .models import User
-    user = User.query.get(application.user_id)
-    
-    current_app.logger.info(f"Approving application {app_id} for user {application.user_id}. User telegram_id: {user.telegram_id if user else 'None'}")
-    
-    create_notification(
-        user_id=application.user_id,
-        title='Заявка одобрена',
-        message=f'Ваша заявка #{application.id} была одобрена модератором',
-        notification_type='application_approved',
-        related_application_id=application.id
-    )
-    db.session.commit()
-    
-    if user and user.telegram_id:
-        current_app.logger.info(f"User {user.id} has telegram_id {user.telegram_id}, attempting to send notification")
-        try:
-            from backend.telegram_bot.utils.notifications import send_notification
-            category_names = {
-                'food': 'Продукты',
-                'medicine': 'Медицина',
-                'shelter': 'Убежище',
-                'emergency': 'Экстренная помощь'
-            }
-            category_name = category_names.get(application.category.value if application.category else 'food', 'Неизвестно')
-            message = f'Ваша заявка #{application.id} ({category_name}) была одобрена модератором и теперь видна другим пользователям.'
-            current_app.logger.info(f"Attempting to send Telegram notification to user {user.id} (telegram_id: {user.telegram_id}) for approved application {application.id}")
-            result = send_notification(
-                telegram_id=str(user.telegram_id),
-                title='Заявка одобрена',
-                message=message,
-                notification_type='application_approved'
-            )
-            if result:
-                current_app.logger.info(f"Successfully sent Telegram notification to user {user.id} for approved application {application.id}")
-            else:
-                current_app.logger.warning(f"Failed to send Telegram notification to user {user.id} for approved application {application.id}")
-        except Exception as e:
-            current_app.logger.error(f"Error sending Telegram notification for approved application {application.id}: {e}", exc_info=True)
-    
-    return jsonify({
-        'success': True,
-        'message': 'Заявка успешно одобрена',
-        'application': {
-            'id': application.id,
-            'status': application.moderation_status.value,
-            'moderated_at': application.moderated_at.isoformat() if application.moderated_at else None,
-            'category': application.category.value
-        }
-    })
+    return jsonify(success=True, application=dict(id=application.id,
+        status=application.moderation_status.value))
 
 
 @views.route('/api/admin/applications/<int:app_id>/reject', methods=['POST'])
 @login_required
 def reject_application(app_id):
     if not current_user.isAdmin:
-        return jsonify({'error': 'Доступ запрещен'}), 403
-    
+        return jsonify(error='Доступ запрещен'), 403
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason')
+    if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 1000:
+        return jsonify(error='Укажите причину отклонения (до 1000 символов)'), 400
+    reason = reason.strip()
     application = Application.query.get_or_404(app_id)
     previous_status, previous_priority = application.moderation_status.value, application.priority
     application.moderation_status = ModerationStatus.REJECTED
+    application.status = 'rejected'
     application.moderator_id = current_user.id
     application.moderated_at = datetime.now(timezone.utc)
-    record_moderation(application, 'reject', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
+    record_moderation(application, 'reject', previous_status, previous_priority, reason)
+    create_notification(application.user_id, 'Заявка отклонена',
+        f'Ваша заявка #{application.id} отклонена. Причина: {reason}',
+        'application_rejected', application.id)
     db.session.commit()
-    
-    from .models import User
-    user = User.query.get(application.user_id)
-    
-    current_app.logger.info(f"Rejecting application {app_id} for user {application.user_id}. User telegram_id: {user.telegram_id if user else 'None'}")
-    
-    create_notification(
-        user_id=application.user_id,
-        title='Заявка отклонена',
-        message=f'Ваша заявка #{application.id} была отклонена модератором',
-        notification_type='application_rejected',
-        related_application_id=application.id
-    )
-    db.session.commit()
-    
-    if user and user.telegram_id:
-        current_app.logger.info(f"User {user.id} has telegram_id {user.telegram_id}, attempting to send notification")
-        try:
-            from backend.telegram_bot.utils.notifications import send_notification
-            category_names = {
-                'food': 'Продукты',
-                'medicine': 'Медицина',
-                'shelter': 'Убежище',
-                'emergency': 'Экстренная помощь'
-            }
-            category_name = category_names.get(application.category.value if application.category else 'food', 'Неизвестно')
-            message = f'Ваша заявка #{application.id} ({category_name}) была отклонена модератором.'
-            current_app.logger.info(f"Attempting to send Telegram notification to user {user.id} (telegram_id: {user.telegram_id}) for rejected application {application.id}")
-            result = send_notification(
-                telegram_id=str(user.telegram_id),
-                title='Заявка отклонена',
-                message=message,
-                notification_type='application_rejected'
-            )
-            if result:
-                current_app.logger.info(f"Successfully sent Telegram notification to user {user.id} for rejected application {application.id}")
-            else:
-                current_app.logger.warning(f"Failed to send Telegram notification to user {user.id} for rejected application {application.id}")
-        except Exception as e:
-            current_app.logger.error(f"Error sending Telegram notification for rejected application {application.id}: {e}", exc_info=True)
-    
-    return jsonify({
-        'success': True,
-        'message': 'Заявка отклонена',
-        'application': {
-            'id': application.id,
-            'status': application.moderation_status.value
-        }
-    })
-
+    return jsonify(success=True, application=dict(id=application.id, status='rejected'))
 
 @views.route('/api/admin/applications/<int:app_id>/mark-false', methods=['POST'])
 @login_required
@@ -1768,7 +1555,12 @@ def mark_false_application(app_id):
     previous_status, previous_priority = application.moderation_status.value, application.priority
     application.is_false_call = True
     application.is_resolved = True
+    application.moderator_id = current_user.id
+    application.moderated_at = datetime.now(timezone.utc)
     record_moderation(application, 'mark_false_call', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
+    create_notification(application.user_id, 'Заявка отмечена как ложная',
+        f'Модератор отметил вашу заявку #{application.id} как ложный вызов. Она скрыта с карты.',
+        'application_false_call', application.id)
     db.session.commit()
     
     return jsonify({
@@ -1798,6 +1590,9 @@ def set_application_priority(app_id):
         application.priority = priority
         application.priority_source = 'admin'
         record_moderation(application, 'prioritize', previous_status, previous_priority, (request.get_json(silent=True) or {}).get('reason'))
+        create_notification(application.user_id, 'Приоритет заявки изменён',
+            f'Приоритет вашей заявки #{application.id} изменён на {priority}',
+            'application_priority_changed', application.id)
         db.session.commit()
         return jsonify({
             'success': True,
@@ -1832,6 +1627,7 @@ def resolve_application(app_id):
     ).all()
     
     application.is_resolved = True
+    application.status = 'completed'
     application.resolved_at = datetime.now(timezone.utc)
     
     if is_owner and accepted_responses:
@@ -1906,7 +1702,7 @@ def respond_to_application(app_id):
     application = Application.query.get_or_404(app_id)
     
     if application.user_id == current_user.id:
-        return jsonify({'error': 'Нельзя откликнуться на свою заявку'}), 400
+        return jsonify({'error': 'Нельзя откликнуться на свою заявку'}), 403
     
     if application.moderation_status != ModerationStatus.APPROVED:
         return jsonify({'error': 'Заявка не одобрена'}), 400
@@ -2296,27 +2092,8 @@ def get_map_points():
     
     city = request.args.get('city', '').strip()
     
-    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-        conditions = [
-            or_(
-                Application.moderation_status == ModerationStatus.APPROVED,
-                and_(
-                    Application.user_id == current_user.id,
-                    Application.moderation_status == ModerationStatus.PENDING
-                )
-            ),
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        ]
-    else:
-        conditions = [
-            Application.moderation_status == ModerationStatus.APPROVED,
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        ]
-    
-    query = Application.query.filter(*conditions)
-    
+    query = visible_requests(current_user, request.args.get('status', 'active'))
+
     if city and city != 'all':
         query = query.filter(
             func.coalesce(Application.city, '').ilike(f'%{city}%')
@@ -2332,6 +2109,9 @@ def get_map_points():
                   app.user_id == current_user.id)
         points.append({
             'id': app.id,
+            'status': lifecycle(app),
+            'is_resolved': app.is_resolved,
+            'is_false_call': app.is_false_call,
             'latitude': app.latitude,
             'longitude': app.longitude,
             'category': app.category.value if app.category else 'food',
@@ -2344,6 +2124,14 @@ def get_map_points():
             'is_own': is_own
         })
     
+    if request.args.get('format') == 'geojson':
+        response = jsonify(type='FeatureCollection', features=[dict(
+            type='Feature', id=point['id'],
+            geometry=dict(type='Point', coordinates=[point['longitude'], point['latitude']]),
+            properties=point,
+        ) for point in points])
+        response.mimetype = 'application/geo+json'
+        return response
     return jsonify(points)
 
 
@@ -2354,26 +2142,8 @@ def get_applications_list_data():
     
     city = request.args.get('city', '').strip()
     
-    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-        query = Application.query.filter(
-            or_(
-                Application.moderation_status == ModerationStatus.APPROVED,
-                and_(
-                    Application.user_id == current_user.id,
-                    Application.moderation_status == ModerationStatus.PENDING
-                )
-            ),
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        )
-    else:
-        query = Application.query.filter_by(
-            moderation_status=ModerationStatus.APPROVED
-        ).filter(
-            Application.is_resolved.is_(False),
-            Application.is_false_call.is_(False)
-        )
-    
+    query = visible_requests(current_user, request.args.get('status', 'active'))
+
     if city and city != 'all':
         query = query.filter(
             func.coalesce(Application.city, '').ilike(f'%{city}%')
@@ -2390,6 +2160,9 @@ def get_applications_list_data():
                   app.user_id == current_user.id)
         apps_data.append({
             'id': app.id,
+            'status': lifecycle(app),
+            'is_resolved': app.is_resolved,
+            'is_false_call': app.is_false_call,
             'number': app.id,
             'category': app.category.value if app.category else 'food',
             'description': description_preview,
@@ -2475,264 +2248,68 @@ def mark_all_notifications_read():
 
 
 @views.route('/api/applications', methods=['POST'])
+@views.route('/api/sos', methods=['POST'])
 @login_required
 def api_create_application():
-    from .models import User
-    user_id = current_user.id
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({'error': 'Пользователь не найден'}), 401
-    
-    if user.is_blocked:
-        if user.blocked_until and user.blocked_until > datetime.now(timezone.utc):
-            blocked_info = {
-                'error': 'Вы заблокированы и не можете создавать заявки',
-                'blocked': True,
-                'blocked_until': user.blocked_until.isoformat(),
-                'blocked_reason': user.blocked_reason
-            }
-            return jsonify(blocked_info), 403
-        else:
-            user.is_blocked = False
-            user.blocked_until = None
-            db.session.commit()
-    
-    if user.rating_count > 0 and user.average_rating < 2.0:
-        return jsonify({'error': 'Ваш рейтинг слишком низкий для создания заявок'}), 403
-    
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        latitude = request.form.get('latitude')
-        longitude = request.form.get('longitude')
-        category_str = request.form.get('category', 'food')
-        description = request.form.get('description', '').strip()
-        expires_days = request.form.get('expires_days', '7')
-        
-        try:
-            latitude = float(latitude) if latitude else None
-            longitude = float(longitude) if longitude else None
-            expires_days = int(expires_days) if expires_days else 7
-        except (ValueError, TypeError):
-            return jsonify({'error': 'Некорректные данные'}), 400
-        
-        media_files = request.files.getlist('media_files')
-        if not media_files or len(media_files) == 0 or all(not f.filename for f in media_files):
-            return jsonify({'error': 'Необходимо приложить хотя бы один медиафайл в качестве доказательства'}), 400
-    else:
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict) or not data:
-            return jsonify({'error': 'Неверный формат данных'}), 400
-        
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        category_str = data.get('category', 'food')
-        raw_description = data.get('description', '')
-        if not isinstance(raw_description, str):
-            return jsonify({'error': 'Описание должно быть текстом'}), 400
-        description = raw_description.strip()
-        expires_days = data.get('expires_days', 7)
-        media_files = []
-    
+    data = request.form if request.mimetype == 'multipart/form-data' else request.get_json(silent=True)
+    if not isinstance(data, dict) and request.mimetype != 'multipart/form-data':
+        return jsonify(error='Неверный формат данных'), 400
+    if data is None:
+        return jsonify(error='Неверный формат данных'), 400
     try:
-        extras = parse_application_extras(request.form if request.mimetype == 'multipart/form-data' else data)
-    except ValueError as error:
-        return jsonify({'error': str(error)}), 400
-
-    if not description:
-        return jsonify({'error': 'Описание обязательно'}), 400
-    
-    if latitude is None or longitude is None:
-        return jsonify({'error': 'Координаты обязательны'}), 400
-    
-    try:
-        latitude, longitude = coordinates(latitude, longitude)
-    except ValueError:
-        return jsonify({'error': 'Некорректные координаты'}), 400
-    
-    try:
-        category = ApplicationCategory(category_str)
-    except ValueError:
-        return jsonify({'error': 'Некорректная категория'}), 400
-    
-    is_valid, error_message = validate_description(description)
-    if not is_valid:
-        return jsonify({'error': error_message}), 400
-    
-    description = sanitize_description(description)
-    
-    try:
-        expires_days = int(expires_days)
+        latitude, longitude = coordinates(data.get('latitude'), data.get('longitude'))
+        description = data.get('description', 'SOS — Экстренная ситуация' if request.path == '/api/sos' else '')
+        if not isinstance(description, str):
+            raise ValueError('Описание должно быть текстом')
+        description = description.strip()
+        valid, error = validate_description(description)
+        if not valid:
+            raise ValueError(error)
+        category = ApplicationCategory('emergency' if request.path == '/api/sos' else data.get('category', 'food'))
+        fields = data.to_dict() if request.mimetype == 'multipart/form-data' else dict(data)
+        if request.path == '/api/sos':
+            fields['priority'] = 'sos'
+        extras = parse_application_extras(fields)
+        expires_days = int(data.get('expires_days', 1 if extras['priority'] == 'sos' else 7))
         if not 1 <= expires_days <= 365:
-            raise ValueError('Invalid duration')
-        for media_file in media_files:
-            validate_upload(media_file)
+            raise ValueError('Срок заявки должен быть от 1 до 365 дней')
+        photos = request.files.getlist('media_files')
+        validate_photos(photos)
         verification = request.files.get('verification_document')
         if verification and verification.filename:
             validate_upload(verification, document=True)
+        supplied_city = data.get('city')
+        if supplied_city is not None and (not isinstance(supplied_city, str) or not supplied_city.strip() or len(supplied_city) > 200):
+            raise ValueError('Укажите город (до 200 символов)')
+    except UploadValidationError as error:
+        return jsonify(error=str(error)), error.status_code
     except (ValueError, TypeError) as error:
-        return jsonify({'error': str(error)}), 400
-
-    city, region = get_location_info(latitude, longitude)
-    supplied_city = (request.form if request.mimetype == 'multipart/form-data' else data).get('city')
-    if supplied_city is not None:
-        if not isinstance(supplied_city, str) or not supplied_city.strip() or len(supplied_city) > 200:
-            return jsonify({'error': 'Укажите город'}), 400
-        city = supplied_city.strip()
-    
-    new_application = Application(
-        description=description,
-        latitude=latitude,
-        longitude=longitude,
-        category=category,
-        user_id=user.id,
-        moderation_status=ModerationStatus.PENDING,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
-        city=city,
-        region=region,
-        priority=0
-    )
-    
-    db.session.add(new_application)
-    db.session.flush()
-    attach_application_extras(new_application, extras)
-    
-    if media_files:
-        upload_folder = current_app.config['UPLOAD_FOLDER']
-        for file in media_files:
-            if file and file.filename:
-                try:
-                    filename = secure_filename(file.filename)
-                    if not filename:
-                        continue
-                    
-                    file.seek(0, os.SEEK_END)
-                    file_size = file.tell()
-                    file.seek(0)
-                    if file_size > 50 * 1024 * 1024:  # 50 МБ на файл
-                        db.session.rollback()
-                        return jsonify({'error': f'Файл {filename} слишком большой (макс. 50MB)'}), 400
-                    
-                    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_filename = f"app_{new_application.id}_{timestamp}_{filename}"
-                    file_path = os.path.join(upload_folder, unique_filename)
-                    
-                    file.save(file_path)
-                    
-                    file_type, _ = mimetypes.guess_type(file_path)
-                    if not file_type:
-                        file_type = 'application/octet-stream'
-                    
-                    media = ApplicationMedia(
-                        application_id=new_application.id,
-                        file_path=unique_filename,
-                        file_type=file_type
-                    )
-                    db.session.add(media)
-                except Exception as e:
-                    current_app.logger.error(f"Error saving media file: {e}")
-                    db.session.rollback()
-                    return jsonify({'error': f'Ошибка при сохранении файла {file.filename}'}), 500
-    
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        verification_doc = request.files.get('verification_document')
-        if verification_doc and verification_doc.filename:
-            if category in [ApplicationCategory.FOOD, ApplicationCategory.MEDICINE, ApplicationCategory.SHELTER]:
-                try:
-                    filename = secure_filename(verification_doc.filename)
-                    if filename and (filename.endswith('.pdf') or verification_doc.content_type == 'application/pdf'):
-                        verification_doc.seek(0, os.SEEK_END)
-                        file_size = verification_doc.tell()
-                        verification_doc.seek(0)
-                        if file_size > 50 * 1024 * 1024:
-                            db.session.rollback()
-                            return jsonify({'error': 'Документ подтверждения слишком большой (макс. 50MB)'}), 400
-                        
-                        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-                        unique_filename = f"verify_{new_application.id}_{timestamp}_{filename}"
-                        file_path = os.path.join(upload_folder, unique_filename)
-                        
-                        verification_doc.save(file_path)
-                        
-                        verification_media = ApplicationMedia(
-                            application_id=new_application.id,
-                            file_path=unique_filename,
-                            file_type='application/pdf'
-                        )
-                        db.session.add(verification_media)
-                except Exception as e:
-                    current_app.logger.error(f"Error saving verification document: {e}")
-                    pass
-    
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'id': new_application.id,
-        'application_id': new_application.id,
-        'application': {'id': new_application.id},
-        'message': 'Заявка создана и отправлена на модерацию'
-    })
-
-
-@views.route('/api/sos', methods=['POST'])
-@login_required
-def create_sos():
-    if current_user.is_blocked:
-        if current_user.blocked_until and current_user.blocked_until > datetime.now(timezone.utc):
-            blocked_info = {
-                'error': 'Вы заблокированы и не можете создавать заявки',
-                'blocked': True,
-                'blocked_until': current_user.blocked_until.isoformat(),
-                'blocked_reason': current_user.blocked_reason
-            }
-            return jsonify(blocked_info), 403
-        else:
-            current_user.is_blocked = False
-            current_user.blocked_until = None
-            db.session.commit()
-    
-    if current_user.rating_count > 0 and current_user.average_rating < 2.0:
-        return jsonify({'error': 'Ваш рейтинг слишком низкий для создания заявок'}), 403
-    
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict) or not data:
-        return jsonify({'error': 'Неверный формат данных'}), 400
-    
-    latitude = data.get('latitude')
-    longitude = data.get('longitude')
-    
-    if latitude is None or longitude is None:
-        return jsonify({'error': 'Координаты обязательны'}), 400
-    
+        return jsonify(error=str(error)), 400
+    user = check_requester(current_user.id, sos=extras['priority'] == 'sos')
+    city, region = (supplied_city.strip(), None) if supplied_city else (user.city, None)
+    # Explicit coordinates are sufficient to publish SOS without a slow geocoder.
+    if not city and extras['priority'] != 'sos':
+        city, region = get_location_info(latitude, longitude)
+    application = Application(description=sanitize_description(description), latitude=latitude,
+        longitude=longitude, category=category, user_id=user.id,
+        moderation_status=ModerationStatus.PENDING, status='pending',
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days), city=city, region=region)
     try:
-        latitude, longitude = coordinates(latitude, longitude)
-    except ValueError:
-        return jsonify({'error': 'Некорректные координаты'}), 400
-    
-    new_application = Application(
-        description="SOS - Экстренная ситуация",
-        latitude=latitude,
-        longitude=longitude,
-        category=ApplicationCategory.EMERGENCY,
-        user_id=current_user.id,
-        moderation_status=ModerationStatus.PENDING,
-        is_sos=True,
-        priority=5,
-        priority_source='user_sos',
-        city=current_user.city,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1)
-    )
-    
-    db.session.add(new_application)
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'id': new_application.id,
-        'application_id': new_application.id,
-        'application': {'id': new_application.id},
-        'message': 'SOS заявка создана и отправлена на модерацию'
-    })
-
+        db.session.add(application)
+        db.session.flush()
+        attach_application_extras(application, extras)
+        save_photos(application, photos)
+        if verification and verification.filename:
+            save_media_file(application, verification, 'application/pdf')
+        if application.is_sos:
+            publish_sos(application)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return jsonify(success=True, id=application.id, application_id=application.id,
+        application=dict(id=application.id),
+        message='SOS опубликован' if application.is_sos else 'Заявка отправлена на модерацию'), 201
 
 @views.route('/api/search', methods=['GET'])
 def search():
@@ -2997,12 +2574,15 @@ def search_cities():
 
 
 def permitted_upload(filename):
+    from .models import User
+    if User.query.filter_by(avatar=filename).first():
+        return serve_upload(filename)
     media = ApplicationMedia.query.filter_by(file_path=filename).first_or_404()
     application = media.application
     can_review = current_user.is_authenticated and (current_user.id == application.user_id or current_user.isAdmin)
     if not can_review and (media.file_type == 'application/pdf' or application.moderation_status != ModerationStatus.APPROVED):
         return jsonify({'error': 'Доступ запрещён'}), 403
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    return serve_upload(filename)
 
 
 @views.route('/uploads/<filename>')

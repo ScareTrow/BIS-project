@@ -52,7 +52,7 @@ def test_invalid_upload_has_no_database_or_file_side_effects(client, test_user, 
         'category': 'food', 'description': 'Upload regression',
         'media_files': (io.BytesIO(content), filename),
     })
-    assert response.status_code == 400
+    assert response.status_code == (400 if not content else 415)
     with client.application.app_context():
         assert Application.query.count() == 0
     from pathlib import Path

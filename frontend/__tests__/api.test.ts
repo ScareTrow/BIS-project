@@ -50,6 +50,16 @@ describe('API Client', () => {
   })
 
   describe('getApplications', () => {
+    it('reads GeoJSON longitude/latitude into map coordinates', async () => {
+      mocks.mockGet.mockResolvedValue({ data: { type: 'FeatureCollection', features: [{
+        id: 7, geometry: { type: 'Point', coordinates: [76.8512, 43.222] },
+        properties: { description: 'Need help', status: 'open' },
+      }] } });
+      const result = await apiClient.getApplications(false, 'Алматы', 'open');
+      expect(result[0]).toEqual({ id: 7, description: 'Need help', status: 'open', latitude: 43.222, longitude: 76.8512 });
+      expect(mocks.mockGet).toHaveBeenCalledWith('/map/points', { params: { city: 'Алматы', status: 'open', format: 'geojson' } });
+    });
+
     it('should fetch applications', async () => {
       const mockData = [{ id: 1, description: 'Test' }]
       mocks.mockGet.mockResolvedValue({ data: mockData })

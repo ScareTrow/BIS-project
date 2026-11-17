@@ -1,5 +1,7 @@
 'use client';
 
+import { mapTiles } from '@/lib/mapTiles';
+
 import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -9,6 +11,7 @@ import LeafletIconFix from './LeafletIconFix';
 interface ApplicationMapProps {
   center: [number, number];
   onLocationSelect: (lat: number, lng: number) => void;
+  selected?: boolean;
 }
 
 function LocationMarker({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) {
@@ -48,7 +51,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export default function ApplicationMap({ center, onLocationSelect }: ApplicationMapProps) {
+export default function ApplicationMap({ center, onLocationSelect, selected = true }: ApplicationMapProps) {
   const markerRef = useRef<L.Marker>(null);
 
   useEffect(() => {
@@ -68,6 +71,7 @@ export default function ApplicationMap({ center, onLocationSelect }: Application
   }, [center]);
 
   return (
+    <div style={{ height: '360px', width: '100%' }}>
     <MapContainer
       center={center}
       zoom={10}
@@ -76,13 +80,8 @@ export default function ApplicationMap({ center, onLocationSelect }: Application
     >
       <LeafletIconFix />
       <MapUpdater center={center} />
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        subdomains="abcd"
-        maxZoom={20}
-      />
-      <Marker 
+      <TileLayer {...mapTiles} />
+      {selected && <Marker
         position={center} 
         ref={markerRef}
         icon={new L.Icon.Default({
@@ -90,9 +89,10 @@ export default function ApplicationMap({ center, onLocationSelect }: Application
           iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
           shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
         })}
-      />
+      />}
       <LocationMarker onLocationSelect={onLocationSelect} />
     </MapContainer>
+    </div>
   );
 }
 

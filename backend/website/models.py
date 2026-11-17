@@ -33,7 +33,7 @@ class ResponseStatus(enum.Enum):
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(150), nullable=False)
     last_name = db.Column(db.String(150))
     isAdmin = db.Column(db.Boolean, default=False, nullable=False)
@@ -224,6 +224,17 @@ class News(db.Model):
 
     def __repr__(self):
         return f'<News {self.id}>'
+
+
+class TelegramConversation(db.Model):
+    key = db.Column(db.String(64), primary_key=True)
+    state = db.Column(db.String(255), nullable=True)
+    data = db.Column(db.JSON, nullable=False, default=dict)
+
+
+class TelegramUpdateReceipt(db.Model):
+    bot_id = db.Column(db.BigInteger, primary_key=True)
+    update_id = db.Column(db.BigInteger, primary_key=True)
 
 
 # Register the additive mutual-aid schema alongside the retained legacy tables.
