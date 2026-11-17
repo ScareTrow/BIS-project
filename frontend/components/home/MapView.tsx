@@ -1,5 +1,7 @@
 'use client';
 
+import { mapTiles } from '@/lib/mapTiles';
+
 import CategoryBadge from '@/components/common/CategoryBadge';
 import { Application, ApplicationCategory } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -139,10 +141,7 @@ export default function MapView({ applications, center, city }: MapViewProps) {
               <MapResizeHandler />
               <MapInitializer />
               <MapCenterController center={center} />
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <TileLayer {...mapTiles} />
               {showResources && resources.map(r=><CircleMarker key={`resource-${r.id}`} center={[r.latitude,r.longitude]} radius={10} pathOptions={{color:r.availability==='available'?'#15803d':'#a16207'}}><Popup><strong>{r.name}</strong><p>{r.availability==='available'?'Доступен':r.availability==='outdated'?'Информация устарела':'Недоступен'}</p><Link href={`/resources#resource-${r.id}`}>Подробнее о ресурсе</Link></Popup></CircleMarker>)}
               {filteredApplications.map((app) => (
                 <ApplicationMarker key={app.id} application={app} />

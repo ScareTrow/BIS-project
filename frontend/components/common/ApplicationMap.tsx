@@ -1,13 +1,12 @@
 'use client';
 
+import { mapTiles } from '@/lib/mapTiles';
+
 import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import LeafletIconFix from './LeafletIconFix';
-
-const cartoApiKey = process.env.NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY?.trim();
-const cartoTileUrl = `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${cartoApiKey ? `?key=${encodeURIComponent(cartoApiKey)}` : ''}`;
 
 interface ApplicationMapProps {
   center: [number, number];
@@ -81,12 +80,7 @@ export default function ApplicationMap({ center, onLocationSelect, selected = tr
     >
       <LeafletIconFix />
       <MapUpdater center={center} />
-      <TileLayer
-        url={cartoTileUrl}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        subdomains="abcd"
-        maxZoom={20}
-      />
+      <TileLayer {...mapTiles} />
       {selected && <Marker
         position={center} 
         ref={markerRef}

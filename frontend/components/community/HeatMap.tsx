@@ -1,4 +1,6 @@
 "use client";
+
+import { mapTiles } from '@/lib/mapTiles';
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { Analytics } from "@/lib/community-api";
 export default function HeatMap({ points }: { points: Analytics["heatmap"] }) {
@@ -11,10 +13,7 @@ export default function HeatMap({ points }: { points: Analytics["heatmap"] }) {
         zoom={10}
         style={{ height: "100%", width: "100%" }}
       >
-        <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <TileLayer {...mapTiles} />
         {points.map((p, i) => (
           <CircleMarker
             key={i}
