@@ -4,6 +4,24 @@
 Окружение: macOS, Python 3.14 + SQLite in-memory (фикстуры `conftest.py`), Node 20 + Jest 29 (jsdom).
 Геокодинг и Telegram в тестах заменены заглушками (см. `docs/qa-protocol.md`).
 
+## 0. Повторная проверка после merge `main` (17.11.2026)
+
+После вливания `origin/main` (коммит `e222807`) тесты переписаны под новый контракт: заявка создаётся только multipart с 1–3 настоящими JPEG/PNG (Pillow), успех — `201`, неверный тип — `415`, слишком большой файл — `413`, описание 10–1000 символов. Тесты бэкенда теперь идут только на PostgreSQL (`ASAR_TEST_DATABASE_URL`, база `*_test`).
+
+| Дефект | Статус после main | Чем подтверждено |
+|---|---|---|
+| O3-BUG-01 описание > 1000 | ✅ исправлен (бэкенд и `maxLength=1000`) | `test_description_1001_characters_rejected`, Jest «limits the description…» |
+| O3-BUG-02 больше 3 фото | ✅ исправлен | `test_fourth_photo_rejected`, Jest «rejects a fourth photo» |
+| O3-BUG-03 перезапись одноимённых файлов | ✅ исправлен (`uuid4`) | `test_same_filename_twice_keeps_both_files` |
+| O3-BUG-04 лимит 50 MiB | ✅ исправлен (10 MiB, `413`) | `test_file_10_1_mb_rejected`, Jest «rejects a 10.1 MB photo» |
+| O3-BUG-05 содержимое не проверяется | ✅ исправлен (Pillow `verify`) | `test_exe_renamed_to_jpg_rejected`, `test_png_content_with_jpg_name_rejected` |
+| O3-BUG-06 форма не проверяет тип | ✅ исправлен (`lib/requestValidation.ts`) | Jest «rejects an .exe…», тесты хелпера |
+| O3-BUG-07 карта в форме 0 px | ✅ исправлен в коде (обёртка 360 px) | проверено по коду; ручную проверку M-16 повторить |
+| O3-BUG-08 пустая широта → 0 | ✅ исправлен (координаты пустые до выбора, ошибка «Выберите точку…») | Jest «does not send latitude 0…» |
+| O3-BUG-09 ошибки на английском | ⚠️ частично: ошибки файлов на русском, координаты — `Invalid coordinates` | `xfail` `test_coordinate_error_is_russian` |
+
+Новый прогон: `test_qa_o3.py` — 61 тест, 60 прошло, 1 `xfail` (O3-BUG-09). Jest (весь фронтенд) — 53/53. Разделы ниже — исходный прогон от 16.11.2026 и оставлены для истории.
+
 ## 1. Требования, по которым проверяли
 
 | Параметр | Требование O3 | Что реализовано сейчас |

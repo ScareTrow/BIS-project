@@ -176,8 +176,9 @@ def test_rate_helper_rejects_user_who_never_responded(app, test_user):
 
 
 @pytest.mark.security
-@pytest.mark.xfail(strict=True, reason="SEC-05: fake 1-star ratings block the victim's SOS")
 def test_fake_ratings_cannot_disable_victims_sos(app, test_user):
+    # Since main the "rating < 2 cannot create" rule is gone, so SEC-05 no
+    # longer locks the victim out of SOS. Fake ratings themselves: see above.
     victim = make_user(app, "sos-victim@example.com")
     attacker = login(app, test_user)
     for _ in range(4):
@@ -187,9 +188,12 @@ def test_fake_ratings_cannot_disable_victims_sos(app, test_user):
             json={"helper_id": victim.id, "rating_value": 1},
         )
 
-    response = login(app, victim).post("/api/sos", json={"latitude": 43.2, "longitude": 76.9})
+    response = login(app, victim).post("/api/sos", data={
+        "latitude": "43.2", "longitude": "76.9", "description": "SOS: нужна срочная помощь",
+        "media_files": (io.BytesIO(jpeg_bytes()), "sos.jpg"),
+    }, content_type="multipart/form-data")
 
-    assert response.status_code == 200
+    assert response.status_code == 201, response.get_json()
 
 
 def test_simple_rating_still_requires_accepted_response(app, test_user):
@@ -208,7 +212,6 @@ def test_simple_rating_still_requires_accepted_response(app, test_user):
 # T-06 -----------------------------------------------------------------------
 
 @pytest.mark.security
-@pytest.mark.xfail(strict=True, reason="SEC-06: legacy /send-task stores any file extension")
 def test_legacy_send_task_rejects_html_upload(app, test_user):
     client = login(app, test_user)
 
@@ -223,7 +226,6 @@ def test_legacy_send_task_rejects_html_upload(app, test_user):
 
 
 @pytest.mark.security
-@pytest.mark.xfail(strict=True, reason="SEC-06: avatar upload accepts SVG/HTML")
 def test_avatar_upload_rejects_svg(app, test_user):
     client = login(app, test_user)
 
@@ -245,7 +247,8 @@ def test_api_create_application_rejects_html_upload(app, test_user):
         "media_files": (io.BytesIO(b"<script>alert(1)</script>"), "x.html"),
     }, content_type="multipart/form-data")
 
-    assert response.status_code == 400
+    # Since main: unsupported media type is 415.
+    assert response.status_code == 415
 
 
 @pytest.mark.security
@@ -364,6 +367,29 @@ def bot_message(latitude=43.2, longitude=76.9):
     return message
 
 
+def jpeg_bytes():
+    from PIL import Image
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8), (200, 60, 60)).save(buffer, "JPEG")
+    return buffer.getvalue()
+
+
+def bot_photo_message():
+    """Location message whose bot can serve the remembered photo."""
+    from types import SimpleNamespace
+    message = bot_message()
+    message.bot.get_file = AsyncMock(return_value=SimpleNamespace(file_size=2048, file_path="photos/p.jpg"))
+
+    async def download(path, destination):
+        destination.write(jpeg_bytes())
+
+    message.bot.download_file = AsyncMock(side_effect=download)
+    return message
+
+
+BOT_PHOTO = {"photo_file_id": "file-1", "photo_filename": "proof.jpg"}
+
+
 def bot_state(data):
     state = MagicMock()
     state.get_data = AsyncMock(return_value=data)
@@ -381,40 +407,60 @@ def blocked_user(app):
 
 @pytest.mark.telegram
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="BUG-04: bot lets blocked users create requests")
-async def test_bot_blocked_user_cannot_create_request(app, blocked_user):
+async def test_bot_unblocked_user_creates_request(app, test_user):
+    # Control for the two tests below: the mocked bot path does create requests.
     from backend.telegram_bot.handlers import common
-    state = bot_state({"description": "Нужна помощь", "category": "food"})
+    state = bot_state({"description": "Нужна помощь продуктами", "category": "food", **BOT_PHOTO})
 
-    with patch.object(common, "require_auth", AsyncMock(return_value=blocked_user)), \
+    with patch.object(common, "require_auth", AsyncMock(return_value=test_user)), \
          patch.object(common, "create_app", return_value=app):
-        await common.process_location(bot_message(), state)
+        await common.process_location(bot_photo_message(), state)
 
     with app.app_context():
-        assert Application.query.filter_by(user_id=blocked_user.id).count() == 0
+        assert Application.query.filter_by(user_id=test_user.id).count() == 1
 
 
 @pytest.mark.telegram
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="BUG-04: bot lets blocked users send SOS")
-async def test_bot_blocked_user_cannot_send_sos(app, blocked_user):
+async def test_bot_blocked_user_cannot_create_request(app, blocked_user):
+    # BUG-04 fixed in main: the bot uses check_requester like the website.
     from backend.telegram_bot.handlers import common
+    state = bot_state({"description": "Нужна помощь продуктами", "category": "food", **BOT_PHOTO})
+    message = bot_photo_message()
 
     with patch.object(common, "require_auth", AsyncMock(return_value=blocked_user)), \
          patch.object(common, "create_app", return_value=app):
-        await common.process_sos_location(bot_message(), bot_state({}))
+        await common.process_location(message, state)
 
     with app.app_context():
         assert Application.query.filter_by(user_id=blocked_user.id).count() == 0
+    assert "заблокированы" in message.answer.call_args.args[0]
+
+
+@pytest.mark.telegram
+@pytest.mark.asyncio
+async def test_bot_blocked_user_cannot_send_sos(app, blocked_user):
+    from backend.telegram_bot.handlers import common
+    message = bot_photo_message()
+
+    with patch.object(common, "require_auth", AsyncMock(return_value=blocked_user)), \
+         patch.object(common, "create_app", return_value=app):
+        await common.process_sos_location(message, bot_state(dict(BOT_PHOTO)))
+
+    with app.app_context():
+        assert Application.query.filter_by(user_id=blocked_user.id).count() == 0
+    assert "заблокированы" in message.answer.call_args.args[0]
 
 
 # T-10 -----------------------------------------------------------------------
 
 def test_repeated_approval_notifies_matching_volunteer_once(app, monkeypatch, test_user, admin_user):
+    # Since main: volunteers within 10 km with a linked Telegram are notified.
     monkeypatch.setattr("backend.telegram_bot.config.Config.TELEGRAM_BOT_TOKEN", "test-token")
     volunteer = make_user(app, "matched@example.com", telegram_id="555555")
     with app.app_context():
-        db.session.add(VolunteerPreference(user_id=volunteer.id, is_available=True))
+        db.session.add(VolunteerPreference(user_id=volunteer.id, is_available=True,
+                                           latitude=43.2300, longitude=76.8600))
         db.session.commit()
     application = make_application(app, test_user, moderation_status=ModerationStatus.PENDING)
     admin = login(app, admin_user, "Admin1234!@#$")
@@ -423,28 +469,37 @@ def test_repeated_approval_notifies_matching_volunteer_once(app, monkeypatch, te
         for _ in range(2):
             assert admin.post(f"/api/admin/applications/{application.id}/approve").status_code == 200
 
-    assert [c.args[0] for c in send.call_args_list] == ["555555"]
+    assert [c.kwargs["telegram_id"] for c in send.call_args_list] == ["555555"]
     with app.app_context():
         assert Notification.query.filter_by(user_id=volunteer.id, notification_type="new_request").count() == 1
 
 
 @pytest.mark.telegram
-@pytest.mark.xfail(strict=True, reason="BUG-01: create_notification imports a non-existent bot object")
 def test_create_notification_delivers_to_telegram(app):
+    # BUG-01 fixed in main: notices are queued and sent after commit.
     from backend.website.views import create_notification
     user = make_user(app, "tg-recipient@example.com", telegram_id="666666")
 
     with app.app_context(), \
          patch("backend.telegram_bot.utils.notifications.send_notification") as send:
         create_notification(user.id, "Оцените волонтера", "Тест", "rate_volunteer_reminder", send_telegram=True)
+        assert not send.called  # nothing is sent before commit
+        db.session.commit()
 
-    assert send.called
+    assert send.call_args.kwargs["telegram_id"] == "666666"
 
 
 @pytest.mark.xfail(strict=True, reason="Top-10 #6: no administrator alert when an SOS is created")
 def test_sos_alerts_administrators(app, test_user, admin_user):
-    response = login(app, test_user).post("/api/sos", json={"latitude": 43.2, "longitude": 76.9})
+    from PIL import Image
+    image = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(image, "JPEG")
+    image.seek(0)
+    response = login(app, test_user).post("/api/sos", data={
+        "latitude": "43.2", "longitude": "76.9", "description": "SOS: нужна срочная помощь",
+        "media_files": (image, "sos.jpg"),
+    }, content_type="multipart/form-data")
 
-    assert response.status_code == 200
+    assert response.status_code == 201, response.get_json()
     with app.app_context():
         assert Notification.query.filter_by(user_id=admin_user.id).count() >= 1

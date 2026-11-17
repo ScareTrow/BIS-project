@@ -9,15 +9,21 @@ Covers five QA tasks (see QA_WORKFLOW_REPORT.md):
 * MD  - moderator permissions and status changes.
 
 Defects are marked ``xfail(strict=True)``; they turn into XPASS (failing the
-run) once fixed. Known defects already covered by test_qa_p0.py (BUG-01,
-BUG-03, BUG-10, SEC-05) are referenced in the report, not duplicated here.
+run) once fixed. Known defects already covered by test_qa_p0.py (BUG-03,
+BUG-10, SEC-05) are referenced in the report, not duplicated here.
+
+Updated after merging main (Nov 2026): requests need 1-3 JPEG/PNG photos,
+SOS is published immediately (3 per hour), a moderator must give a reason to
+reject, and nearby volunteers (10 km, linked Telegram) are notified.
 """
 
-import os
+import io
+import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
+from PIL import Image
 from werkzeug.security import generate_password_hash
 
 from backend.website import db
@@ -37,10 +43,6 @@ from backend.website.models import (
 )
 
 PASSWORD = "Asar8!River2"
-ON_POSTGRES = os.getenv("ASAR_TEST_DATABASE_URL", "").startswith("postgresql")
-# SQLite returns naive datetimes (block checks compare with aware "now") and its
-# lower() ignores Cyrillic (city matching). Those checks run on PostgreSQL only.
-postgres_only = pytest.mark.skipif(not ON_POSTGRES, reason="needs PostgreSQL: set ASAR_TEST_DATABASE_URL")
 ALMATY = (43.238949, 76.889709)
 
 
@@ -84,24 +86,46 @@ def people(app):
             for name, extra in names.items()}
 
 
-def create(client, description="Нужна помощь продуктами", priority="normal", **extra):
-    body = {
+def jpeg():
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8), (200, 60, 60)).save(buffer, "JPEG")
+    buffer.seek(0)
+    return (buffer, "photo.jpg")
+
+
+def submit(client, path="/api/applications", description="Нужна помощь продуктами", priority="normal", **extra):
+    """Multipart request with one real JPEG, as the website form sends it."""
+    data = {
         "description": description,
-        "latitude": ALMATY[0],
-        "longitude": ALMATY[1],
+        "latitude": str(ALMATY[0]),
+        "longitude": str(ALMATY[1]),
         "category": "food",
         "city": "Алматы",
         "priority": priority,
-        **extra,
+        "media_files": [jpeg()],
     }
-    response = client.post("/api/applications", json=body)
-    assert response.status_code == 200, response.get_json()
+    for key, value in extra.items():
+        data[key] = json.dumps(value) if isinstance(value, (list, dict)) else str(value)
+    return client.post(path, data=data, content_type="multipart/form-data")
+
+
+def create(client, description="Нужна помощь продуктами", priority="normal", **extra):
+    response = submit(client, description=description, priority=priority, **extra)
+    assert response.status_code == 201, response.get_json()
     return response.get_json()["id"]
+
+
+def sos(client):
+    return submit(client, "/api/sos", description="SOS: нужна срочная помощь")
 
 
 def approve(admin, app_id):
     response = admin.post(f"/api/admin/applications/{app_id}/approve", json={})
     assert response.status_code == 200, response.get_json()
+
+
+def reject(admin, app_id, reason="Нарушение правил"):
+    return admin.post(f"/api/admin/applications/{app_id}/reject", json={"reason": reason})
 
 
 def respond(client, app_id):
@@ -188,7 +212,7 @@ class TestOneResponsePerUser:
 
     def test_author_cannot_respond_to_own_request(self, people, approved):
         response = respond(people["author"], approved)
-        assert response.status_code == 400
+        assert response.status_code == 403  # was 400 before main
 
     @pytest.mark.parametrize("state", ["pending", "rejected", "resolved", "false_call"])
     def test_cannot_respond_to_inactive_request(self, app, people, state):
@@ -260,7 +284,7 @@ class TestLifecycle:
 
     def test_reject_path(self, app, people):
         app_id = create(people["author"])
-        assert people["admin"].post(f"/api/admin/applications/{app_id}/reject", json={"reason": "дубль"}).status_code == 200
+        assert reject(people["admin"], app_id, "дубль").status_code == 200
         assert status(app, Application, app_id).moderation_status == ModerationStatus.REJECTED
         assert respond(people["vol1"], app_id).status_code == 400
         assert people["author"].post(f"/api/applications/{app_id}/resolve").status_code == 409
@@ -335,7 +359,7 @@ class TestLifecycle:
     @pytest.mark.xfail(strict=True, reason="WF-BUG-02: moderator can reject/approve an already resolved request")
     def test_moderation_of_closed_request_refused(self, app, people, approved):
         people["author"].post(f"/api/applications/{approved}/resolve")
-        r = people["admin"].post(f"/api/admin/applications/{approved}/reject", json={})
+        r = reject(people["admin"], approved)
         assert r.status_code == 409
         assert status(app, Application, approved).moderation_status == ModerationStatus.APPROVED
 
@@ -349,44 +373,48 @@ class TestPriorityAndSpam:
     def test_sos_and_priority_first_in_list(self, app, people):
         admin = people["admin"]
         normal_old = create(people["author"], "Обычная, старая")
-        sos = create(people["author"], "SOS через форму", priority="sos")
+        sos_id = create(people["author"], "SOS через форму", priority="sos")
         normal_new = create(people["author"], "Обычная, новая")
         high = create(people["author"], "Админ поднял приоритет")
-        for app_id in (normal_old, sos, normal_new, high):
+        for app_id in (normal_old, sos_id, normal_new, high):
             approve(admin, app_id)
         assert admin.post(f"/api/admin/applications/{high}/set-priority", json={"priority": 3}).status_code == 200
         with app.app_context():
-            for offset, app_id in enumerate((normal_old, sos, high, normal_new)):
+            for offset, app_id in enumerate((normal_old, sos_id, high, normal_new)):
                 db.session.get(Application, app_id).date = datetime(2026, 11, 1, 10 + offset, tzinfo=timezone.utc)
             db.session.commit()
 
         ids = self.list_ids(app.test_client())
-        assert ids == [sos, high, normal_new, normal_old]
+        assert ids == [sos_id, high, normal_new, normal_old]
 
     def test_list_exposes_priority_and_sos_flags(self, app, people):
-        sos = create(people["author"], "SOS", priority="sos")
-        approve(people["admin"], sos)
-        item = next(a for a in app.test_client().get("/api/applications/list").get_json() if a["id"] == sos)
+        sos_id = create(people["author"], "SOS: нужна помощь", priority="sos")
+        item = next(a for a in app.test_client().get("/api/applications/list").get_json() if a["id"] == sos_id)
         assert item["is_sos"] is True and item["priority"] == 5
 
     def test_web_sos_endpoint_sets_top_priority(self, app, people):
-        r = people["author"].post("/api/sos", json={"latitude": ALMATY[0], "longitude": ALMATY[1]})
-        assert r.status_code == 200
+        r = sos(people["author"])
+        assert r.status_code == 201, r.get_json()
         with app.app_context():
             row = Application.query.filter_by(is_sos=True).one()
-            assert (row.priority, row.priority_source, row.moderation_status) == (5, "user_sos", ModerationStatus.PENDING)
+            assert (row.priority, row.priority_source, row.moderation_status) == (5, "user_sos", ModerationStatus.APPROVED)
 
-    def test_sos_is_moderated_before_publication(self, app, people):
-        sos = create(people["author"], "SOS", priority="sos")
-        assert sos not in self.list_ids(app.test_client())
+    def test_sos_published_immediately(self, app, people):
+        # Changed in main; docs/scope-october-2026.md still says SOS is moderated (WF-OBS-06).
+        app_id = sos(people["author"]).get_json()["id"]
+        assert app_id in self.list_ids(app.test_client())
+
+    def test_sos_requires_photo(self, people):
+        r = people["author"].post("/api/sos", data={"latitude": "43.2", "longitude": "76.9"},
+                                  content_type="multipart/form-data")
+        assert r.status_code == 400
 
     @pytest.mark.parametrize("priority", ["high", "5", 5, "urgent", ""])
-    def test_user_cannot_set_own_priority(self, people, priority):
-        r = people["author"].post("/api/applications", json={
-            "description": "x", "latitude": ALMATY[0], "longitude": ALMATY[1],
-            "category": "food", "city": "Алматы", "priority": priority,
-        })
+    def test_user_cannot_set_own_priority(self, app, people, priority):
+        r = submit(people["author"], priority=priority)
         assert r.status_code == 400
+        with app.app_context():
+            assert Application.query.count() == 0
 
     @pytest.mark.parametrize("value", [-1, 6, "abc", None])
     def test_admin_priority_validated(self, people, approved, value):
@@ -400,22 +428,19 @@ class TestPriorityAndSpam:
         row = status(app, Application, app_id)
         assert (row.priority, row.priority_source) == (3, "auto")
 
-    @postgres_only
     def test_blocked_user_cannot_create_or_sos(self, app, people):
         r = people["admin"].post(f"/api/admin/users/{people['author'].user.id}/block", json={"days": 7, "reason": "спам"})
         assert r.status_code == 200
-        assert people["author"].post("/api/applications", json={
-            "description": "x", "latitude": 43, "longitude": 76, "category": "food"}).status_code == 403
-        assert people["author"].post("/api/sos", json={"latitude": 43, "longitude": 76}).status_code == 403
+        assert submit(people["author"]).status_code == 403
+        assert sos(people["author"]).status_code == 403
 
-    @pytest.mark.xfail(strict=True, reason="WF-BUG-03: an indefinite block (days=0) is lifted on the next request")
     def test_indefinite_block_holds(self, app, people):
+        # WF-BUG-03 fixed in main (check_requester treats a missing end date as indefinite).
         uid = people["author"].user.id
         r = people["admin"].post(f"/api/admin/users/{uid}/block", json={"days": 0, "reason": "спам"})
         assert r.status_code == 200
-        attempt = people["author"].post("/api/applications", json={
-            "description": "x", "latitude": 43, "longitude": 76, "category": "food", "city": "Алматы"})
-        assert attempt.status_code == 403
+        assert submit(people["author"]).status_code == 403
+        assert sos(people["author"]).status_code == 403
         assert status(app, User, uid).is_blocked is True
 
     @pytest.mark.xfail(strict=True, reason="WF-BUG-04: non-numeric 'days' in block request crashes with 500")
@@ -423,19 +448,28 @@ class TestPriorityAndSpam:
         r = people["admin"].post(f"/api/admin/users/{people['author'].user.id}/block", json={"days": "abc"})
         assert r.status_code == 400
 
-    def test_low_rating_cannot_create(self, app, people):
+    def test_low_rating_no_longer_blocks_creation(self, app, people):
+        # The "average rating < 2" rule was removed in main (it enabled SEC-05 abuse).
         with app.app_context():
             user = db.session.get(User, people["author"].user.id)
             user.rating_sum, user.rating_count = 3, 2
             db.session.commit()
-        r = people["author"].post("/api/applications", json={
-            "description": "x", "latitude": 43, "longitude": 76, "category": "food"})
-        assert r.status_code == 403
+        assert submit(people["author"]).status_code == 201
 
-    @pytest.mark.xfail(strict=True, reason="SEC-07: no rate limiting; 20 SOS in a row are all accepted")
-    def test_sos_flood_is_throttled(self, people):
-        codes = [people["author"].post("/api/sos", json={"latitude": 43.2, "longitude": 76.9}).status_code
-                 for _ in range(20)]
+    def test_sos_limited_to_three_per_hour(self, app, people):
+        codes = [sos(people["author"]).status_code for _ in range(4)]
+        assert codes == [201, 201, 201, 429]
+        with app.app_context():
+            assert Application.query.filter_by(is_sos=True).count() == 3
+
+    def test_sos_limit_is_per_user(self, people):
+        for _ in range(3):
+            sos(people["author"])
+        assert sos(people["vol1"]).status_code == 201
+
+    @pytest.mark.xfail(strict=True, reason="SEC-07: ordinary requests have no rate limit; 20 in a row are accepted")
+    def test_request_flood_is_throttled(self, people):
+        codes = [submit(people["author"]).status_code for _ in range(20)]
         assert 429 in codes
 
 
@@ -446,7 +480,7 @@ class TestNotifications:
         a = create(people["author"])
         b = create(people["author"])
         approve(people["admin"], a)
-        people["admin"].post(f"/api/admin/applications/{b}/reject", json={})
+        reject(people["admin"], b, "Дубликат")
         got = {(n.notification_type, n.related_application_id) for n in notifications(app, people["author"].user)}
         assert ("application_approved", a) in got and ("application_rejected", b) in got
 
@@ -486,25 +520,44 @@ class TestNotifications:
         people["author"].post(f"/api/applications/{approved}/resolve")
         assert notifications(app, people["vol2"].user, "application_resolved") == []
 
-    @postgres_only
-    def test_available_volunteer_in_city_notified_on_approve(self, app, people):
+    def volunteer_at(self, app, client, latitude, longitude, available=True, telegram="700001"):
         with app.app_context():
-            db.session.add(VolunteerPreference(user_id=people["vol1"].user.id, is_available=True))
+            user = db.session.get(User, client.user.id)
+            user.telegram_id = telegram
+            db.session.add(VolunteerPreference(user_id=user.id, is_available=available,
+                                               latitude=latitude, longitude=longitude))
             db.session.commit()
-        app_id = create(people["author"])  # city "Алматы", same as vol1
+
+    def test_nearby_volunteer_notified_on_approve(self, app, people):
+        self.volunteer_at(app, people["vol1"], 43.25, 76.90)  # ~1.5 km away
+        app_id = create(people["author"])
         approve(people["admin"], app_id)
-        assert [n.related_application_id for n in notifications(app, people["vol1"].user, "new_request")] == [app_id]
+        [n] = notifications(app, people["vol1"].user, "new_request")
+        assert n.related_application_id == app_id and "км" in n.message
         assert notifications(app, people["vol2"].user, "new_request") == []
 
-    def test_unavailable_or_other_city_volunteer_not_notified(self, app, people):
-        far = make_user(app, "far@example.test", city="Астана")
-        with app.app_context():
-            db.session.add(VolunteerPreference(user_id=people["vol1"].user.id, is_available=False))
-            db.session.add(VolunteerPreference(user_id=far.id, is_available=True))
-            db.session.commit()
+    def test_volunteer_over_10_km_not_notified(self, app, people):
+        self.volunteer_at(app, people["vol1"], 43.35, 76.90)  # ~12 km away
         approve(people["admin"], create(people["author"]))
         assert notifications(app, people["vol1"].user, "new_request") == []
-        assert notifications(app, far, "new_request") == []
+
+    def test_nearby_volunteer_notified_on_sos_without_moderation(self, app, people):
+        self.volunteer_at(app, people["vol1"], 43.25, 76.90)
+        sos(people["author"])
+        [n] = notifications(app, people["vol1"].user, "new_request")
+        assert n.title.startswith("SOS")
+
+    @pytest.mark.xfail(strict=True, reason="WF-BUG-10: volunteers who switched availability off are still notified")
+    def test_unavailable_volunteer_not_notified(self, app, people):
+        self.volunteer_at(app, people["vol1"], 43.25, 76.90, available=False)
+        approve(people["admin"], create(people["author"]))
+        assert notifications(app, people["vol1"].user, "new_request") == []
+
+    @pytest.mark.xfail(strict=True, reason="WF-BUG-11: nearby volunteers without Telegram get no in-app notification")
+    def test_nearby_volunteer_without_telegram_gets_in_app_notice(self, app, people):
+        self.volunteer_at(app, people["vol1"], 43.25, 76.90, telegram=None)
+        approve(people["admin"], create(people["author"]))
+        assert len(notifications(app, people["vol1"].user, "new_request")) == 1
 
     def test_notifications_api_unread_and_read_all(self, app, people, approved):
         respond(people["vol1"], approved)
@@ -536,14 +589,20 @@ class TestNotifications:
         rid = respond(people["vol1"], approved).get_json()["response_id"]
         accept(people["author"], approved, rid)
         before = len(notifications(app, people["vol1"].user))
-        people["admin"].post(f"/api/admin/applications/{approved}/reject", json={"reason": "нарушение"})
+        reject(people["admin"], approved, "нарушение")
         assert len(notifications(app, people["vol1"].user)) > before
 
-    @pytest.mark.xfail(strict=True, reason="WF-BUG-06: author is not told the request was marked false by a moderator")
     def test_requester_notified_on_false_call(self, app, people, approved):
+        # WF-BUG-06 fixed in main.
         people["admin"].post(f"/api/admin/applications/{approved}/mark-false", json={})
-        assert notifications(app, people["author"].user, "application_false_call") or any(
-            "ложн" in n.message.lower() for n in notifications(app, people["author"].user))
+        assert len(notifications(app, people["author"].user, "application_false_call")) == 1
+
+    def test_reject_requires_reason_and_tells_author(self, app, people):
+        app_id = create(people["author"])
+        assert people["admin"].post(f"/api/admin/applications/{app_id}/reject", json={}).status_code == 400
+        assert reject(people["admin"], app_id, "Нет фото проблемы").status_code == 200
+        [n] = notifications(app, people["author"].user, "application_rejected")
+        assert "Нет фото проблемы" in n.message
 
 
 # --------------------------------------------------------------------------- MD: moderator rights
@@ -604,7 +663,7 @@ class TestModeratorRights:
         admin = people["admin"]
         approve(admin, app_id)
         admin.post(f"/api/admin/applications/{app_id}/set-priority", json={"priority": 4, "reason": "дети"})
-        admin.post(f"/api/admin/applications/{app_id}/reject", json={"reason": "дубль"})
+        reject(admin, app_id, "дубль")
         admin.post(f"/api/admin/applications/{app_id}/mark-false", json={"reason": "фейк"})
         with app.app_context():
             log = [(a.action, a.previous_status, a.new_status, a.admin_id, a.reason)

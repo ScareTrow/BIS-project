@@ -10,6 +10,32 @@
 
 Источник требований: `docs/scope-october-2026.md`, `docs/mutual-aid-implementation.md`. Ссылки вида BUG-xx и SEC-xx ведут на `QA_REPORT.md`. Дефекты, найденные в этой проверке, получили новые номера WF-BUG-xx.
 
+## 0. Повторная проверка после merge `main` (17.11.2026)
+
+Что поменялось в `main` и учтено в тестах: заявка и SOS требуют 1–3 фото; SOS публикуется сразу (без модерации), не более 3 в час на пользователя (`429`); правило «рейтинг < 2 не может создавать заявки» убрано; отклонение требует причину; новые заявки рассылаются волонтёрам в радиусе 10 км с привязанным Telegram; автор не может откликнуться на свою заявку — теперь `403`.
+
+| Дефект | Статус после main | Тест |
+|---|---|---|
+| WF-BUG-03 бессрочная блокировка снимается | ✅ исправлен | `test_indefinite_block_holds` |
+| WF-BUG-06 нет уведомления о ложном вызове | ✅ исправлен | `test_requester_notified_on_false_call` |
+| SEC-07 флуд SOS | ✅ для SOS (3/час); ❌ обычные заявки без лимита | `test_sos_limited_to_three_per_hour`; `xfail` `test_request_flood_is_throttled` |
+| BUG-01 Telegram из `create_notification` | ✅ исправлен (отправка после commit) | `test_qa_p0.py::test_create_notification_delivers_to_telegram` |
+| BUG-04 бот пускает заблокированных | ✅ исправлен | `test_qa_p0.py::test_bot_blocked_user_cannot_*` |
+| SEC-05 фейковые оценки блокируют SOS | ✅ последствие снято (правило рейтинга убрано); фейковые оценки по-прежнему возможны | `test_fake_ratings_cannot_disable_victims_sos`; `xfail` `test_rate_helper_rejects_user_who_never_responded` |
+| SEC-06 HTML/SVG через `/send-task` и аватар | ✅ исправлен | `test_qa_p0.py` |
+| WF-BUG-01 просроченные заявки | ❌ открыт | `xfail` `test_expired_request_leaves_map` |
+| WF-BUG-02 модерация закрытой заявки | ❌ открыт | `xfail` `test_moderation_of_closed_request_refused` |
+| WF-BUG-04 `days: "abc"` → 500 | ❌ открыт (`views.py:1118`) | `xfail` `test_block_with_bad_days_is_400` |
+| WF-BUG-05 волонтёры не знают об отклонении | ❌ открыт | `xfail` `test_accepted_volunteer_notified_when_request_rejected` |
+| WF-BUG-07 двойной клик «Откликнуться» | ❌ открыт (кнопка не блокируется) | проверено по коду |
+| WF-BUG-08 кнопки без `aria-label` | ❌ открыт | проверено по коду |
+| WF-BUG-09 пароль в URL | ❌ открыт (`<form>` без `method`) | проверено по коду |
+| **WF-BUG-10 (новый)** | Medium: волонтёр с `is_available = false` всё равно получает рассылку о новых заявках — `notify_nearby` не смотрит на доступность | `xfail` `test_unavailable_volunteer_not_notified` |
+| **WF-BUG-11 (новый)** | Medium: волонтёр рядом без привязанного Telegram не получает даже уведомления на сайте — фильтр `telegram_id IS NOT NULL` в `notify_nearby` | `xfail` `test_nearby_volunteer_without_telegram_gets_in_app_notice` |
+| WF-OBS-06 (замечание) | SOS теперь публикуется без модерации, а `docs/scope-october-2026.md` описывает модерацию SOS — обновить требования | `test_sos_published_immediately` |
+
+Новый прогон на PostgreSQL: `test_qa_workflow.py` — 83 теста, 76 прошло, 7 `xfail`; `test_qa_p0.py` — 24 теста, 13 прошло, 11 `xfail`. Каждый `xfail` снова проверен через `--runxfail`. Разделы ниже — исходный прогон, оставлены для истории.
+
 ## 1. Итог
 
 | Набор | Всего | Прошло | Ожидаемо падает (дефект) | Пропущено | Упало |
