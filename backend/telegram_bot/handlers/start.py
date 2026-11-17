@@ -10,6 +10,22 @@ logger = logging.getLogger(__name__)
 
 async def cmd_start(message: Message):
     telegram_id = str(message.from_user.id)
+
+    text = message.text if isinstance(message.text, str) else ''
+    parts = text.split(maxsplit=1)
+    if len(parts) == 2 and parts[1].startswith('link_'):
+        if message.chat.type != 'private':
+            await message.answer('Для привязки откройте личный чат с ботом по ссылке из профиля ASAR.')
+            return
+        from backend.telegram_bot.utils.database import get_app
+        from backend.website.telegram_link import consume_link
+        try:
+            with get_app().app_context():
+                consume_link(parts[1][5:], telegram_id, message.from_user.username)
+        except ValueError as error:
+            await message.answer(str(error))
+            return
+        await message.answer('Telegram успешно привязан к вашему аккаунту ASAR. Вернитесь на сайт — Telegram ID заполнится автоматически.')
     
     try:
         user = get_user_by_telegram_id(telegram_id)
@@ -42,9 +58,9 @@ async def cmd_start(message: Message):
                 f"Ваш Telegram ID: <code>{telegram_id}</code>\n\n"
                 "<b>Инструкция:</b>\n"
                 "1. Откройте сайт и войдите в свой аккаунт (или зарегистрируйтесь)\n"
-                "2. Перейдите в раздел 'Привязать Telegram' на главной странице\n"
-                "3. Введите ваш Telegram ID и сохраните\n"
-                "4. После привязки используйте /start снова\n\n"
+                "2. В профиле нажмите «Привязать Telegram»\n"
+                "3. Откройте персональную ссылку и нажмите Start\n"
+                "4. Аккаунт свяжется автоматически, вводить Telegram ID не нужно\n\n"
                 f"Сайт: {Config.WEB_APP_URL}"
             )
             
