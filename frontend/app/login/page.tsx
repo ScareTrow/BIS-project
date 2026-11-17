@@ -62,12 +62,7 @@ export default function LoginPage() {
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 {t('auth.login.title') || 'Вход в систему'}
               </h2>
-              <p className="text-sm text-gray-600">
-                {t('auth.login.subtitle') || 'Или'}{' '}
-                <Link href="/sign-up" className="font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                  {t('auth.login.signupLink') || 'зарегистрируйтесь'}
-                </Link>
-              </p>
+
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
@@ -147,6 +142,10 @@ export default function LoginPage() {
                 </button>
               </div>
             </form>
+            <p className="mt-6 text-center text-sm text-gray-600">
+              {t('auth.login.noAccount')}{' '}
+              <Link href="/sign-up" className="font-semibold text-blue-600 hover:text-blue-800 underline">{t('auth.login.createAccount')}</Link>
+            </p>
           </div>
         </div>
       </CursorEffect>

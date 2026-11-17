@@ -4,7 +4,15 @@ This implementation follows the revised TSIS 1&2 and the agreed conceptual
 [ER diagram](asar-er.puml). October commit timestamps are retrospective labels,
 not actual preparation or test execution times; see [scope disclosure](scope-october-2026.md).
 
-## What changed
+## Current behavior (17 November 2026)
+
+The web form now has one description field. Public building addresses are searched
+explicitly through the backend geocoder; delivery requests store both locations
+and separate entrance instructions. Only delivered quantities are tracked.
+Matching no longer depends on an availability switch. See the current
+[README](../README.md#адреса-и-доставка) for operation details.
+
+## Original October implementation
 
 - Existing requests now include clothing, household help, delivery, volunteering
   and social projects, alongside food, medicine, shelter and emergency help.

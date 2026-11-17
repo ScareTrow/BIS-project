@@ -1,16 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import { apiClient } from "@/lib/api";
+import AddressPicker from "@/components/common/AddressPicker";
+import { apiClient, LocationPoint } from "@/lib/api";
 import { communityApi, Capability, NeedInput } from "@/lib/community-api";
 import { useStore } from "@/lib/store";
 import { useTranslation } from "@/lib/i18n";
 import { validateRequestPhotos } from "@/lib/requestValidation";
-const LocationMap = dynamic(
-  () => import("@/components/common/ApplicationMap"),
-  { ssr: false },
-);
 const categories = [
   "food",
   "clothing",
@@ -30,13 +26,15 @@ export default function NewApplicationPage() {
   const t = useTranslation(language);
   const [form, setForm] = useState({
     description: "",
-    needed_help: "",
     city: "",
     category: "food",
-    latitude: "",
-    longitude: "",
     priority: "normal",
   });
+  const [location, setLocation] = useState<LocationPoint | null>(null);
+  const [pickup, setPickup] = useState<LocationPoint | null>(null);
+  const [dropoff, setDropoff] = useState<LocationPoint | null>(null);
+  const [pickupEntrance, setPickupEntrance] = useState('');
+  const [dropoffEntrance, setDropoffEntrance] = useState('');
   const [catalog, setCatalog] = useState<Capability[]>([]);
   const [ids, setIds] = useState<number[]>([]);
   const [needs, setNeeds] = useState<NeedInput[]>([]);
@@ -66,8 +64,9 @@ export default function NewApplicationPage() {
       setError("Укажите город и описание");
       return;
     }
-    if (!form.latitude || !form.longitude) {
-      setError("Выберите точку на карте или укажите координаты");
+    const destination = form.category === 'delivery' ? dropoff : location;
+    if (!destination || (form.category === 'delivery' && !pickup)) {
+      setError(form.category === 'delivery' ? 'Выберите, откуда забрать и куда доставить' : 'Найдите адрес или выберите место на карте');
       return;
     }
     if (form.description.trim().length < 10 || form.description.trim().length > 1000) {
@@ -76,7 +75,9 @@ export default function NewApplicationPage() {
     }
     const photoError = validateRequestPhotos(photos);
     if (photoError) { setError(photoError); return; }
-    const fields = { ...form, latitude: Number(form.latitude), longitude: Number(form.longitude), capability_ids: ids, needs, expires_days: 7 };
+    const fields = { ...form, latitude: destination.latitude, longitude: destination.longitude, address: destination.address,
+      ...(form.category === 'delivery' ? { delivery_details: { pickup: { ...pickup!, entrance: pickupEntrance }, dropoff: { ...destination, entrance: dropoffEntrance } } } : {}),
+      capability_ids: ids, needs, expires_days: 7 };
     setBusy(true);
     try {
       const data = new FormData();
@@ -128,7 +129,7 @@ export default function NewApplicationPage() {
           </select>
         </label>
         <label className="form-field">
-          Опишите ситуацию
+          Опишите ситуацию и какая помощь нужна
           <textarea
             className="form-textarea"
             required
@@ -137,15 +138,6 @@ export default function NewApplicationPage() {
             rows={4}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-        </label>
-        <label className="form-field">
-          Какая помощь нужна
-          <textarea
-            className="form-textarea"
-            maxLength={5000}
-            value={form.needed_help}
-            onChange={(e) => setForm({ ...form, needed_help: e.target.value })}
           />
         </label>
         <label className="flex items-start gap-3 text-sm text-gray-700">
@@ -164,45 +156,18 @@ export default function NewApplicationPage() {
         <p className="text-sm text-gray-600">
           Обычная заявка появится после проверки. SOS публикуется сразу; не более трёх SOS в час.
         </p>
-        <LocationMap
-          selected={form.latitude !== '' && form.longitude !== ''}
-          center={[form.latitude === '' ? 43.222 : Number(form.latitude), form.longitude === '' ? 76.8512 : Number(form.longitude)]}
-          onLocationSelect={(latitude: number, longitude: number) =>
-            setForm((f) => ({ ...f, latitude: String(latitude), longitude: String(longitude) }))
-          }
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <label className="form-field">
-            Широта
-            <input
-              className="form-input"
-              type="number"
-              min={-90}
-              max={90}
-              step="any"
-              required
-              value={form.latitude}
-              onChange={(e) =>
-                setForm({ ...form, latitude: e.target.value })
-              }
-            />
+        {form.category === 'delivery' ? <div className="space-y-6">
+          <AddressPicker title="Откуда забрать" city={form.city} value={pickup} onChange={setPickup} />
+          <label className="form-field">Подъезд / вход для получения
+            <input className="form-input" maxLength={200} value={pickupEntrance} placeholder="Например: вход со двора, подъезд 2"
+              onChange={event => setPickupEntrance(event.target.value)} />
           </label>
-          <label className="form-field">
-            Долгота
-            <input
-              className="form-input"
-              type="number"
-              min={-180}
-              max={180}
-              step="any"
-              required
-              value={form.longitude}
-              onChange={(e) =>
-                setForm({ ...form, longitude: e.target.value })
-              }
-            />
+          <AddressPicker title="Куда доставить" city={form.city} value={dropoff} onChange={setDropoff} />
+          <label className="form-field">Подъезд / вход для доставки
+            <input className="form-input" maxLength={200} value={dropoffEntrance} placeholder="Например: главный вход, позвонить у двери"
+              onChange={event => setDropoffEntrance(event.target.value)} />
           </label>
-        </div>
+        </div> : <AddressPicker title="Где нужна помощь" city={form.city} value={location} onChange={setLocation} />}
         <fieldset>
           <legend className="font-semibold mb-2">
             Какие возможности нужны помощнику?

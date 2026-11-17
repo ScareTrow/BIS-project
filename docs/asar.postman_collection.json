@@ -651,7 +651,7 @@
             "url": "{{baseUrl}}/api/responses/{{aidResponseId}}/contributions",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"need_id\": {{aidNeedId}},\n  \"quantity_promised\": 3,\n  \"quantity_delivered\": 2\n}",
+              "raw": "{\n  \"need_id\": {{aidNeedId}},\n  \"quantity_delivered\": 2\n}",
               "options": {
                 "raw": {
                   "language": "json"

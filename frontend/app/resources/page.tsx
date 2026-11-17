@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import AddressPicker from "@/components/common/AddressPicker";
+import { LocationPoint } from "@/lib/api";
 import { communityApi, Resource, Confirmation } from "@/lib/community-api";
 import { useStore } from "@/lib/store";
 import { useTranslation } from "@/lib/i18n";
@@ -14,7 +16,8 @@ export default function ResourcesPage() {
   const t = useTranslation(language);
   const [resources, setResources] = useState<Resource[]>([]);
   const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
-  const [city, setCity] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [location, setLocation] = useState<LocationPoint | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -22,12 +25,10 @@ export default function ResourcesPage() {
     description: "",
     city: "",
     category: "food" as Resource["category"],
-    latitude: 43.222,
-    longitude: 76.8512,
   });
   async function load() {
     try {
-      setResources(await communityApi.resources(city));
+      setResources(await communityApi.resources(categoryFilter));
       if (user?.is_authenticated)
         setConfirmations(await communityApi.confirmations());
       else setConfirmations([]);
@@ -37,7 +38,8 @@ export default function ResourcesPage() {
   }
   useEffect(() => {
     load();
-  }, [city, user]);
+    if (user?.city) setForm(f => f.city ? f : { ...f, city: user.city! });
+  }, [categoryFilter, user]);
   async function perform(action: () => Promise<unknown>) {
     setBusy(true);
     setMessage("");
@@ -63,17 +65,17 @@ export default function ResourcesPage() {
         Здесь предлагают ресурсы и показывают точки помощи. Просьбы о помощи
         находятся в заявках.
       </p>
-      <label className="form-field max-w-sm">
-        Фильтр по городу
-        <input
-          className="form-input"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-        />
+      <label className="form-field max-w-sm">Тип ресурса
+        <select className="form-select" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}>
+          <option value="">Все типы ресурсов</option>
+          {['medicine', 'shelter', 'food', 'clothing', 'household', 'delivery', 'volunteering', 'social_project', 'emergency'].map(category => <option key={category} value={category}>
+            {category === 'medicine' ? 'Аптеки и медицина' : category === 'shelter' ? 'Убежища' : category === 'food' ? 'Продукты' : t(`categories.${category}`)}
+          </option>)}
+        </select>
       </label>
       <ResourceMap resources={resources} />
       {message && <p role="status">{message}</p>}
-      {!resources.length && <p>В выбранном городе пока нет ресурсов.</p>}
+      {!resources.length && <p>Ресурсов выбранного типа пока нет.</p>}
       <div className="grid md:grid-cols-2 gap-4">
         {resources.map((r) => (
           <article
@@ -84,6 +86,7 @@ export default function ResourcesPage() {
             <h2 className="text-xl font-semibold">{r.name}</h2>
             <CategoryBadge category={r.category} />
             <p>{r.description}</p>
+            {r.address && <p className="text-sm text-gray-600">{r.address}</p>}
             <p>
               {r.city} · {labels[r.availability]}
             </p>
@@ -145,7 +148,8 @@ export default function ResourcesPage() {
           className="card space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
-            perform(() => communityApi.createResource(form));
+            if (!location) { setMessage('Найдите адрес ресурса или выберите место на карте'); return; }
+            perform(() => communityApi.createResource({ ...form, ...location }));
           }}
         >
           <h2 className="text-xl font-semibold">
@@ -211,38 +215,7 @@ export default function ResourcesPage() {
               ))}
             </select>
           </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="form-field">
-              Широта
-              <input
-                className="form-input"
-                required
-                type="number"
-                step="any"
-                min={-90}
-                max={90}
-                value={form.latitude}
-                onChange={(e) =>
-                  setForm({ ...form, latitude: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label className="form-field">
-              Долгота
-              <input
-                className="form-input"
-                required
-                type="number"
-                step="any"
-                min={-180}
-                max={180}
-                value={form.longitude}
-                onChange={(e) =>
-                  setForm({ ...form, longitude: Number(e.target.value) })
-                }
-              />
-            </label>
-          </div>
+          <AddressPicker title="Где находится ресурс" city={form.city} value={location} onChange={setLocation} />
           <button disabled={busy} className="btn btn-primary">
             Добавить ресурс
           </button>

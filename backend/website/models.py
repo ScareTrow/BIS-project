@@ -96,6 +96,8 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(10000), nullable=False)
     needed_help = db.Column(db.Text)
+    address = db.Column(db.Text)
+    delivery_details = db.Column(db.JSON)
     priority_source = db.Column(db.String(24), nullable=False, default='user_normal', server_default='user_normal')
     created_via = db.Column(db.String(16), nullable=False, default='web', server_default='web')
     latitude = db.Column(db.Float, nullable=False)

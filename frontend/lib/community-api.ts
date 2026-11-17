@@ -11,16 +11,13 @@ export interface NeedInput {
 }
 export interface Need extends NeedInput {
   id: number;
-  quantity_promised: number;
   quantity_delivered: number;
   still_needed: number;
-  unpromised: number;
 }
 export interface Contribution {
   id: number;
   need_id: number;
   response_id: number;
-  quantity_promised: number;
   quantity_delivered: number;
   status: string;
 }
@@ -37,6 +34,7 @@ export interface Resource {
   owner_id: number;
   name: string;
   description: string;
+  address?: string | null;
   city: string;
   category: ApplicationCategory;
   latitude: number;
@@ -88,14 +86,13 @@ export const communityApi = {
     id: number,
     data: {
       need_id: number;
-      quantity_promised: number;
       quantity_delivered: number;
     },
   ) => http.put(`/responses/${id}/contributions`, data),
   completeResponse: (id: number) => http.post(`/responses/${id}/complete`),
   rateResponse: (id: number, score: number) =>
     http.post(`/responses/${id}/rating`, { score }),
-  resources: (city?: string) => get<Resource[]>("/resources", { city }),
+  resources: (category?: string) => get<Resource[]>("/resources", { category }),
   createResource: (
     data: Omit<
       Resource,

@@ -35,67 +35,12 @@ export default function EditProfilePage() {
     loadProfile();
   }, []);
 
-  // Поиск городов (используем локальный список + Nominatim)
   const searchCities = async (query: string) => {
-    if (query.length < 1) {
-      setCitySuggestions([]);
-      setShowCitySuggestions(false);
-      return;
-    }
-    
-    // Создаем регулярное выражение для точного поиска
-    // Всегда ищем города, начинающиеся с запроса (регистронезависимо)
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const searchPattern = new RegExp(`^${escapedQuery}`, 'i');
-    
-    // Сначала ищем в локальном списке городов Казахстана (только начинающиеся с запроса)
-    const localResults = searchKazakhstanCities(query, true);
-    const localCityNames = localResults.map(city => city.name);
-    
-    // Если есть результаты из локального списка, показываем их
-    if (localCityNames.length > 0) {
-      setCitySuggestions(localCityNames);
-      setShowCitySuggestions(true);
-    }
-    
-    // Дополнительно ищем через Nominatim для других городов
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=kz&limit=10&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'ASAR Application/1.0'
-          }
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const nominatimCities = data
-          .filter((item: any) => item.type === 'city' || item.type === 'town' || item.type === 'village')
-          .map((item: any) => {
-            const addr = item.address || {};
-            return addr.city || addr.town || addr.village || item.display_name.split(',')[0];
-          })
-          .filter((city: string, index: number, self: string[]) => self.indexOf(city) === index)
-          .filter((city: string) => !localCityNames.includes(city)) // Исключаем дубликаты
-          .filter((city: string) => searchPattern.test(city)); // Фильтруем по регулярному выражению
-        
-        // Объединяем результаты, приоритет локальному списку
-        const allCities = [...localCityNames, ...nominatimCities].slice(0, 10);
-        setCitySuggestions(allCities);
-        setShowCitySuggestions(true);
-      }
-    } catch (error) {
-      console.error('Error searching cities:', error);
-      // Если ошибка, но есть локальные результаты, всё равно показываем их
-      if (localCityNames.length > 0) {
-        setCitySuggestions(localCityNames);
-        setShowCitySuggestions(true);
-      }
-    }
+    const results = searchKazakhstanCities(query, true).map(city => city.name);
+    setCitySuggestions(results);
+    setShowCitySuggestions(query.length > 0 && results.length > 0);
   };
 
-  // Выбор города
   const selectCity = (cityName: string) => {
     setCitySearch(cityName);
     setFormData(prev => ({ ...prev, city: cityName }));

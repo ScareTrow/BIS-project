@@ -18,6 +18,7 @@ from .storage import save_upload, serve_upload
 from uuid import uuid4
 from pathlib import Path
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import HTTPException
 
 views = Blueprint('views', __name__)
 
@@ -60,50 +61,19 @@ def sanitize_description(description):
     return description
 
 def get_location_info(latitude, longitude):
+    from .geocoding import lookup
     try:
-        import requests
-        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=10&addressdetails=1"
-        headers = {'User-Agent': 'ASAR Application/1.0'}
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            address = data.get('address', {})
-            city = address.get('city') or address.get('town') or address.get('village') or address.get('municipality')
-            region = address.get('state') or address.get('region') or address.get('county')
-            return city, region
-    except (requests.RequestException, ValueError, KeyError) as e:
-        current_app.logger.warning(f"Error getting location info: {e}")
-        pass
-    return None, None
+        address = lookup('reverse', format='jsonv2', lat=latitude, lon=longitude, zoom=10, addressdetails=1).get('address', {})
+        return (address.get('city') or address.get('town') or address.get('village'), address.get('state') or address.get('region'))
+    except HTTPException:
+        return None, None
 
 def get_full_address(latitude, longitude):
-    """Получить полный адрес из координат"""
+    from .geocoding import lookup
     try:
-        import requests
-        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=18&addressdetails=1"
-        headers = {'User-Agent': 'ASAR Application/1.0'}
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            display_name = data.get('display_name', '')
-            if display_name:
-                return display_name
-            address = data.get('address', {})
-            parts = []
-            if address.get('road'):
-                parts.append(address['road'])
-            if address.get('house_number'):
-                parts.append(address['house_number'])
-            if address.get('city') or address.get('town') or address.get('village'):
-                parts.append(address.get('city') or address.get('town') or address.get('village'))
-            if address.get('state') or address.get('region'):
-                parts.append(address.get('state') or address.get('region'))
-            if parts:
-                return ', '.join(parts)
-    except (requests.RequestException, ValueError, KeyError) as e:
-        current_app.logger.warning(f"Error getting full address: {e}")
-        pass
-    return None
+        return lookup('reverse', format='jsonv2', lat=latitude, lon=longitude, zoom=18, addressdetails=1).get('display_name')
+    except HTTPException:
+        return None
 
 
 
@@ -755,7 +725,7 @@ def get_application(app_id):
     
     media_files = ApplicationMedia.query.filter_by(application_id=app_id).all()
     
-    full_address = get_full_address(application.latitude, application.longitude)
+    full_address = application.address or get_full_address(application.latitude, application.longitude)
     if not full_address:
         full_address = f"{application.city or ''}, {application.region or ''}".strip(', ')
         if not full_address:
@@ -810,6 +780,7 @@ def get_application(app_id):
         'latitude': application.latitude,
         'longitude': application.longitude,
         'address': full_address,
+        'delivery_details': application.delivery_details,
         'category': application.category.value if application.category else 'food',
         'date': application.date.isoformat() if application.date else None,
         'expires_at': application.expires_at.isoformat() if application.expires_at else None,
@@ -2198,7 +2169,6 @@ def api_create_application():
     if data is None:
         return jsonify(error='Неверный формат данных'), 400
     try:
-        latitude, longitude = coordinates(data.get('latitude'), data.get('longitude'))
         description = data.get('description', 'SOS — Экстренная ситуация' if request.path == '/api/sos' else '')
         if not isinstance(description, str):
             raise ValueError('Описание должно быть текстом')
@@ -2207,6 +2177,16 @@ def api_create_application():
         if not valid:
             raise ValueError(error)
         category = ApplicationCategory('emergency' if request.path == '/api/sos' else data.get('category', 'food'))
+        from .delivery import delivery_details as validate_delivery
+        route = validate_delivery(data.get('delivery_details')) if category == ApplicationCategory.DELIVERY else None
+        address = data.get('address', '')
+        if not isinstance(address, str) or len(address) > 1000:
+            raise ValueError('Адрес должен содержать не более 1000 символов')
+        if route:
+            address = route['dropoff']['address']
+            latitude, longitude = route['dropoff']['latitude'], route['dropoff']['longitude']
+        else:
+            latitude, longitude = coordinates(data.get('latitude'), data.get('longitude'))
         fields = data.to_dict() if request.mimetype == 'multipart/form-data' else dict(data)
         if request.path == '/api/sos':
             fields['priority'] = 'sos'
@@ -2234,7 +2214,8 @@ def api_create_application():
     application = Application(description=sanitize_description(description), latitude=latitude,
         longitude=longitude, category=category, user_id=user.id,
         moderation_status=ModerationStatus.PENDING, status='pending',
-        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days), city=city, region=region)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days), city=city, region=region,
+        address=address.strip() or None, delivery_details=route)
     try:
         db.session.add(application)
         db.session.flush()

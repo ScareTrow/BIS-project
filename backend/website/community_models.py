@@ -68,12 +68,11 @@ class Contribution(db.Model):
     )
     need_id = db.Column(db.Integer, nullable=False)
     response_id = db.Column(db.Integer, nullable=False)
-    quantity_promised = db.Column(db.Numeric(12, 3), nullable=False)
     quantity_delivered = db.Column(
         db.Numeric(12, 3), nullable=False, default=0, server_default="0"
     )
     status = db.Column(
-        db.String(16), nullable=False, default="promised", server_default="promised"
+        db.String(16), nullable=False, default="delivered", server_default="delivered"
     )
     created_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=func.now()
@@ -97,11 +96,11 @@ class Contribution(db.Model):
         ),
         db.UniqueConstraint("need_id", "response_id", name="uq_need_response"),
         db.CheckConstraint(
-            "quantity_promised > 0 AND quantity_delivered >= 0 AND quantity_delivered <= quantity_promised",
+            "quantity_delivered >= 0",
             name="ck_contribution_quantities",
         ),
         db.CheckConstraint(
-            "status IN ('promised', 'delivered', 'cancelled')",
+            "status IN ('delivered', 'cancelled')",
             name="ck_contribution_status",
         ),
     )
@@ -115,6 +114,7 @@ class Resource(db.Model):
     city = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(160), nullable=False)
     description = db.Column(db.Text)
+    address = db.Column(db.Text)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     availability = db.Column(

@@ -1,17 +1,16 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import AddressPicker from '@/components/common/AddressPicker';
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient, LocationPoint } from '@/lib/api';
 import { validateRequestPhotos } from '@/lib/requestValidation';
 
-const LocationMap = dynamic(() => import('@/components/common/ApplicationMap'), { ssr: false });
 
 export default function SOSDialog({ onClose, onCreated }: {
   onClose: () => void;
   onCreated: (id: number, point: [number, number]) => void;
 }) {
-  const [point, setPoint] = useState<[number, number] | null>(null);
+  const [point, setPoint] = useState<LocationPoint | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [message, setMessage] = useState('Определяем местоположение…');
   const [error, setError] = useState('');
@@ -25,7 +24,7 @@ export default function SOSDialog({ onClose, onCreated }: {
     }
     navigator.geolocation.getCurrentPosition(position => {
       if (!mounted) return;
-      setPoint([position.coords.latitude, position.coords.longitude]);
+      setPoint({ latitude: position.coords.latitude, longitude: position.coords.longitude, address: 'Текущая геопозиция' });
       setMessage('Проверьте точку на карте перед отправкой.');
     }, () => {
       if (mounted) setMessage('Не удалось определить местоположение. Выберите точку на карте.');
@@ -40,13 +39,14 @@ export default function SOSDialog({ onClose, onCreated }: {
     const photoError = validateRequestPhotos(photos);
     if (photoError) { setError(photoError); return; }
     const data = new FormData();
-    data.append('latitude', String(point[0]));
-    data.append('longitude', String(point[1]));
+    data.append('latitude', String(point.latitude));
+    data.append('longitude', String(point.longitude));
+    data.append('address', point.address);
     photos.forEach(photo => data.append('media_files', photo));
     setBusy(true);
     try {
       const result = await apiClient.createSOS(data);
-      onCreated(result.id!, point);
+      onCreated(result.id!, [point.latitude, point.longitude]);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Не удалось отправить SOS');
       setBusy(false);
@@ -62,11 +62,10 @@ export default function SOSDialog({ onClose, onCreated }: {
         </div>
         <p>SOS появится на карте сразу. Волонтёры в радиусе 10 км получат оповещение. Не более трёх SOS за час.</p>
         <p role="status">{message}</p>
-        <LocationMap selected={point !== null} center={point || [43.222, 76.8512]} onLocationSelect={(latitude, longitude) => {
-          setPoint([latitude, longitude]);
-          setMessage('Точка выбрана вручную.');
+        <AddressPicker title="Где нужна срочная помощь" value={point} onChange={place => {
+          setPoint(place);
+          setMessage(place ? 'Место выбрано. Проверьте фотографию и отправьте SOS.' : 'Найдите адрес или выберите место на карте.');
         }} />
-        <p>{point ? `Выбранная точка: ${point[0].toFixed(5)}, ${point[1].toFixed(5)}` : 'Точка ещё не выбрана'}</p>
         <label className="form-field">Фото: от 1 до 3, JPEG/PNG, до 10 МБ каждое
           <input className="form-file" type="file" required multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png"
             onChange={event => setPhotos(Array.from(event.target.files || []))} />

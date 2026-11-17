@@ -1,7 +1,7 @@
 /**
  * Тесты для компонента Header
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import Header from '../../components/layout/Header'
 
@@ -40,3 +40,16 @@ describe('Header Component', () => {
   })
 })
 
+
+
+test('mobile menu opens, closes with Escape and has no signup link', () => {
+  render(<Header />);
+  const toggle = screen.getByRole('button', { name: 'Открыть меню' });
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle);
+  expect(screen.getByRole('button', { name: 'Закрыть меню' })).toHaveAttribute('aria-expanded', 'true');
+  expect(document.getElementById('mobile-navigation')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Создать аккаунт|Регистрация|Зарегистрироваться/ })).not.toBeInTheDocument();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(document.getElementById('mobile-navigation')).not.toBeInTheDocument();
+});

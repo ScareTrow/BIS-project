@@ -17,7 +17,7 @@ export default function RequestAid({
   const [aid, setAid] = useState<Aid | null>(null);
   const [catalog, setCatalog] = useState<Capability[]>([]);
   const [values, setValues] = useState<
-    Record<number, { promised: number; delivered: number }>
+    Record<number, { delivered: number }>
   >({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,6 @@ export default function RequestAid({
             (e) => e.need_id === n.id && e.response_id === a.response_id,
           );
           next[n.id] = {
-            promised: mine?.quantity_promised ?? Math.min(n.unpromised, 1),
             delivered: mine?.quantity_delivered ?? 0,
           };
         });
@@ -58,8 +57,7 @@ export default function RequestAid({
     responses.some((r) => r.id === aid.response_id && r.status === "accepted");
   return (
     <section className="card my-6 space-y-4">
-      <h2 className="text-xl font-semibold">Какая помощь нужна</h2>
-      {aid?.needed_help && <p>{aid.needed_help}</p>}
+      <h2 className="text-xl font-semibold">Ресурсы и помощь</h2>
       <p>
         {catalog
           .filter((c) => aid?.capabilities.includes(c.id))
@@ -73,11 +71,11 @@ export default function RequestAid({
             {n.resource_name} ({n.unit})
           </h3>
           <p>
-            Нужно: {n.quantity_needed} · Обещано: {n.quantity_promised} ·
+            Нужно: {n.quantity_needed} ·
             Доставлено: {n.quantity_delivered}
           </p>
           <p>
-            Ещё получить: {n.still_needed} · Можно обещать: {n.unpromised}
+            Осталось доставить: {n.still_needed}
           </p>
           {canContribute && values[n.id] && (
             <form
@@ -87,42 +85,20 @@ export default function RequestAid({
                 perform(() =>
                   communityApi.contribute(aid.response_id!, {
                     need_id: n.id,
-                    quantity_promised: values[n.id].promised,
                     quantity_delivered: values[n.id].delivered,
                   }),
                 );
               }}
             >
               <label className="form-field">
-                Обещаю
-                <input
-                  aria-label={`Обещаю ${n.resource_name}`}
-                  className="form-input w-32"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  required
-                  value={values[n.id].promised}
-                  onChange={(e) =>
-                    setValues({
-                      ...values,
-                      [n.id]: {
-                        ...values[n.id],
-                        promised: Number(e.target.value),
-                      },
-                    })
-                  }
-                />
-              </label>
-              <label className="form-field">
                 Доставлено
                 <input
                   aria-label={`Доставлено ${n.resource_name}`}
                   className="form-input w-32"
                   type="number"
-                  min="0"
+                  min={aid.contributions.find(c => c.need_id === n.id && c.response_id === aid.response_id)?.quantity_delivered || 0}
                   step="0.001"
-                  max={values[n.id].promised}
+                  max={(aid.contributions.find(c => c.need_id === n.id && c.response_id === aid.response_id)?.quantity_delivered || 0) + n.still_needed}
                   required
                   value={values[n.id].delivered}
                   onChange={(e) =>
@@ -137,7 +113,7 @@ export default function RequestAid({
                 />
               </label>
               <button disabled={busy} className="btn btn-primary">
-                Сохранить мой взнос
+                Сохранить доставленное количество
               </button>
             </form>
           )}
