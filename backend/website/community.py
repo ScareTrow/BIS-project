@@ -251,19 +251,14 @@ def record_moderation(
 
 def need_data(need):
     entries = Contribution.query.filter_by(need_id=need.id).all()
-    promised = sum(
-        (c.quantity_promised for c in entries if c.status != "cancelled"), Decimal(0)
-    )
     delivered = sum((c.quantity_delivered for c in entries), Decimal(0))
     return dict(
         id=need.id,
         resource_name=need.resource_name,
         unit=need.unit,
         quantity_needed=float(need.quantity_needed),
-        quantity_promised=float(promised),
         quantity_delivered=float(delivered),
         still_needed=float(max(need.quantity_needed - delivered, 0)),
-        unpromised=float(max(need.quantity_needed - promised, 0)),
     )
 
 
@@ -273,7 +268,6 @@ def contribution_data(c):
         application_id=c.application_id,
         need_id=c.need_id,
         response_id=c.response_id,
-        quantity_promised=float(c.quantity_promised),
         quantity_delivered=float(c.quantity_delivered),
         status=c.status,
     )
@@ -304,6 +298,7 @@ def resource_data(r):
         owner_id=r.owner_id,
         name=r.name,
         description=r.description,
+        address=r.address,
         category=r.category,
         city=r.city,
         latitude=r.latitude,
@@ -490,7 +485,7 @@ def save_contribution(response_id):
     nid = data.get("need_id")
     if isinstance(nid, bool) or not isinstance(nid, int):
         raise ValueError("Некорректная потребность")
-    # Serialize promises against the same need on PostgreSQL.
+    # Serialize delivered totals against the same need on PostgreSQL.
     need = (
         ApplicationNeed.query.filter_by(id=nid, application_id=application.id)
         .with_for_update()
@@ -498,10 +493,7 @@ def save_contribution(response_id):
     )
     if not need:
         raise ValueError("Потребность не относится к этой заявке")
-    promised = quantity(data.get("quantity_promised"), True)
     delivered = quantity(data.get("quantity_delivered", 0))
-    if delivered > promised:
-        raise ValueError("Доставлено больше, чем обещано")
     existing = Contribution.query.filter_by(
         need_id=need.id, response_id=response.id
     ).first()
@@ -513,15 +505,15 @@ def save_contribution(response_id):
         Contribution.status != "cancelled",
     ).all()
     if (
-        sum((c.quantity_promised for c in others), Decimal(0)) + promised
+        sum((c.quantity_delivered for c in others), Decimal(0)) + delivered
         > need.quantity_needed
     ):
-        return jsonify(error="Обещание превышает остаток потребности"), 409
+        return jsonify(error="Доставленное количество превышает потребность"), 409
     c = existing or Contribution(
         application_id=application.id, need_id=need.id, response_id=response.id
     )
-    c.quantity_promised, c.quantity_delivered = promised, delivered
-    c.status = "delivered" if delivered == promised else "promised"
+    c.quantity_delivered = delivered
+    c.status = "delivered"
     db.session.add(c)
     db.session.commit()
     return jsonify(contribution_data(c))
@@ -540,8 +532,6 @@ def complete_response(response_id):
         or response.application.moderation_status != ModerationStatus.APPROVED
     ):
         return jsonify(error="Заявка больше не доступна для помощи"), 409
-    if Contribution.query.filter_by(response_id=response.id, status="promised").first():
-        return jsonify(error="Сначала доставьте обещанные ресурсы"), 409
     response.status = ResponseStatus.COMPLETED
     create_notification(user_id=response.responder_id, title="Помощь подтверждена",
         message=f"Автор подтвердил помощь по заявке #{response.application_id}",
@@ -601,6 +591,7 @@ def resources():
             owner_id=current_user.id,
             name=text(data.get("name"), 160, True),
             description=text(data.get("description", ""), 5000),
+            address=text(data.get("address", ""), 1000) or None,
             city=text(data.get("city"), 200, True),
             category=category,
             latitude=lat,
@@ -617,6 +608,9 @@ def resources():
     city = request.args.get("city", "").strip()
     if city:
         query = query.filter(func.lower(Resource.city) == city.lower())
+    category = request.args.get('category', '').strip()
+    if category:
+        query = query.filter(Resource.category == ApplicationCategory(category).value)
     return jsonify([resource_data(r) for r in query.order_by(Resource.id.desc())])
 
 

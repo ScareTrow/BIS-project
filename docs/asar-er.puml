@@ -191,7 +191,6 @@ entity "contributions" as contributions {
   * application_id : BIGINT <<FK>>
   * need_id : BIGINT <<FK>>
   * response_id : BIGINT <<FK>>
-  * quantity_promised : NUMERIC(12,3)
   * quantity_delivered : NUMERIC(12,3)
   * status : VARCHAR(16)
   * created_at : TIMESTAMPTZ

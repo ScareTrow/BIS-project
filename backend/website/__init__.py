@@ -32,6 +32,8 @@ def create_app(test_config=None):
         SUPABASE_STORAGE_BUCKET=os.getenv('SUPABASE_STORAGE_BUCKET', 'asar-files'),
         TELEGRAM_BOT_TOKEN=os.getenv('TELEGRAM_BOT_TOKEN', ''),
         TELEGRAM_WEBHOOK_SECRET=os.getenv('TELEGRAM_WEBHOOK_SECRET', ''),
+        WEB_APP_URL=os.getenv('WEB_APP_URL', 'http://localhost:3000'),
+        GEOCODER_URL=os.getenv('GEOCODER_URL', 'https://nominatim.openstreetmap.org'),
     )
     app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "default_secret")
     if production:
@@ -86,6 +88,8 @@ def create_app(test_config=None):
     app.register_blueprint(auth, url_prefix='/')
     from .telegram_link import telegram_link
     app.register_blueprint(telegram_link)
+    from .geocoding import locations
+    app.register_blueprint(locations)
     from .community import community, register_commands
     app.register_blueprint(community)
     register_commands(app)
