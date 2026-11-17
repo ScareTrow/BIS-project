@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block content %}
+<section class="admin-panel-section">
+  <header>
+    <h1>Панель администратора</h1>
+    <p>Управление заявками и статистика</p>
+  </header>
+
+  <div class="stats-cards row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Всего заявок</h5>
+          <h2>{{ total_applications }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">На модерации</h5>
+          <h2 class="text-warning">{{ pending_applications }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Одобрено</h5>
+          <h2 class="text-success">{{ approved_applications }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Отклонено</h5>
+          <h2 class="text-danger">{{ rejected_applications }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-cards row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Всего откликов</h5>
+          <h2 class="text-info">{{ total_responses }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Волонтеров помогло</h5>
+          <h2 class="text-success">{{ volunteers_count }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Ложных заявок</h5>
+          <h2 class="text-danger">{{ false_calls_count }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="category-stats mb-4">
+    <h3>Статистика по категориям</h3>
+    <canvas id="categoryChart" width="400" height="200"></canvas>
+  </div>
+
+  <div class="admin-actions">
+    <a href="{{ url_for('views.admin_applications') }}" class="btn btn-primary btn-lg">
+      Управление заявками
+    </a>
+    <a href="{{ url_for('views.users_list') }}" class="btn btn-secondary btn-lg">
+      Управление пользователями
+    </a>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('categoryChart').getContext('2d');
+  const categoryData = {
+    labels: [
+      {% for stat in category_stats %}
+      '{{ stat[0] }}'{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+    datasets: [{
+      label: 'Количество заявок',
+      data: [
+        {% for stat in category_stats %}
+        {{ stat[1] }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ],
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.2)',
+        'rgba(54, 162, 235, 0.2)',
+        'rgba(75, 192, 192, 0.2)'
+      ],
+      borderColor: [
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(75, 192, 192, 1)'
+      ],
+      borderWidth: 1
+    }]
+  };
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: categoryData,
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+  <div id="carouselExampleControls" class="carousel slide" data-ride="carousel">
+    <div class="carousel-inner">
+      <div class="carousel-item active">
+        <img class="d-block w-100" src="{{ url_for('static', filename='img/first.jpg') }}"
+          alt="Помощь в экстренных ситуациях" height="800">
+      </div>
+      <div class="carousel-item">
+        <img class="d-block w-100" src="{{ url_for('static', filename='img/second.jpg') }}" alt="Обмен ресурсами"
+          height="800">
+      </div>
+    </div>
+    <a class="carousel-control-prev" href="#carouselExampleControls" role="button" data-slide="prev">
+      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+      <span class="sr-only">Предыдущий</span>
+    </a>
+    <a class="carousel-control-next" href="#carouselExampleControls" role="button" data-slide="next">
+      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+      <span class="sr-only">Следующий</span>
+    </a>
+  </div>
+</section>
+<section class="info-section">
+  <div class="info">
+    <h2>Добро пожаловать на ASAR.kz</h2>
+    <p><strong>Сайт ASAR.kz предназначен для быстрого решения проблем города</strong></p>
+    <p><strong>Оставьте заявку, и исполнение поставленной задачи будет осуществляться специализированными
+        организациями</strong></p>
+
+    {% if not user.is_authenticated %}
+    <div class="auth-buttons">
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">Войти</a>
+      <a href="{{ url_for('auth.sign_up') }}" class="btn btn-success btn-lg">Зарегистрироваться</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="map-section">
+  <div class="info">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2>Активные заявки</h2>
+        <p>Просмотрите текущие активные заявки</p>
+      </div>
+      {% if user.is_authenticated %}
+      <div class="view-toggle">
+        <div class="btn-group" role="group">
+          <a href="{{ url_for('views.index', view='map') }}"
+            class="btn btn-sm {% if view_mode == 'map' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="fa fa-map"></i> На карте
+          </a>
+          <a href="{{ url_for('views.index', view='list') }}"
+            class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="fa fa-list"></i> Списком
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% if not user.is_authenticated %}
+    <div class="alert alert-info">
+      <strong>Для полного доступа к функционалу:</strong>
+      <p>Войдите в систему или <a href="{{ url_for('auth.sign_up') }}">зарегистрируйтесь</a>, чтобы создавать точки на
+        карте и использовать все возможности платформы.</p>
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-sm">Войти</a>
+      <a href="{{ url_for('auth.sign_up') }}" class="btn btn-success btn-sm">Зарегистрироваться</a>
+    </div>
+    {% else %}
+    <div class="mt-3">
+      <button onclick="quickSOS()" class="btn btn-danger btn-lg"
+        style="background-color: #dc3545; border-color: #dc3545;">
+        <strong>SOS</strong> - Экстренная помощь
+      </button>
+      <small class="d-block mt-2 text-muted">Быстрая отправка экстренной заявки с автоматическим определением
+        местоположения</small>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if view_mode == 'map' %}
+  <div class="map-container mt-4">
+    <div id="map" style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 5px;"></div>
+  </div>
+  <div class="mt-3">
+    <small class="text-muted">
+      <strong>Легенда:</strong>
+      <span class="badge badge-success ml-2">Продукты</span>
+      <span class="badge badge-danger ml-2">Медицина</span>
+      <span class="badge badge-primary ml-2">Убежище</span>
+      <span class="badge badge-warning ml-2">Экстренная помощь</span>
+    </small>
+  </div>
+  {% else %}
+  <div id="applications-list-container" class="mt-4">
+    <div id="applications-list-loading" class="text-center p-4">
+      <div class="spinner-border" role="status">
+        <span class="sr-only">Загрузка...</span>
+      </div>
+    </div>
+    <div id="applications-list-content" style="display: none;"></div>
+  </div>
+  <script>
+    function tryLoadApplicationsList() {
+      if (typeof loadApplicationsList !== 'undefined') {
+        loadApplicationsList();
+      } else {
+        setTimeout(tryLoadApplicationsList, 100);
+      }
+    }
+    window.addEventListener('load', function() {
+      setTimeout(tryLoadApplicationsList, 500);
+    });
+  </script>
+  {% endif %}
+</section>
+
+<script>
+  window.isAuthenticated = {{ 'true' if user.is_authenticated else 'false' }};
+  console.log('Authentication status:', window.isAuthenticated);
+</script>
+<script>
+  window.addEventListener('load', function () {
+    function loadMapScript() {
+      if (typeof L === 'undefined') {
+        console.log('Waiting for Leaflet...');
+        setTimeout(loadMapScript, 100);
+        return;
+      }
+      
+      console.log('Leaflet loaded, loading map.js...');
+      const existingScript = document.querySelector('script[src*="map.js"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+      
+      const script = document.createElement('script');
+      script.src = "{{ url_for('static', filename='js/map.js') }}";
+      script.onerror = function() {
+        console.error('Failed to load map.js');
+      };
+      script.onload = function() {
+        console.log('map.js loaded, initializing map...');
+        setTimeout(function() {
+          if (typeof window.initMap !== 'undefined') {
+            const mapContainer = document.getElementById('map');
+            if (mapContainer) {
+              console.log('Map container found, calling initMap...');
+              window.initMap();
+            } else {
+              console.error('Map container #map not found');
+            }
+          } else {
+            console.error('initMap function not found');
+          }
+        }, 200);
+      };
+      document.body.appendChild(script);
+    }
+    
+    setTimeout(loadMapScript, 500);
+  });
+</script>
+
+<section class="about-section mt-5 mb-4">
+  <div class="text-center">
+    <a href="{{ url_for('views.about') }}" class="btn btn-outline-primary btn-lg">
+      <i class="fa fa-info-circle"></i> О нас
+    </a>
+  </div>
+</section>
+{% endblock %}

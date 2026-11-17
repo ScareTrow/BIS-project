@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Лидерборд{% endblock %}
+
+{% block content %}
+<section class="leaderboard-section">
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h3 class="mb-0">🏆 Топ волонтеров</h3>
+          <small>По количеству оказанной помощи</small>
+        </div>
+        <div class="card-body">
+          {% if top_volunteers %}
+          <div class="list-group">
+            {% for volunteer, help_count, rating in top_volunteers %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <div class="rank-badge mr-3">
+                    <strong>#{{ loop.index }}</strong>
+                  </div>
+                  <div>
+                    <a href="{{ url_for('views.view_user_profile', user_id=volunteer.id) }}" class="text-decoration-none">
+                      <strong>{{ volunteer.first_name }} {{ volunteer.last_name or '' }}</strong>
+                    </a>
+                    {% if volunteer.badge %}
+                      <span class="badge badge-info ml-2">{{ volunteer.badge }}</span>
+                    {% endif %}
+                    <br>
+                    <small class="text-muted">
+                      Рейтинг: {{ rating }}/5.0
+                    </small>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="badge badge-success badge-lg">
+                    Помог {{ help_count }} раз{% if help_count == 1 %}{% elif help_count < 5 %}а{% endif %}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted text-center">Пока нет волонтеров</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+          <h3 class="mb-0">⭐ Топ по рейтингу</h3>
+          <small>Лучшие пользователи по оценкам</small>
+        </div>
+        <div class="card-body">
+          {% if top_rated %}
+          <div class="list-group">
+            {% for user in top_rated %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <div class="rank-badge mr-3">
+                    <strong>#{{ loop.index }}</strong>
+                  </div>
+                  <div>
+                    <a href="{{ url_for('views.view_user_profile', user_id=user.id) }}" class="text-decoration-none">
+                      <strong>{{ user.first_name }} {{ user.last_name or '' }}</strong>
+                    </a>
+                    {% if user.badge %}
+                      <span class="badge badge-info ml-2">{{ user.badge }}</span>
+                    {% endif %}
+                    <br>
+                    <small class="text-muted">
+                      {{ user.rating_count }} оценок
+                    </small>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="rating-display-small">
+                    <strong>{{ user.average_rating }}</strong>/5.0
+                    <div>
+                      {% for i in range(5) %}
+                        {% if i < user.average_rating|int %}
+                          <span class="fa fa-star text-warning"></span>
+                        {% else %}
+                          <span class="fa fa-star-o text-muted"></span>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted text-center">Пока нет оценок</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.rank-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+}
+
+.badge-lg {
+  font-size: 1rem;
+  padding: 8px 12px;
+}
+
+.rating-display-small {
+  text-align: center;
+}
+
+.rating-display-small strong {
+  font-size: 1.2em;
+  display: block;
+}
+</style>
+{% endblock %}
+

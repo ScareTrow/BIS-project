@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход в систему{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+  <div class="login-form">
+    <header>
+      <h1>Вход в систему</h1>
+      <p>Войдите в свой аккаунт для доступа к функциям ASAR.kz</p>
+    </header>
+
+    <form method="POST" class="auth-form">
+      {% if message %}
+      <div class="alert alert-danger" role="alert">
+        {{ message }}
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" class="form-control" id="email" name="email" placeholder="Введите email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Пароль</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="Введите пароль"
+          required />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Войти</button>
+
+      <div class="form-footer">
+        <p>Нет аккаунта? <a href="{{ url_for('auth.sign_up') }}">Зарегистрируйтесь</a></p>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

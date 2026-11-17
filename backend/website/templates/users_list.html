@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Список пользователей{% endblock %}
+
+{% block content %}
+<section class="users-section">
+  <header>
+    <h1>Список пользователей</h1>
+    <p>Управление пользователями системы</p>
+  </header>
+
+  {% if users %}
+  <div class="users-list">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Имя</th>
+          <th>Email</th>
+          <th>Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for usr in users %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ usr.first_name }} {{ usr.last_name }}</td>
+          <td>{{ usr.email if usr.email else 'N/A' }}</td>
+          <td>
+            {% if usr.isAdmin %}
+            <span class="badge badge-danger">Администратор</span>
+            {% else %}
+            <span class="badge badge-primary">Пользователь</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="no-users">
+    <p>Нет зарегистрированных пользователей</p>
+  </div>
+  {% endif %}
+
+  <div class="back-button">
+    <a href="{{ url_for('views.admin') }}" class="btn btn-secondary">Назад к панели администратора</a>
+  </div>
+</section>
+{% endblock %}

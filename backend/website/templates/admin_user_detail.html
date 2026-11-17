@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль пользователя - {{ target_user.email }}{% endblock %}
+
+{% block content %}
+<section class="admin-user-detail-section">
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h3 class="mb-0">Профиль пользователя</h3>
+        </div>
+        <div class="card-body text-center">
+          <div class="mb-3">
+            {% if target_user.avatar %}
+              <img src="{{ url_for('views.uploaded_file', filename=target_user.avatar) }}" 
+                   alt="Avatar" 
+                   class="rounded-circle" 
+                   style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #007bff;">
+            {% else %}
+              <div class="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white" 
+                   style="width: 120px; height: 120px; font-size: 2.5rem; border: 3px solid #007bff;">
+                <i class="fa fa-user"></i>
+              </div>
+            {% endif %}
+          </div>
+          <h4>{{ target_user.first_name }} {{ target_user.last_name or '' }}</h4>
+          <p class="text-muted">{{ target_user.email }}</p>
+          {% if target_user.city %}
+          <p class="text-muted">
+            <i class="fa fa-map-marker"></i> {{ target_user.city }}
+          </p>
+          {% endif %}
+          
+          <div class="rating-display mb-3">
+            <h2 class="display-4 text-primary">{{ target_user.average_rating }}</h2>
+            <div class="mb-2">
+              {% for i in range(5) %}
+                {% if i < target_user.average_rating|int %}
+                  <span class="fa fa-star text-warning"></span>
+                {% else %}
+                  <span class="fa fa-star-o text-muted"></span>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <p class="text-muted">
+              <small>На основе {{ target_user.rating_count }} оценок</small>
+            </p>
+          </div>
+          
+          {% if target_user.badge %}
+          <div class="badge-display mb-3">
+            {% if target_user.badge == 'verified_help_source' %}
+              <span class="badge badge-success badge-lg">
+                <i class="fa fa-check-circle"></i> Проверенный источник помощи
+              </span>
+            {% elif target_user.badge == 'reliable_volunteer' %}
+              <span class="badge badge-info badge-lg">
+                <i class="fa fa-heart"></i> Надежный волонтер
+              </span>
+            {% else %}
+              <span class="badge badge-secondary badge-lg">{{ target_user.badge }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          <div class="status-info mb-3">
+            {% if target_user.is_super_admin %}
+              <span class="badge badge-danger">Супер-администратор</span>
+            {% elif target_user.isAdmin %}
+              <span class="badge badge-warning">Администратор</span>
+            {% else %}
+              <span class="badge badge-primary">Пользователь</span>
+            {% endif %}
+            
+            {% if target_user.is_blocked %}
+              <br>
+              <span class="badge badge-danger mt-2">
+                Заблокирован
+                {% if target_user.blocked_until %}
+                  до {{ target_user.blocked_until.strftime('%d.%m.%Y %H:%M') }}
+                {% endif %}
+              </span>
+              {% if target_user.blocked_reason %}
+              <p class="text-danger mt-2"><small>Причина: {{ target_user.blocked_reason }}</small></p>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0">Опасные действия</h5>
+        </div>
+        <div class="card-body">
+          {% if not target_user.is_super_admin %}
+          {% if target_user.is_blocked %}
+          <form method="POST" action="{{ url_for('views.unblock_user', user_id=target_user.id) }}" 
+                onsubmit="return confirm('Разблокировать пользователя?');">
+            <button type="submit" class="btn btn-success btn-block mb-2">
+              <i class="fa fa-unlock"></i> Разблокировать
+            </button>
+          </form>
+          {% else %}
+          <form method="POST" action="{{ url_for('views.block_user', user_id=target_user.id) }}" 
+                onsubmit="return confirm('Заблокировать пользователя?');">
+            <div class="form-group">
+              <label for="block-days">Срок блокировки (дней):</label>
+              <input type="number" class="form-control" id="block-days" name="days" value="7" min="1" max="365" required>
+            </div>
+            <div class="form-group">
+              <label for="block-reason">Причина блокировки:</label>
+              <textarea class="form-control" id="block-reason" name="reason" rows="3" 
+                        placeholder="Например: Ложные вызовы, нарушение правил">Ложные вызовы</textarea>
+            </div>
+            <button type="submit" class="btn btn-warning btn-block mb-2">
+              <i class="fa fa-ban"></i> Заблокировать
+            </button>
+          </form>
+          {% endif %}
+          
+          <form method="POST" action="{{ url_for('views.delete_user', user_id=target_user.id) }}" 
+                onsubmit="return confirm('ВНИМАНИЕ! Это действие необратимо. Все данные пользователя будут удалены. Продолжить?');">
+            <button type="submit" class="btn btn-danger btn-block">
+              <i class="fa fa-trash"></i> Удалить пользователя
+            </button>
+          </form>
+          {% else %}
+          <p class="text-muted">Нельзя заблокировать или удалить супер-администратора</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-8">
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Статистика</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>Всего заявок:</strong> {{ total_applications }}</p>
+              <p><strong>Решенных:</strong> {{ resolved_applications }}</p>
+              <p><strong>Ложных вызовов:</strong> 
+                <span class="badge badge-danger">{{ false_calls_count }}</span>
+              </p>
+            </div>
+            <div class="col-md-6">
+              <p><strong>Помог людям:</strong> {{ help_given }}</p>
+              <p><strong>Получено оценок:</strong> {{ received_ratings }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">Последние заявки</h5>
+        </div>
+        <div class="card-body">
+          {% if recent_applications %}
+          <div class="list-group">
+            {% for app in recent_applications %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <h6 class="mb-1">
+                    {% if app.category.value == 'food' %}
+                      <span class="badge badge-success">Продукты</span>
+                    {% elif app.category.value == 'medicine' %}
+                      <span class="badge badge-danger">Медицина</span>
+                    {% elif app.category.value == 'shelter' %}
+                      <span class="badge badge-primary">Убежище</span>
+                    {% elif app.category.value == 'emergency' %}
+                      <span class="badge badge-warning">Экстренная помощь</span>
+                    {% endif %}
+                    {% if app.is_sos %}
+                      <span class="badge badge-danger">SOS</span>
+                    {% endif %}
+                    {% if app.is_false_call %}
+                      <span class="badge badge-danger">Ложный вызов</span>
+                    {% endif %}
+                  </h6>
+                  <p class="mb-1">{{ app.description[:150] }}{% if app.description|length > 150 %}...{% endif %}</p>
+                  <small class="text-muted">
+                    {{ app.date.strftime('%d.%m.%Y %H:%M') }} | 
+                    Статус: {{ app.moderation_status.value }}
+                  </small>
+                </div>
+                <div>
+                  <a href="{{ url_for('views.application_detail', app_id=app.id) }}" 
+                     class="btn btn-sm btn-outline-primary">Просмотр</a>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted">Нет заявок</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="back-button mt-4">
+    <a href="{{ url_for('views.users_list') }}" class="btn btn-secondary">Назад к списку</a>
+  </div>
+</section>
+
+<style>
+.rating-display {
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  color: white;
+}
+
+.rating-display h2 {
+  color: white;
+  margin-bottom: 10px;
+}
+
+.badge-lg {
+  font-size: 1rem;
+  padding: 8px 12px;
+}
+</style>
+{% endblock %}
+

@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}Детали заявки{% endblock %}
+
+{% block content %}
+<section class="application-detail-section">
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        {% if application.category.value == 'food' %}
+        <span class="badge badge-success">Продукты питания</span>
+        {% elif application.category.value == 'medicine' %}
+        <span class="badge badge-danger">Медицинская помощь</span>
+        {% elif application.category.value == 'shelter' %}
+        <span class="badge badge-primary">Убежище/Кров</span>
+        {% elif application.category.value == 'emergency' %}
+        <span class="badge badge-warning">Экстренная помощь</span>
+        {% endif %}
+        {% if application.is_sos %}
+        <span class="badge badge-warning">SOS ({{ application.sos_count }})</span>
+        {% endif %}
+      </h2>
+    </div>
+    <div class="card-body">
+      <p class="card-text">{{ application.description }}</p>
+
+      <div class="mt-3">
+        <strong>Местоположение:</strong> {{ application.latitude }}, {{ application.longitude }}
+        <div id="detail-map" style="width: 100%; height: 300px; margin-top: 10px;"></div>
+      </div>
+
+      {% if application.media_files %}
+      <div class="mt-4">
+        <h5><strong>Медиафайлы ({{ application.media_files|length }}):</strong></h5>
+        <div class="row mt-3" id="media-container">
+          {% for media in application.media_files %}
+          <div class="col-md-4 col-sm-6 mb-3 media-wrapper" data-media-id="{{ media.id }}">
+            <div class="media-item">
+              {% set media_url = url_for('views.uploaded_file', filename=media.file_path) %}
+              <a href="{{ media_url }}" target="_blank" class="media-link" title="Открыть в полном размере">
+                <img src="{{ media_url }}" class="img-fluid rounded shadow-sm media-image" alt="Media {{ loop.index }}"
+                  data-src="{{ media_url }}" data-filename="{{ media.file_path }}" loading="lazy"
+                  style="width: 100%; height: 300px; object-fit: cover; cursor: pointer; transition: transform 0.2s; background-color: #f0f0f0; display: block;"
+                  crossorigin="anonymous">
+                <div class="media-error"
+                  style="display: none; width: 100%; height: 300px; background-color: #f0f0f0; border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999;">
+                  <div style="text-align: center;">
+                    <p style="margin: 0; font-weight: bold;">Изображение не найдено</p>
+                    <small style="display: block; margin-top: 5px; word-break: break-all;">{{ media.file_path }}</small>
+                    <button class="btn btn-sm btn-primary mt-2" onclick="retryLoadImage(this)"
+                      data-url="{{ media_url }}">Повторить загрузку</button>
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="mt-3">
+        <p class="text-muted">Медиафайлы отсутствуют</p>
+      </div>
+      {% endif %}
+
+      <div class="mt-3">
+        <p><strong>Создатель:</strong> {{ application.user.first_name }}
+          {% if application.user.badge %}
+          <span class="badge badge-info">{{ application.user.badge }}</span>
+          {% endif %}
+        </p>
+        <p><strong>Рейтинг создателя:</strong> {{ application.user.average_rating }}/5.0</p>
+        <p><strong>Статус модерации:</strong> {{ application.moderation_status.value }}</p>
+        <p><strong>Статус заявки:</strong>
+          {% if application.is_false_call %}
+          <span class="badge badge-danger">Ложный вызов</span>
+          {% elif application.is_resolved %}
+          <span class="badge badge-success">Решена</span>
+          {% else %}
+          <span class="badge badge-warning">В процессе</span>
+          {% endif %}
+        </p>
+        <p><strong>Создано:</strong> {{ application.date.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% if application.resolved_at %}
+        <p><strong>Решена:</strong> {{ application.resolved_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% endif %}
+        {% if application.expires_at %}
+        <p><strong>Действует до:</strong> {{ application.expires_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% endif %}
+      </div>
+
+      {% if application.user_id == user.id and not application.is_resolved and not application.is_false_call %}
+      <div class="mt-3">
+        <form method="POST" action="{{ url_for('views.resolve_application', app_id=application.id) }}"
+          style="display: inline;">
+          <button type="submit" class="btn btn-success"
+            onclick="return confirm('Отметить заявку как решенную? После этого вы сможете оценить помощников.');">
+            ✓ Отметить как решенную
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('views.mark_false_call', app_id=application.id) }}"
+          style="display: inline; margin-left: 10px;">
+          <button type="submit" class="btn btn-danger"
+            onclick="return confirm('ВНИМАНИЕ: Отметить заявку как ложную? Ваш рейтинг будет снижен. Продолжить?');">
+            ⚠ Отметить как ложную
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if not response and application.user_id != user.id and application.moderation_status.value == 'approved' and
+      not application.is_resolved and not application.is_false_call %}
+      <form method="POST" action="{{ url_for('views.respond_to_application', app_id=application.id) }}" class="mt-3">
+        <button type="submit" class="btn btn-success">Откликнуться на заявку</button>
+      </form>
+      {% elif response %}
+      <div class="alert alert-info mt-3">
+        Вы уже откликнулись на эту заявку. Статус:
+        {% if response.status.value == 'pending' %}
+        <span class="badge badge-warning">Ожидает рассмотрения</span>
+        {% elif response.status.value == 'accepted' %}
+        <span class="badge badge-success">Принят</span>
+        {% elif response.status.value == 'completed' %}
+        <span class="badge badge-info">Завершен</span>
+        {% elif response.status.value == 'cancelled' %}
+        <span class="badge badge-secondary">Отклонен</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if application.user_id == user.id and application.responses %}
+      <div class="mt-4">
+        <h5><strong>Отклики ({{ application.responses|length }}):</strong></h5>
+        {% for resp in application.responses %}
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <p class="mb-1"><strong>{{ resp.responder.first_name }} {{ resp.responder.last_name or '' }}</strong>
+                  {% if resp.responder.badge %}
+                  <span class="badge badge-info">{{ resp.responder.badge }}</span>
+                  {% endif %}
+                </p>
+                <p class="mb-1"><small>Рейтинг: <strong>{{ resp.responder.average_rating }}/5.0</strong></small></p>
+                <p class="mb-1"><small>Откликнулся: {{ resp.created_at.strftime('%d.%m.%Y %H:%M') }}</small></p>
+                <p class="mb-0">
+                  Статус:
+                  {% if resp.status.value == 'pending' %}
+                  <span class="badge badge-warning">Ожидает рассмотрения</span>
+                  {% elif resp.status.value == 'accepted' %}
+                  <span class="badge badge-success">Принят</span>
+                  {% elif resp.status.value == 'completed' %}
+                  <span class="badge badge-info">Завершен</span>
+                  {% elif resp.status.value == 'cancelled' %}
+                  <span class="badge badge-secondary">Отклонен</span>
+                  {% endif %}
+                </p>
+              </div>
+              <div>
+                {% if not application.is_resolved and not application.is_false_call %}
+                {% if resp.status.value == 'pending' %}
+                <form method="POST"
+                  action="{{ url_for('views.accept_response', app_id=application.id, response_id=resp.id) }}"
+                  style="display: inline;">
+                  <button type="submit" class="btn btn-sm btn-success">Принять</button>
+                </form>
+                <form method="POST"
+                  action="{{ url_for('views.reject_response', app_id=application.id, response_id=resp.id) }}"
+                  style="display: inline;">
+                  <button type="submit" class="btn btn-sm btn-danger"
+                    onclick="return confirm('Отклонить отклик?');">Отклонить</button>
+                </form>
+                {% elif resp.status.value == 'accepted' %}
+                <span class="badge badge-success">Принят</span>
+                {% endif %}
+                {% elif application.is_resolved and resp.status.value == 'accepted' %}
+                {% set has_rating = false %}
+                {% for rating in application.ratings %}
+                {% if rating.rated_id == resp.responder_id and rating.rater_id == user.id %}
+                {% set has_rating = true %}
+                <span class="badge badge-info">Оценен ({{ rating.rating_value }}/5)</span>
+                {% endif %}
+                {% endfor %}
+                {% if not has_rating %}
+                <a href="{{ url_for('views.rate_helper', app_id=application.id) }}?responder_id={{ resp.responder_id }}"
+                  class="btn btn-sm btn-primary">Оценить помощника</a>
+                {% endif %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% elif application.user_id == user.id %}
+      <div class="mt-3">
+        <p class="text-muted">Пока нет откликов на эту заявку</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="back-button mt-3">
+    <a href="{{ url_for('views.applications_list') }}" class="btn btn-secondary">Назад к списку</a>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const map = L.map('detail-map').setView([{{ application.latitude }}, {{ application.longitude }}], 15);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(map);
+
+  L.marker([{{ application.latitude }}, {{ application.longitude }}]).addTo(map);
+});
+
+  document.querySelectorAll('.media-image').forEach(img => {
+    img.addEventListener('mouseenter', function () {
+      this.style.transform = 'scale(1.05)';
+    });
+    img.addEventListener('mouseleave', function () {
+      this.style.transform = 'scale(1)';
+    });
+
+    img.addEventListener('error', function () {
+      console.error('Failed to load image:', this.dataset.filename);
+      this.style.display = 'none';
+      const errorDiv = this.nextElementSibling;
+      if (errorDiv && errorDiv.classList.contains('media-error')) {
+        errorDiv.style.display = 'flex';
+      }
+    });
+
+    img.addEventListener('load', function () {
+      const errorDiv = this.nextElementSibling;
+      if (errorDiv && errorDiv.classList.contains('media-error')) {
+        errorDiv.style.display = 'none';
+      }
+    });
+
+    if (!img.complete || img.naturalHeight === 0) {
+      const imgSrc = img.dataset.src || img.src;
+      img.src = '';
+      setTimeout(() => {
+        img.src = imgSrc + '?t=' + new Date().getTime();
+      }, 100);
+    }
+  });
+
+  function retryLoadImage(button) {
+    const url = button.dataset.url;
+    const mediaWrapper = button.closest('.media-wrapper');
+    const img = mediaWrapper.querySelector('.media-image');
+
+    if (img) {
+      img.src = '';
+      img.style.display = 'block';
+      const errorDiv = button.closest('.media-error');
+      if (errorDiv) {
+        errorDiv.style.display = 'none';
+      }
+      setTimeout(() => {
+        img.src = url + '?t=' + new Date().getTime();
+      }, 100);
+    }
+  }
+</script>
+
+<style>
+  .media-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  .media-link {
+    display: block;
+    text-decoration: none;
+  }
+
+  .media-link img:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+</style>
+{% endblock %}

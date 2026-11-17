@@ -1,0 +1,40 @@
+import logging
+from aiogram.types import Message
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from backend.telegram_bot.middleware.auth import require_auth
+from backend.telegram_bot.states import ApplicationStates
+
+logger = logging.getLogger(__name__)
+
+
+async def cmd_create(message: Message, state: FSMContext):
+    user = await require_auth(message, state)
+    if not user:
+        return
+    
+    try:
+        await state.clear()
+        await state.update_data(sos_mode=False)
+        from backend.website.models import ApplicationCategory
+        parts = (message.text or '').split(maxsplit=1)
+        category = parts[1].strip() if len(parts) > 1 else 'household'
+        if category not in [c.value for c in ApplicationCategory]:
+            await message.answer('Категории: food, clothing, household, delivery, volunteering, social_project, medicine, shelter, emergency')
+            return
+        await state.update_data(category=category)
+        help_text = (
+            "<b>Создание заявки</b>\n\n"
+            "1️⃣ Отправь описание (10–1000 символов), можно с фото\n"
+            "2️⃣ Приложи фото JPEG/PNG до 10 МБ\n"
+            "3️⃣ Отправь геолокацию (Location)\n\n"
+            "💡 <i>Заявка появится после проверки модератором</i>"
+        )
+        
+        sent_msg = await message.answer(help_text, parse_mode="HTML")
+        await state.update_data(help_message_id=sent_msg.message_id)
+        await state.set_state(ApplicationStates.waiting_description)
+    except Exception as e:
+        logger.error(f"Error in cmd_create: {e}")
+        await message.answer("😔 Произошла ошибка. Попробуй позже.")
+

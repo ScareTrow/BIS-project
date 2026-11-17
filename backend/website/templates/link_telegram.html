@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Привязка Telegram{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+  <div class="login-form">
+    <header>
+      <h1>Привязка Telegram аккаунта</h1>
+      <p>Свяжите ваш Telegram аккаунт с аккаунтом на сайте</p>
+    </header>
+
+    {% if user.telegram_id %}
+    <div class="alert alert-info">
+      <strong>Telegram уже привязан:</strong> {{ user.telegram_id }}
+      {% if user.telegram_username %}
+      <br>Username: @{{ user.telegram_username }}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="auth-form">
+      <div class="form-group">
+        <label for="telegram_id">Telegram ID</label>
+        <input type="text" class="form-control" id="telegram_id" name="telegram_id"
+          placeholder="Введите ваш Telegram ID" value="{{ user.telegram_id or '' }}" required />
+        <small class="form-text text-muted">
+          Получите ваш Telegram ID в боте командой /start
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="telegram_username">Telegram Username (опционально)</label>
+        <input type="text" class="form-control" id="telegram_username" name="telegram_username" placeholder="@username"
+          value="{{ user.telegram_username or '' }}" />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Привязать Telegram</button>
+
+      <div class="form-footer mt-3">
+        <a href="{{ url_for('views.home') }}" class="btn btn-secondary btn-block">Назад</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

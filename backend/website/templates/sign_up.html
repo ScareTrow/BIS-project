@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+  <div class="login-form">
+    <header>
+      <h1>Регистрация</h1>
+      <p>Создайте аккаунт для использования ASAR.kz</p>
+    </header>
+
+    <form method="POST" class="auth-form">
+      {% if message %}
+      <div class="alert alert-danger" role="alert">
+        {{ message }}
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" class="form-control" id="email" name="email" placeholder="Введите email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="firstName">Имя</label>
+        <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Введите имя" required />
+      </div>
+
+      <div class="form-group">
+        <label for="lastName">Фамилия</label>
+        <input type="text" class="form-control" id="lastName" name="lastName" placeholder="Введите фамилию" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password1">Пароль</label>
+        <input type="password" class="form-control" id="password1" name="password1"
+          placeholder="Введите пароль (минимум 7 символов)" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password2">Подтвердите пароль</label>
+        <input type="password" class="form-control" id="password2" name="password2" placeholder="Подтвердите пароль"
+          required />
+      </div>
+
+      <div class="form-group">
+        <label for="telegram_id">Telegram ID (опционально)</label>
+        <input type="text" class="form-control" id="telegram_id" name="telegram_id"
+          placeholder="Введите ваш Telegram ID для привязки бота" />
+        <small class="form-text text-muted">Получите ваш Telegram ID в боте командой /start</small>
+      </div>
+
+      <button type="submit" class="btn btn-success btn-block">Зарегистрироваться</button>
+
+      <div class="form-footer">
+        <p>Уже есть аккаунт? <a href="{{ url_for('auth.login') }}">Войдите</a></p>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

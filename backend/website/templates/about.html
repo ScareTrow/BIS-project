@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}О нас{% endblock %}
+
+{% block content %}
+<section class="about-section">
+  <header>
+    <h1>О проекте ASAR.kz</h1>
+  </header>
+
+  <article class="mission">
+    <h2>Наша миссия</h2>
+    <p>
+      ASAR.kz - это платформа для экстренной помощи и обмена ресурсами в чрезвычайных ситуациях.
+      Мы стремимся обеспечить быструю и эффективную координацию помощи между жителями города и
+      специализированными организациями
+    </p>
+  </article>
+
+  <article class="how-it-works">
+    <h2>Как это работает</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Создайте заявку</h3>
+        <p>Зарегистрируйтесь и опишите проблему с указанием координат</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Отслеживайте статус</h3>
+        <p>Следите за выполнением вашей заявки в реальном времени</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Получите помощь</h3>
+        <p>Специализированные организации обработают вашу заявку</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="contact">
+    <h2>Свяжитесь с нами</h2>
+    <p>Если у вас есть вопросы или предложения, пожалуйста, свяжитесь с нами:</p>
+    <ul>
+      <li>Email: asar@kbtu.kz</li>
+    </ul>
+  </article>
+</section>
+{% endblock %}

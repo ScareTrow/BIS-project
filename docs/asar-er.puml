@@ -1,0 +1,279 @@
+@startuml
+hide circle
+skinparam linetype ortho
+skinparam roundcorner 8
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam nodesep 50
+skinparam ranksep 65
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #294563
+  HeaderBackgroundColor #E4EDF5
+  ArrowColor #294563
+}
+skinparam package {
+  BorderColor #8A97A8
+  FontStyle bold
+}
+title ASAR - Mutual aid and emergency response
+package "Core: Must + media support" #F5F9FF {
+entity "users" as users {
+  * id : BIGINT <<PK>>
+  --
+  * email : VARCHAR(254) <<UK>>
+  * password_hash : TEXT
+  display_name : VARCHAR(120)
+  phone : VARCHAR(32)
+  city_id : BIGINT <<FK>>
+  telegram_id : BIGINT <<UK>>
+  * role : VARCHAR(16)
+  * created_at : TIMESTAMPTZ
+}
+entity "cities" as cities {
+  * id : BIGINT <<PK>>
+  --
+  * name : VARCHAR(120)
+  * region : VARCHAR(120)
+}
+entity "categories" as categories {
+  * id : BIGINT <<PK>>
+  --
+  * code : VARCHAR(64) <<UK>>
+  * name : VARCHAR(120)
+}
+entity "applications" as applications {
+  * id : BIGINT <<PK>>
+  --
+  * author_id : BIGINT <<FK>>
+  * category_id : BIGINT <<FK>>
+  * city_id : BIGINT <<FK>>
+  * description : TEXT
+  needed_help : TEXT
+  * latitude : NUMERIC(9,6)
+  * longitude : NUMERIC(9,6)
+  * priority : VARCHAR(16)
+  * priority_source : VARCHAR(24)
+  * status : VARCHAR(24)
+  * is_false_call : BOOLEAN
+  * created_via : VARCHAR(16)
+  * created_at : TIMESTAMPTZ
+  * updated_at : TIMESTAMPTZ
+}
+entity "resources" as resources {
+  * id : BIGINT <<PK>>
+  --
+  * owner_id : BIGINT <<FK>>
+  * category_id : BIGINT <<FK>>
+  * city_id : BIGINT <<FK>>
+  * name : VARCHAR(160)
+  description : TEXT
+  * latitude : NUMERIC(9,6)
+  * longitude : NUMERIC(9,6)
+  * availability : VARCHAR(16)
+  * created_at : TIMESTAMPTZ
+  * updated_at : TIMESTAMPTZ
+  last_confirmed_at : TIMESTAMPTZ
+}
+entity "media" as media {
+  * id : BIGINT <<PK>>
+  --
+  * application_id : BIGINT <<FK>>
+  * uploaded_by : BIGINT <<FK>>
+  * storage_key : TEXT <<UK>>
+  * kind : VARCHAR(24)
+  * mime_type : VARCHAR(100)
+  * file_size_bytes : BIGINT
+  * uploaded_at : TIMESTAMPTZ
+}
+entity "responses" as responses {
+  * id : BIGINT <<PK>>
+  --
+  * application_id : BIGINT <<FK>>
+  * volunteer_id : BIGINT <<FK>>
+  * status : VARCHAR(24)
+  message : TEXT
+  * created_at : TIMESTAMPTZ
+  * updated_at : TIMESTAMPTZ
+  completed_at : TIMESTAMPTZ
+  --
+  UNIQUE(application_id, volunteer_id)
+  UNIQUE(id, application_id)
+}
+entity "moderation_actions" as moderation_actions {
+  * id : BIGINT <<PK>>
+  --
+  * application_id : BIGINT <<FK>>
+  * admin_id : BIGINT <<FK>>
+  * action : VARCHAR(24)
+  reason : TEXT
+  previous_status : VARCHAR(24)
+  new_status : VARCHAR(24)
+  previous_priority : VARCHAR(16)
+  new_priority : VARCHAR(16)
+  * created_at : TIMESTAMPTZ
+}
+entity "notifications" as notifications {
+  * id : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  application_id : BIGINT <<FK>>
+  response_id : BIGINT <<FK>>
+  * channel : VARCHAR(16)
+  * type : VARCHAR(24)
+  * message : TEXT
+  * delivery_status : VARCHAR(16)
+  * created_at : TIMESTAMPTZ
+  sent_at : TIMESTAMPTZ
+  read_at : TIMESTAMPTZ
+}
+}
+package "Should: feedback and reputation" #EDF7F0 {
+entity "ratings" as ratings {
+  * id : BIGINT <<PK>>
+  --
+  * response_id : BIGINT <<FK, UK>>
+  * rater_id : BIGINT <<FK>>
+  * score : SMALLINT
+  comment : TEXT
+  * created_at : TIMESTAMPTZ
+}
+entity "badges" as badges {
+  * id : BIGINT <<PK>>
+  --
+  * code : VARCHAR(64) <<UK>>
+  * name : VARCHAR(120)
+  description : TEXT
+}
+entity "user_badges" as user_badges {
+  * user_id : BIGINT <<PK, FK>>
+  * badge_id : BIGINT <<PK, FK>>
+  --
+  * awarded_at : TIMESTAMPTZ
+}
+}
+package "Idea List: implementation priority not specified" #FFF6E7 {
+entity "volunteer_preferences" as volunteer_preferences {
+  * user_id : BIGINT <<PK, FK>>
+  --
+  * is_available : BOOLEAN
+  * updated_at : TIMESTAMPTZ
+}
+entity "capabilities" as capabilities {
+  * id : BIGINT <<PK>>
+  --
+  * code : VARCHAR(64) <<UK>>
+  * name : VARCHAR(120)
+}
+entity "user_capabilities" as user_capabilities {
+  * user_id : BIGINT <<PK, FK>>
+  * capability_id : BIGINT <<PK, FK>>
+}
+entity "application_capabilities" as application_capabilities {
+  * application_id : BIGINT <<PK, FK>>
+  * capability_id : BIGINT <<PK, FK>>
+}
+entity "application_needs" as application_needs {
+  * id : BIGINT <<PK>>
+  --
+  * application_id : BIGINT <<FK>>
+  * resource_name : VARCHAR(160)
+  * unit : VARCHAR(32)
+  * quantity_needed : NUMERIC(12,3)
+  --
+  UNIQUE(id, application_id)
+}
+entity "contributions" as contributions {
+  * id : BIGINT <<PK>>
+  --
+  * application_id : BIGINT <<FK>>
+  * need_id : BIGINT <<FK>>
+  * response_id : BIGINT <<FK>>
+  * quantity_promised : NUMERIC(12,3)
+  * quantity_delivered : NUMERIC(12,3)
+  * status : VARCHAR(16)
+  * created_at : TIMESTAMPTZ
+  * updated_at : TIMESTAMPTZ
+  --
+  UNIQUE(need_id, response_id)
+  FK(need_id, application_id)
+    -> application_needs(id, application_id)
+  FK(response_id, application_id)
+    -> responses(id, application_id)
+}
+entity "resource_confirmations" as resource_confirmations {
+  * id : BIGINT <<PK>>
+  --
+  * resource_id : BIGINT <<FK>>
+  * responsible_user_id : BIGINT <<FK>>
+  * reminder_sent_at : TIMESTAMPTZ
+  * expires_at : TIMESTAMPTZ
+  answer : VARCHAR(16)
+  answered_at : TIMESTAMPTZ
+}
+entity "triage_rules" as triage_rules {
+  * id : BIGINT <<PK>>
+  --
+  category_id : BIGINT <<FK>>
+  keyword : VARCHAR(160)
+  * priority : VARCHAR(16)
+  * rule_order : INT
+  * is_active : BOOLEAN
+}
+}
+package "Could: news" #F4EFFA {
+entity "news_posts" as news_posts {
+  * id : BIGINT <<PK>>
+  --
+  * author_id : BIGINT <<FK>>
+  city_id : BIGINT <<FK>>
+  * title : VARCHAR(200)
+  * body : TEXT
+  * published_at : TIMESTAMPTZ
+}
+}
+cities |o--o{ users
+cities ||--o{ applications
+cities ||--o{ resources
+categories ||--o{ applications
+categories ||--o{ resources
+users ||--o{ applications
+users ||--o{ resources
+applications ||--o{ media
+users ||--o{ media
+applications ||--o{ responses
+users ||--o{ responses
+applications ||--o{ moderation_actions
+users ||--o{ moderation_actions
+users ||--o{ notifications
+applications |o--o{ notifications
+responses |o--o{ notifications
+responses ||--o| ratings
+users ||--o{ ratings
+users ||--o{ user_badges
+badges ||--o{ user_badges
+users ||--o| volunteer_preferences
+users ||--o{ user_capabilities
+capabilities ||--o{ user_capabilities
+applications ||--o{ application_capabilities
+capabilities ||--o{ application_capabilities
+applications ||--o{ application_needs
+applications ||--o{ contributions
+application_needs ||--o{ contributions
+responses ||--o{ contributions
+resources ||--o{ resource_confirmations
+users ||--o{ resource_confirmations
+categories |o--o{ triage_rules
+users ||--o{ news_posts
+cities |o--o{ news_posts
+legend bottom
+  ""*"" = NOT NULL; no ""*"" = nullable
+  PK = primary key; FK = foreign key; UK = unique
+  One user can both request help and volunteer.
+  SOS is a priority of an application, not a separate entity.
+  Reputation, leaderboards and heatmaps are derived from existing data.
+  Workflow and integrity rules: see ASAR_ER_notes.md.
+endlegend
+@enduml

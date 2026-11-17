@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+  <header>
+    <h1>Панель администратора</h1>
+    <p>Управление заявками и пользователями</p>
+  </header>
+
+  <div class="admin-actions">
+    <a href="{{ url_for('views.show_task') }}" class="btn btn-primary">Просмотр всех заявок</a>
+    <a href="{{ url_for('views.users_list') }}" class="btn btn-info">Список пользователей</a>
+  </div>
+
+  {% if notes %}
+  <div class="admin-notes">
+    <h2>Все заявки</h2>
+    <ul class="list-group">
+      {% for note in notes %}
+      <li class="list-group-item">
+        <div class="note-content">{{ note }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% else %}
+  <div class="no-notes">
+    <p>Нет активных заявок</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
