@@ -171,9 +171,8 @@ def matching_users(application):
         for r in ApplicationCapability.query.filter_by(application_id=application.id)
     }
     users = (
-        User.query.join(VolunteerPreference, VolunteerPreference.user_id == User.id)
+        User.query
         .filter(
-            VolunteerPreference.is_available.is_(True),
             User.id != application.user_id,
             func.lower(User.city) == (application.city or "").lower(),
             User.is_blocked.is_(False),
@@ -355,7 +354,7 @@ def preferences():
     if request.method == "PUT":
         data = payload()
         ids = capability_ids(data.get("capability_ids", []))
-        available = data.get("is_available", False)
+        available = data.get("is_available", True)
         if not isinstance(available, bool):
             raise ValueError("Доступность должна быть true/false")
         if available and not current_user.city:

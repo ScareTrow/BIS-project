@@ -1,5 +1,7 @@
 'use client';
 
+import TelegramLink from '@/components/community/TelegramLink';
+import { nationalPhoneDigits, completePhone } from '@/lib/phone';
 import CursorEffect from '@/components/home/CursorEffect';
 import { apiClient } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
@@ -26,7 +28,6 @@ export default function SignUpPage(): JSX.Element {
     phone: '',
     city: '',
     cityHidden: false,
-    telegram_id: '',
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
@@ -82,15 +83,8 @@ export default function SignUpPage(): JSX.Element {
       newErrors.city = 'Пожалуйста, укажите город проживания';
     }
 
-    if (!formData.phone || formData.phone.trim() === '') {
-      newErrors.phone = 'Номер телефона обязателен';
-    } else {
-      // Простая валидация формата телефона
-      const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
-      const cleanPhone = formData.phone.replace(/\s|-|\(|\)/g, '');
-      if (!phoneRegex.test(cleanPhone)) {
-        newErrors.phone = 'Введите корректный номер телефона';
-      }
+    if (!/^\d{10}$/.test(formData.phone)) {
+      newErrors.phone = 'Введите 10 цифр номера после +7';
     }
 
     if (!formData.password1 || formData.password1.trim() === '') {
@@ -129,10 +123,9 @@ export default function SignUpPage(): JSX.Element {
         lastName: formData.lastName,
         password1: formData.password1,
         password2: formData.password2,
-        phone: formData.phone,
+        phone: completePhone(formData.phone),
         city: formData.city,
         cityHidden: formData.cityHidden,
-        telegram_id: formData.telegram_id || undefined,
       });
 
       if (response.success) {
@@ -172,7 +165,7 @@ export default function SignUpPage(): JSX.Element {
               </p>
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-5" method="post" onSubmit={handleSubmit}>
               {errors.submit && (
                 <div className="rounded-lg bg-red-50 border border-red-200 p-4 animate-fade-in">
                   <div className="text-sm text-red-800">{errors.submit}</div>
@@ -280,25 +273,36 @@ export default function SignUpPage(): JSX.Element {
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Phone className="h-5 w-5 text-gray-400" />
                     </div>
+                    <span className="absolute inset-y-0 left-12 flex items-center text-gray-700 pointer-events-none" aria-hidden="true">+7</span>
                     <input
                       id="phone"
                       name="phone"
                       type="tel"
-                      autoComplete="tel"
+                      autoComplete="tel-national"
+                      inputMode="numeric"
+                      maxLength={10}
+                      pattern="[0-9]{10}"
+                      aria-describedby="phone-hint"
                       suppressHydrationWarning
                       required
-                      className={`block w-full pl-12 pr-4 py-3 border ${errors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                      className={`block w-full pl-20 pr-4 py-3 border ${errors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                         } rounded-lg focus:ring-2 transition-all bg-white text-gray-900 placeholder-gray-400`}
-                      placeholder="+7 (XXX) XXX-XX-XX"
+                      placeholder="7771234567"
                       value={formData.phone}
+                      onPaste={(event) => {
+                        event.preventDefault();
+                        setFormData((f) => ({ ...f, phone: nationalPhoneDigits(event.clipboardData.getData('text')) }));
+                        setErrors((e) => ({ ...e, phone: '' }));
+                      }}
                       onChange={(e) => {
-                        setFormData({ ...formData, phone: e.target.value });
+                        setFormData({ ...formData, phone: nationalPhoneDigits(e.target.value) });
                         if (errors.phone) {
                           setErrors({ ...errors, phone: '' });
                         }
                       }}
                     />
                   </div>
+                  <p id="phone-hint" className="mt-1 text-xs text-gray-500">Введите 10 цифр номера без +7</p>
                   {errors.phone && (
                     <div className="mt-1.5 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-2.5 animate-fade-in">
                       <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
@@ -416,14 +420,12 @@ export default function SignUpPage(): JSX.Element {
                       type="text"
                       suppressHydrationWarning
                       className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-gray-900 placeholder-gray-400"
-                      placeholder="Получите ваш Telegram ID в боте командой /start"
-                      value={formData.telegram_id}
-                      onChange={(e) => setFormData({ ...formData, telegram_id: e.target.value })}
+                      placeholder="Заполнится после регистрации и привязки"
+                      value=""
+                      readOnly
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Для использования Telegram бота укажите ваш Telegram ID. Получите его в боте командой /start
-                  </p>
+                  <TelegramLink guest />
                 </div>
 
                 <div>

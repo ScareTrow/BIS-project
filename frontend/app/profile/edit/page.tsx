@@ -1,5 +1,6 @@
 'use client';
 
+import TelegramLink from '@/components/community/TelegramLink';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, User } from '@/lib/api';
@@ -182,9 +183,7 @@ export default function EditProfilePage() {
       if (formData.instagram) {
         formDataToSend.append('instagram', formData.instagram);
       }
-      if (formData.telegram_id) {
-        formDataToSend.append('telegram_id', formData.telegram_id);
-      }
+
       if (formData.avatar) {
         formDataToSend.append('avatar', formData.avatar);
       }
@@ -377,11 +376,11 @@ export default function EditProfilePage() {
                   type="text"
                   id="telegram_id"
                   value={formData.telegram_id}
-                  onChange={(e) => setFormData({ ...formData, telegram_id: e.target.value })}
+                  readOnly
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Получите ваш Telegram ID в боте командой /start"
+                  placeholder="Нажмите «Привязать Telegram» ниже"
                 />
-                <p className="mt-1 text-xs text-gray-500">Для использования Telegram бота укажите ваш Telegram ID</p>
+                <TelegramLink telegramId={formData.telegram_id} onLinked={(telegramId) => setFormData((f) => ({ ...f, telegram_id: telegramId }))} />
               </div>
 
               <div>

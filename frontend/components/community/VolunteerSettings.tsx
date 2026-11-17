@@ -7,7 +7,6 @@ import VolunteerLocation from './VolunteerLocation';
 export default function VolunteerSettings() {
   const [catalog, setCatalog] = useState<Capability[]>([]);
   const [ids, setIds] = useState<number[]>([]);
-  const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -23,7 +22,6 @@ export default function VolunteerSettings() {
       .then(([c, p, m]) => {
         setCatalog(c);
         setIds(p.capability_ids);
-        setAvailable(p.is_available);
         setMatches(m);
       })
       .catch((e) => setMessage(e.message))
@@ -35,7 +33,6 @@ export default function VolunteerSettings() {
     try {
       await communityApi.savePreferences({
         capability_ids: ids,
-        is_available: available,
       });
       setMatches(await communityApi.matching());
       setMessage("Настройки сохранены");
@@ -56,14 +53,6 @@ export default function VolunteerSettings() {
         <p>Загрузка...</p>
       ) : (
         <>
-          <label className="flex items-start gap-3 text-sm text-gray-700">
-            <input className="form-checkbox"
-              type="checkbox"
-              checked={available}
-              onChange={(e) => setAvailable(e.target.checked)}
-            />
-            Могу помочь сейчас
-          </label>
           <div className="grid sm:grid-cols-2 gap-3">
             {catalog.map((c) => (
               <label className="flex items-start gap-3 text-sm text-gray-700" key={c.id}>
@@ -99,7 +88,7 @@ export default function VolunteerSettings() {
             ))
           ) : (
             <p>
-              Совпадений пока нет. Проверьте город, возможности и доступность.
+              Совпадений пока нет. Проверьте город и выбранные возможности.
             </p>
           )}
         </>

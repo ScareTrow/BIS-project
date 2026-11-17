@@ -226,6 +226,12 @@ class News(db.Model):
         return f'<News {self.id}>'
 
 
+class TelegramLinkToken(db.Model):
+    token_hash = db.Column(db.String(64), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, unique=True)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+
+
 class TelegramConversation(db.Model):
     key = db.Column(db.String(64), primary_key=True)
     state = db.Column(db.String(255), nullable=True)

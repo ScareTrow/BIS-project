@@ -529,14 +529,9 @@ def api_edit_profile():
         if 'city' in request.form:
             current_user.city = request.form.get('city') or None
         
-        if 'telegram_id' in request.form and request.form.get('telegram_id'):
-            telegram_id = request.form.get('telegram_id').strip()
-            from .models import User
-            existing_user = User.query.filter_by(telegram_id=telegram_id).first()
-            if existing_user and existing_user.id != current_user.id:
-                return jsonify({'error': 'Этот Telegram ID уже привязан к другому аккаунту'}), 400
-            current_user.telegram_id = telegram_id
-        
+        if request.form.get('telegram_id') and request.form['telegram_id'].strip() != (current_user.telegram_id or ''):
+            return jsonify(error='Используйте ссылку привязки Telegram в профиле'), 400
+
         social_links_data = {}
         if 'instagram' in request.form and request.form.get('instagram'):
             social_links_data['instagram'] = request.form.get('instagram').strip()
@@ -593,34 +588,8 @@ def api_edit_profile():
 @views.route('/api/link-telegram', methods=['POST'])
 @login_required
 def api_link_telegram():
-    """API endpoint для привязки Telegram ID к аккаунту пользователя"""
-    from .models import User
-    
-    try:
-        data = request.get_json()
-        telegram_id = data.get('telegram_id', '').strip() if data else request.form.get('telegram_id', '').strip()
-        
-        if not telegram_id:
-            return jsonify({'success': False, 'error': 'Telegram ID обязателен'}), 400
-        
-        existing_user = User.query.filter_by(telegram_id=telegram_id).first()
-        if existing_user and existing_user.id != current_user.id:
-            return jsonify({'success': False, 'error': 'Этот Telegram ID уже привязан к другому аккаунту'}), 400
-        
-        current_user.telegram_id = telegram_id
-        if data and data.get('telegram_username'):
-            current_user.telegram_username = data.get('telegram_username').strip()
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Telegram аккаунт успешно привязан',
-            'telegram_id': current_user.telegram_id
-        })
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error linking telegram: {e}")
-        return jsonify({'success': False, 'error': 'Ошибка при привязке Telegram аккаунта'}), 500
+    from .telegram_link import create_link
+    return create_link()
 
 
 @views.route('/profile/edit', methods=['GET', 'POST'])
@@ -896,36 +865,8 @@ def get_application(app_id):
 @views.route('/link-telegram', methods=['GET', 'POST'])
 @login_required
 def link_telegram():
-    if request.method == 'POST':
-        telegram_id = request.form.get('telegram_id', '').strip()
-        telegram_username = request.form.get('telegram_username', '').strip()
-        
-        if not telegram_id:
-            flash('Введите Telegram ID', 'error')
-            return render_template('link_telegram.html', user=current_user)
-        
-        from .models import User
-        existing_user = User.query.filter_by(telegram_id=telegram_id).first()
-        if existing_user and existing_user.id != current_user.id:
-            flash('Этот Telegram ID уже привязан к другому аккаунту', 'error')
-            return render_template('link_telegram.html', user=current_user)
-        
-        current_user.telegram_id = telegram_id
-        
-        if telegram_username:
-            if telegram_username.startswith('@'):
-                telegram_username = telegram_username[1:]
-            existing_username_user = User.query.filter_by(telegram_username=telegram_username).first()
-            if existing_username_user and existing_username_user.id != current_user.id:
-                flash('Этот Telegram username уже используется другим пользователем', 'error')
-                return render_template('link_telegram.html', user=current_user)
-            current_user.telegram_username = telegram_username
-        
-        db.session.commit()
-        flash('Telegram аккаунт успешно привязан', 'success')
-        return redirect(url_for('views.home'))
-    
-    return render_template('link_telegram.html', user=current_user)
+    from backend.telegram_bot.config import Config
+    return redirect(Config.WEB_APP_URL.rstrip('/') + '/profile/edit')
 
 
 @views.route('/admin/applications')
@@ -2626,53 +2567,10 @@ def get_regional_stats():
 
 
 @views.route('/api/telegram-bot-info', methods=['GET'])
-@login_required
 def get_telegram_bot_info():
-    """Получить информацию о Telegram боте"""
-    try:
-        from backend.telegram_bot.config import Config
-        from aiogram import Bot
-        
-        if not Config.TELEGRAM_BOT_TOKEN:
-            return jsonify({
-                'username': None,
-                'bot_url': None,
-                'message': 'Telegram бот не настроен'
-            })
-        
-        bot_info = None
-        try:
-            import asyncio
-            bot = Bot(token=Config.TELEGRAM_BOT_TOKEN)
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            bot_info = loop.run_until_complete(bot.get_me())
-            loop.run_until_complete(bot.session.close())
-        except Exception as e:
-            current_app.logger.warning(f"Could not get bot info: {e}")
-        
-        if bot_info and bot_info.username:
-            return jsonify({
-                'username': bot_info.username,
-                'bot_url': f'https://t.me/{bot_info.username}'
-            })
-        else:
-            return jsonify({
-                'username': None,
-                'bot_url': None,
-                'message': 'Используйте команду /start в Telegram боте'
-            })
-    except Exception as e:
-        current_app.logger.error(f"Error getting bot info: {e}")
-        return jsonify({
-            'username': None,
-            'bot_url': None,
-            'message': 'Используйте команду /start в Telegram боте'
-        })
+    from .telegram_link import bot_url
+    url = bot_url()
+    return jsonify(username=url.rsplit('/', 1)[-1], bot_url=url)
 
 
 @views.route('/api/news', methods=['GET'])

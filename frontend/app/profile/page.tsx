@@ -1,4 +1,5 @@
 'use client';
+import TelegramLink from '@/components/community/TelegramLink';
 import VolunteerSettings from '@/components/community/VolunteerSettings';
 
 import { apiClient, Application, User } from '@/lib/api';
@@ -6,57 +7,6 @@ import { Award, CheckCircle, Clock, Edit, Heart, HelpCircle, MapPin, Star, User 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-function TelegramBotLink() {
-  const [botUrl, setBotUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadBotInfo();
-  }, []);
-
-  const loadBotInfo = async () => {
-    try {
-      const data = await apiClient.getTelegramBotInfo();
-      if (data.bot_url) {
-        setBotUrl(data.bot_url);
-      }
-    } catch (error) {
-      console.error('Error loading bot info:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="btn bg-green-600 hover:bg-green-700 text-white w-full block text-center py-2.5 opacity-50">
-        Загрузка...
-      </div>
-    );
-  }
-
-  if (botUrl) {
-    return (
-      <a
-        href={botUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn bg-green-600 hover:bg-green-700 text-white w-full block text-center py-2.5"
-      >
-        Перейти к Telegram боту
-      </a>
-    );
-  }
-
-  return (
-    <div className="text-center">
-      <p className="text-xs text-green-600 mb-2">
-        Используйте команду /start в Telegram боте
-      </p>
-    </div>
-  );
-}
 
 const categoryLabels: Record<string, string> = {
   food: 'Еда',
@@ -260,29 +210,10 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {!user.telegram_id ? (
-              <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-700 mb-4 text-center">
-                  Привяжите ваш Telegram аккаунт для удобной работы через бота
-                </p>
-                <Link
-                  href="/profile/edit"
-                  className="btn btn-primary w-full block text-center py-2.5"
-                >
-                  Привязать Telegram
-                </Link>
-                <p className="text-xs text-blue-600 mt-3 text-center">
-                  Получите ваш Telegram ID в боте командой /start
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 p-5 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-700 mb-4 text-center">
-                  Telegram аккаунт привязан
-                </p>
-                <TelegramBotLink />
-              </div>
-            )}
+            <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800 mb-3">Telegram-оповещения</p>
+              <TelegramLink telegramId={user.telegram_id} onLinked={() => loadProfile()} />
+            </div>
           </div>
         </div>
 

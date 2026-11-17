@@ -168,7 +168,7 @@ def test_prepare_deploy_bootstraps_empty_database_and_can_run_again(app, test_us
             assert result.exit_code == 0, result.output
         with app.app_context():
             assert set(db.metadata.tables).issubset(inspect(db.engine).get_table_names())
-            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261117_password_hashes'
+            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261117_telegram_link'
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
@@ -177,9 +177,10 @@ def test_prepare_deploy_bootstraps_empty_database_and_can_run_again(app, test_us
 
 def test_prepare_deploy_migrates_existing_records_without_replacing_them(app, test_user):
     from flask_migrate import stamp
-    from backend.website.models import TelegramConversation, User
+    from backend.website.models import TelegramConversation, TelegramLinkToken, User
     user_id = test_user.id
     with app.app_context():
+        TelegramLinkToken.__table__.drop(db.engine)
         TelegramUpdateReceipt.__table__.drop(db.engine)
         TelegramConversation.__table__.drop(db.engine)
         db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password TYPE VARCHAR(150)'))
@@ -193,6 +194,7 @@ def test_prepare_deploy_migrates_existing_records_without_replacing_them(app, te
             column = next(c for c in inspect(db.engine).get_columns('user') if c['name'] == 'password')
             assert column['type'].length == 255
             assert inspect(db.engine).has_table('telegram_conversation')
+            assert inspect(db.engine).has_table('telegram_link_token')
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))

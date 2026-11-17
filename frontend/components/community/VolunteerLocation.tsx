@@ -45,7 +45,7 @@ export default function VolunteerLocation() {
   }
   return <section className="border-t pt-4 space-y-3">
     <h3 className="font-semibold">Оповещения о помощи рядом</h3>
-    <p>Привяжите Telegram и сохраните точку, чтобы получать заявки в радиусе 10 км. Навыки и статус «Могу помочь сейчас» не ограничивают эти оповещения. Точка не показывается в публичном профиле.</p>
+    <p>Привяжите Telegram и сохраните точку, чтобы получать заявки в радиусе 10 км. Эти оповещения учитывают расстояние до заявки. Точка не показывается в публичном профиле.</p>
     <p>{point ? `Точка: ${point[0].toFixed(5)}, ${point[1].toFixed(5)}` : 'Местоположение не указано'}</p>
     <div className="flex flex-wrap gap-3">
       <button type="button" className="btn btn-outline" disabled={busy} onClick={locate}>Определить местоположение</button>
