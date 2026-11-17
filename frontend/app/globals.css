@@ -242,6 +242,8 @@
 
 /* Исправление выхода карты за рамки */
 .leaflet-container {
+  /* Keep Leaflet panes and controls below page navigation and dialogs. */
+  isolation: isolate;
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
