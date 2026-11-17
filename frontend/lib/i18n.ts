@@ -1,5 +1,7 @@
 export type Language = 'ru' | 'kk' | 'en';
 export const translations: Record<string, readonly [string, string, string]> = {
+  "auth.login.noAccount": ["Нет аккаунта?", "Аккаунтыңыз жоқ па?", "No account?"],
+  "auth.login.createAccount": ["Создать аккаунт", "Аккаунт жасау", "Create an account"],
   "categories.any": ["Любая категория", "Кез келген санат", "Any category"],
   "priorities.normal": ["Обычный", "Қалыпты", "Normal"],
   "priorities.high": ["Высокий", "Жоғары", "High"],

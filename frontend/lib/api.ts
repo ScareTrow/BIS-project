@@ -15,12 +15,18 @@ export interface ApplicationResponse {
   responder?: Pick<User, 'id' | 'first_name' | 'last_name' | 'avatar'> | null;
 }
 export type ApplicationStatus = 'active' | 'open' | 'in_progress' | 'completed';
+export interface LocationPoint { address: string; latitude: number; longitude: number }
+export interface DeliveryRoute {
+  pickup: LocationPoint & { entrance: string };
+  dropoff: LocationPoint & { entrance: string };
+}
 export interface Application {
   id: number; number?: number; description: string; category: ApplicationCategory;
   latitude: number; longitude: number; date: string; status: string;
   moderation_status?: string; rejection_reason?: string | null; is_sos: boolean; is_resolved: boolean; is_false_call: boolean;
   user_id: number; priority: number; city?: string | null; region?: string | null;
   location?: string; address?: string; expires_at?: string | null; duration_days?: number;
+  needed_help?: string | null; delivery_details?: DeliveryRoute | null;
   creator?: { id: number; first_name: string; last_name?: string | null; avatar?: string | null };
   media_files?: { id: number; file_path: string; file_type: string }[];
   responses?: ApplicationResponse[];
@@ -59,6 +65,7 @@ const get = <T>(path: string, params?: object): Promise<T> => http.get<T>(path, 
 const post = <T = Result>(path: string, body?: unknown): Promise<T> => http.post<T>(path, body).then(r => r.data);
 
 export const apiClient = {
+  searchLocations: (query: string, city = '') => post<LocationPoint[]>('/locations/search', { query, city }),
   getApplications: async (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => {
     const data = await get<MapFeatures | Application[]>('/map/points', { city, status, format: 'geojson' });
     if (Array.isArray(data)) return data;

@@ -37,9 +37,10 @@ export default function NotificationsDropdown({
   };
 
   return (
-    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+    <div className="absolute -right-24 mt-2 w-[min(24rem,calc(100vw-2rem))] sm:right-0 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
       <div className="p-4 border-b border-gray-200 flex justify-between items-center">
         <h3 className="font-semibold text-gray-900">Уведомления</h3>
+        <button type="button" onClick={onClose} aria-label="Закрыть уведомления" className="p-1 text-gray-500">×</button>
         <button
           onClick={onMarkAllRead}
           className="text-sm text-primary hover:text-primary-dark flex items-center space-x-1"

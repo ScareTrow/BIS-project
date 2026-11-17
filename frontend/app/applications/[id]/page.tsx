@@ -158,7 +158,7 @@ export default function ApplicationDetailPage() {
             <div className="flex items-center space-x-2 text-gray-600 mb-4">
               <MapPin className="w-5 h-5" />
               <span className="text-sm">
-                {(application as any).address || `${application.latitude.toFixed(4)}, ${application.longitude.toFixed(4)}`}
+                {application.address || 'Место отмечено на карте'}
               </span>
             </div>
             {isClient && (
@@ -196,7 +196,19 @@ export default function ApplicationDetailPage() {
             <p className="text-gray-700 whitespace-pre-wrap">
               {application.description}
             </p>
+            {application.needed_help && <p className="mt-3 text-gray-700 whitespace-pre-wrap">{application.needed_help}</p>}
           </div>
+
+          {application.delivery_details && <section className="card space-y-4" aria-label="Маршрут доставки">
+            <h2 className="text-xl font-semibold">Маршрут доставки</h2>
+            {[{ title: 'Откуда забрать', point: application.delivery_details.pickup }, { title: 'Куда доставить', point: application.delivery_details.dropoff }].map(({ title, point }) => <div key={title}>
+              <h3 className="font-semibold text-gray-900">{title}</h3>
+              <p className="break-words text-gray-700">{point.address}</p>
+              {point.entrance && <p className="text-sm text-gray-600">Вход / подъезд: {point.entrance}</p>}
+              <a className="text-sm font-medium text-blue-600 underline" target="_blank" rel="noopener noreferrer"
+                href={`https://www.openstreetmap.org/?mlat=${point.latitude}&mlon=${point.longitude}#map=17/${point.latitude}/${point.longitude}`}>Открыть на карте</a>
+            </div>)}
+          </section>}
 
           {application.media_files && application.media_files.length > 0 && (
             <div className="card">

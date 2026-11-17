@@ -140,20 +140,7 @@ export default function NewsPage() {
           ASAR - это платформа для экстренной помощи и обмена ресурсами в Казахстане.
           Мы объединяем людей, которые нуждаются в помощи, и тех, кто готов помочь.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600 mb-2">500+</div>
-            <div className="text-sm text-gray-600">Заявок создано</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600 mb-2">85%</div>
-            <div className="text-sm text-gray-600">Успешно решено</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600 mb-2">1000+</div>
-            <div className="text-sm text-gray-600">Активных волонтеров</div>
-          </div>
-        </div>
+
       </div>
     </div>
   );
