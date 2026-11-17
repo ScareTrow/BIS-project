@@ -72,7 +72,7 @@ export const communityApi = {
     ),
   savePreferences: (data: {
     capability_ids: number[];
-    is_available: boolean;
+    is_available?: boolean;
   }) => http.put("/user/capabilities", data),
   matching: () =>
     get<

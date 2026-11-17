@@ -43,7 +43,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-blue-700 pt-6 text-center text-blue-200 text-sm">
-          <p>© 2025 ASAR.kz - {t('footer.rights')}</p>
+          <p>© 2026 ASAR.kz - {t('footer.rights')}</p>
         </div>
       </div>
     </footer>

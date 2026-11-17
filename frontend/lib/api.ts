@@ -86,6 +86,7 @@ export const apiClient = {
   getRegionalStats: (city?: string) => get<{ total: number; active: number; emergency: number; city: string }>('/stats/regional', { city }),
   search: (q: string) => get<SearchResult>('/search', { q }),
   getTelegramBotInfo: () => get<{ bot_url?: string; bot_username?: string }>('/telegram-bot-info'),
+  createTelegramLink: () => post<{ bot_url: string; expires_in: number }>('/telegram/link'),
   getAdminStats: () => get<{ total_applications: number; pending_applications: number; approved_applications: number; rejected_applications: number; total_responses: number; volunteers_count: number; false_calls_count: number; category_stats: { category: string; count: number }[] }>('/admin/stats'),
   getAdminUsers: () => get<(User & { total_applications: number; resolved_applications: number; false_calls_count: number; help_given: number; average_rating: number; is_super_admin: boolean; is_blocked: boolean })[]>('/admin/users'),
   getAdminApplications: (status = 'all') => get<Application[]>('/admin/applications', { status }),
