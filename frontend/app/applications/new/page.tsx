@@ -103,20 +103,20 @@ export default function NewApplicationPage() {
         SOS — для срочной помощи.
       </p>
       <form className="card space-y-5" onSubmit={submit}>
-        <label className="block">
+        <label className="form-field">
           Город
           <input
-            className="block border rounded p-2 w-full"
+            className="form-input"
             required
             maxLength={200}
             value={form.city}
             onChange={(e) => setForm({ ...form, city: e.target.value })}
           />
         </label>
-        <label className="block">
+        <label className="form-field">
           {t("application.form.category")}
           <select
-            className="block border rounded p-2 w-full"
+            className="form-select"
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
           >
@@ -127,10 +127,10 @@ export default function NewApplicationPage() {
             ))}
           </select>
         </label>
-        <label className="block">
+        <label className="form-field">
           Опишите ситуацию
           <textarea
-            className="block border rounded p-2 w-full"
+            className="form-textarea"
             required
             minLength={10}
             maxLength={1000}
@@ -139,17 +139,17 @@ export default function NewApplicationPage() {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
         </label>
-        <label className="block">
+        <label className="form-field">
           Какая помощь нужна
           <textarea
-            className="block border rounded p-2 w-full"
+            className="form-textarea"
             maxLength={5000}
             value={form.needed_help}
             onChange={(e) => setForm({ ...form, needed_help: e.target.value })}
           />
         </label>
-        <label className="flex gap-2">
-          <input
+        <label className="flex items-start gap-3 text-sm text-gray-700">
+          <input className="form-checkbox"
             type="checkbox"
             checked={form.priority === "sos"}
             onChange={(e) =>
@@ -172,10 +172,10 @@ export default function NewApplicationPage() {
           }
         />
         <div className="grid grid-cols-2 gap-3">
-          <label>
+          <label className="form-field">
             Широта
             <input
-              className="block border p-2 w-full"
+              className="form-input"
               type="number"
               min={-90}
               max={90}
@@ -187,10 +187,10 @@ export default function NewApplicationPage() {
               }
             />
           </label>
-          <label>
+          <label className="form-field">
             Долгота
             <input
-              className="block border p-2 w-full"
+              className="form-input"
               type="number"
               min={-180}
               max={180}
@@ -209,8 +209,8 @@ export default function NewApplicationPage() {
           </legend>
           <div className="grid sm:grid-cols-2 gap-3">
             {catalog.map((c) => (
-              <label className="flex gap-2" key={c.id}>
-                <input
+              <label className="flex items-start gap-3 text-sm text-gray-700" key={c.id}>
+                <input className="form-checkbox"
                   type="checkbox"
                   checked={ids.includes(c.id)}
                   onChange={(e) =>
@@ -233,7 +233,7 @@ export default function NewApplicationPage() {
           {needs.map((n, i) => (
             <div className="grid sm:grid-cols-4 gap-2" key={i}>
               <input
-                className="border p-2 min-w-0"
+                className="form-input"
                 aria-label="Название ресурса"
                 placeholder="Продуктовые наборы"
                 required
@@ -248,7 +248,7 @@ export default function NewApplicationPage() {
                 }
               />
               <input
-                className="border p-2 min-w-0"
+                className="form-input"
                 aria-label="Единица измерения"
                 placeholder="набор"
                 required
@@ -263,7 +263,7 @@ export default function NewApplicationPage() {
                 }
               />
               <input
-                className="border p-2 min-w-0"
+                className="form-input"
                 aria-label="Необходимое количество"
                 type="number"
                 min="0.001"
@@ -282,6 +282,7 @@ export default function NewApplicationPage() {
               />
               <button
                 type="button"
+                className="btn btn-outline"
                 onClick={() => setNeeds(needs.filter((_, j) => j !== i))}
               >
                 Убрать
@@ -302,10 +303,10 @@ export default function NewApplicationPage() {
             Добавить потребность
           </button>
         </fieldset>
-        <label className="block">
+        <label className="form-field">
           Фото: от 1 до 3, JPEG/PNG, до 10 МБ каждое
           <input
-            className="block mt-2"
+            className="form-file"
             type="file"
             multiple
             required

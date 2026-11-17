@@ -63,10 +63,10 @@ export default function ResourcesPage() {
         Здесь предлагают ресурсы и показывают точки помощи. Просьбы о помощи
         находятся в заявках.
       </p>
-      <label className="block">
+      <label className="form-field max-w-sm">
         Фильтр по городу
         <input
-          className="border p-2 ml-3"
+          className="form-input"
           value={city}
           onChange={(e) => setCity(e.target.value)}
         />
@@ -115,7 +115,7 @@ export default function ResourcesPage() {
                     Ресурс ещё доступен? Ответьте до{" "}
                     {new Date(c.expires_at).toLocaleString()}.
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       disabled={busy}
                       className="btn btn-primary"
@@ -127,7 +127,7 @@ export default function ResourcesPage() {
                     </button>
                     <button
                       disabled={busy}
-                      className="border px-3"
+                      className="btn btn-outline"
                       onClick={() =>
                         perform(() => communityApi.confirm(c.id, "unavailable"))
                       }
@@ -142,7 +142,7 @@ export default function ResourcesPage() {
       </div>
       {user?.is_authenticated && (
         <form
-          className="card space-y-3"
+          className="card space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
             perform(() => communityApi.createResource(form));
@@ -151,20 +151,20 @@ export default function ResourcesPage() {
           <h2 className="text-xl font-semibold">
             Предложить ресурс / добавить точку помощи
           </h2>
-          <label className="block">
+          <label className="form-field">
             Название
             <input
-              className="border p-2 block w-full"
+              className="form-input"
               required
               maxLength={160}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </label>
-          <label className="block">
+          <label className="form-field">
             Описание
             <textarea
-              className="border p-2 block w-full"
+              className="form-textarea"
               maxLength={5000}
               value={form.description}
               onChange={(e) =>
@@ -172,20 +172,20 @@ export default function ResourcesPage() {
               }
             />
           </label>
-          <label className="block">
+          <label className="form-field">
             Город
             <input
-              className="border p-2 block w-full"
+              className="form-input"
               required
               maxLength={200}
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
             />
           </label>
-          <label className="block">
+          <label className="form-field">
             Категория
             <select
-              className="border p-2 block"
+              className="form-select"
               value={form.category}
               onChange={(e) =>
                 setForm({
@@ -211,11 +211,11 @@ export default function ResourcesPage() {
               ))}
             </select>
           </label>
-          <div className="flex gap-3">
-            <label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="form-field">
               Широта
               <input
-                className="border p-2 block w-full"
+                className="form-input"
                 required
                 type="number"
                 step="any"
@@ -227,10 +227,10 @@ export default function ResourcesPage() {
                 }
               />
             </label>
-            <label>
+            <label className="form-field">
               Долгота
               <input
-                className="border p-2 block w-full"
+                className="form-input"
                 required
                 type="number"
                 step="any"

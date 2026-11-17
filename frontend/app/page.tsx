@@ -509,8 +509,8 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
-              <label className="text-sm">Статус заявки
-                <select aria-label="Статус заявки" className="block border rounded p-2" value={statusFilter}
+              <label className="form-field">Статус заявки
+                <select aria-label="Статус заявки" className="form-select" value={statusFilter}
                   onChange={event => setStatusFilter(event.target.value as ApplicationStatus)}>
                   <option value="open">Открытые</option>
                   <option value="in_progress">В работе</option>

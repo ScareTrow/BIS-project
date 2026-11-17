@@ -71,7 +71,7 @@ export default function ApplicationMap({ center, onLocationSelect, selected = tr
   }, [center]);
 
   return (
-    <div style={{ height: '360px', width: '100%' }}>
+    <div className="overflow-hidden rounded-lg border border-gray-200" style={{ height: '360px', width: '100%' }}>
     <MapContainer
       center={center}
       zoom={10}

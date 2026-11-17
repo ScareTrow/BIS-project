@@ -5,9 +5,11 @@ const HeatMap = dynamic(() => import("@/components/community/HeatMap"), {
   ssr: false,
 });
 import { useStore } from "@/lib/store";
+import { useTranslation } from "@/lib/i18n";
 import { communityApi, TriageRule, Analytics } from "@/lib/community-api";
 export default function CommunityAdmin() {
-  const { user, authLoading } = useStore();
+  const { user, authLoading, language } = useStore();
+  const t = useTranslation(language);
   const [rules, setRules] = useState<TriageRule[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [message, setMessage] = useState("");
@@ -54,25 +56,25 @@ export default function CommunityAdmin() {
       <h1 className="text-3xl font-bold">
         Приоритеты и региональная потребность
       </h1>
-      {message && <p role="status">{message}</p>}
-      <section className="card space-y-3">
+      {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{message}</p>}
+      <section className="card space-y-5">
         <h2 className="text-xl font-semibold">Автоматические правила</h2>
-        <p>
+        <p className="text-sm leading-relaxed text-gray-600">
           Правила применяются к новым заявкам. Они не понижают SOS и решения
           администратора.
         </p>
         {rules.map((r) => (
-          <p key={r.id}>
-            {r.category || "Любая категория"} · {r.keyword || "Любое описание"}{" "}
-            → {r.priority} · Порядок {r.rule_order} ·{" "}
+          <p key={r.id} className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-relaxed">
+            {t(`categories.${r.category || 'any'}`)} · {r.keyword || "Любое описание"}{" "}
+            → {t(`priorities.${r.priority}`)} · Порядок {r.rule_order} ·{" "}
             {r.is_active ? "Включено" : "Выключено"}
           </p>
         ))}
-        <form onSubmit={add} className="space-y-3">
-          <label className="block">
+        <form onSubmit={add} className="grid gap-5 sm:grid-cols-2">
+          <label className="form-field">
             Категория
             <select
-              className="border p-2 ml-2"
+              className="form-select"
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
             >
@@ -89,36 +91,36 @@ export default function CommunityAdmin() {
                 "emergency",
               ].map((c) => (
                 <option key={c} value={c}>
-                  {c || "Любая"}
+                  {t(`categories.${c || 'any'}`)}
                 </option>
               ))}
             </select>
           </label>
-          <label className="block">
+          <label className="form-field">
             Ключевое слово
             <input
-              className="border p-2 ml-2"
+              className="form-input"
               maxLength={160}
               value={form.keyword}
               onChange={(e) => setForm({ ...form, keyword: e.target.value })}
             />
           </label>
-          <label className="block">
+          <label className="form-field">
             Приоритет
             <select
-              className="border p-2 ml-2"
+              className="form-select"
               value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value })}
             >
               {["normal", "high", "sos"].map((p) => (
-                <option key={p}>{p}</option>
+                <option key={p} value={p}>{t(`priorities.${p}`)}</option>
               ))}
             </select>
           </label>
-          <label className="block">
+          <label className="form-field">
             Порядок
             <input
-              className="border p-2 ml-2"
+              className="form-input"
               type="number"
               value={form.rule_order}
               onChange={(e) =>
@@ -126,7 +128,7 @@ export default function CommunityAdmin() {
               }
             />
           </label>
-          <button className="btn btn-primary" disabled={busy}>
+          <button className="btn btn-primary justify-self-start sm:col-span-2" disabled={busy}>
             Добавить правило
           </button>
         </form>
@@ -137,17 +139,17 @@ export default function CommunityAdmin() {
         </h2>
         {analytics?.regions.length ? (
           analytics.regions.map((r) => (
-            <p key={r.city}>
-              {r.city}: {r.count}
+            <p key={r.city} className="flex items-center justify-between gap-4 border-b border-gray-100 py-3 text-sm">
+              <span>{r.city}</span><span className="font-semibold text-gray-900">{r.count}</span>
             </p>
           ))
         ) : (
           <p>Заявок пока нет.</p>
         )}
-        <h3 className="font-semibold mt-4">Тепловая карта потребности</h3>
+        <h3 className="font-semibold mt-6 mb-3">Тепловая карта потребности</h3>
         {analytics && <HeatMap points={analytics.heatmap} />}
         {analytics?.heatmap.map((p, i) => (
-          <p key={i}>
+          <p key={i} className="mt-2 text-xs text-gray-500">
             {p.latitude}, {p.longitude}: {p.count} заявок
           </p>
         ))}

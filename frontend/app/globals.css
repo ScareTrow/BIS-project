@@ -82,6 +82,37 @@
   .card-emergency {
     @apply bg-red-50 border-2 border-red-400;
   }
+
+  .form-field {
+    @apply grid min-w-0 gap-2 text-sm font-medium text-gray-700;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    @apply block w-full min-w-0 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-normal text-gray-900 shadow-sm transition-colors placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500;
+  }
+
+  .form-textarea {
+    @apply min-h-[100px] resize-y;
+  }
+
+  .form-file {
+    @apply block w-full min-w-0 rounded-lg border border-gray-300 bg-white p-3 text-sm font-normal text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+
+  .form-file::file-selector-button {
+    @apply mr-3 cursor-pointer rounded-md border-0 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700;
+  }
+
+  .form-checkbox {
+    @apply mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-2 focus:ring-blue-500;
+  }
+
+  .btn:disabled {
+    @apply cursor-not-allowed opacity-50 shadow-none;
+    transform: none;
+  }
   
   .badge {
     @apply px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide;

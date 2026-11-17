@@ -1,5 +1,9 @@
 export type Language = 'ru' | 'kk' | 'en';
 export const translations: Record<string, readonly [string, string, string]> = {
+  "categories.any": ["Любая категория", "Кез келген санат", "Any category"],
+  "priorities.normal": ["Обычный", "Қалыпты", "Normal"],
+  "priorities.high": ["Высокий", "Жоғары", "High"],
+  "priorities.sos": ["Экстренный SOS", "Шұғыл SOS", "Emergency SOS"],
   "categories.clothing": ["Вещи", "Киім мен заттар", "Clothing and essentials"],
   "categories.household": ["Бытовая помощь", "Тұрмыстық көмек", "Everyday help"],
   "categories.delivery": ["Доставка", "Жеткізу", "Delivery"],
