@@ -130,7 +130,7 @@ def test_invalid_needs_leave_no_partial_application(app, client, test_user, bad)
         assert Application.query.count() == 0
 
 
-def test_contributions_are_scoped_and_cannot_overpromise(
+def test_contributions_are_scoped_and_cannot_exceed_delivered_need(
     app, client, test_user, helper, test_application
 ):
     with app.app_context():
@@ -153,29 +153,28 @@ def test_contributions_are_scoped_and_cannot_overpromise(
     login(client, test_user)
     path = f"/api/responses/{rid}/contributions"
     assert (
-        client.put(path, json={"need_id": nid, "quantity_promised": 3}).status_code
+        client.put(path, json={"need_id": nid, "quantity_delivered": 3}).status_code
         == 403
     )
     assert (
-        volunteer.put(path, json={"need_id": nid, "quantity_promised": 11}).status_code
+        volunteer.put(path, json={"need_id": nid, "quantity_delivered": 11}).status_code
         == 409
     )
     assert (
         volunteer.put(
-            path, json={"need_id": nid, "quantity_promised": 3, "quantity_delivered": 2}
+            path, json={"need_id": nid, "quantity_delivered": 2}
         ).status_code
         == 200
     )
-    assert client.post(f"/api/responses/{rid}/complete").status_code == 409
     assert (
         volunteer.put(
-            path, json={"need_id": nid, "quantity_promised": 3, "quantity_delivered": 1}
+            path, json={"need_id": nid, "quantity_delivered": 1}
         ).status_code
         == 400
     )
     assert (
         volunteer.put(
-            path, json={"need_id": nid, "quantity_promised": 3, "quantity_delivered": 3}
+            path, json={"need_id": nid, "quantity_delivered": 3}
         ).status_code
         == 200
     )
@@ -196,7 +195,6 @@ def test_contributions_are_scoped_and_cannot_overpromise(
     assert (
         totals["quantity_delivered"] == 3
         and totals["still_needed"] == 7
-        and totals["unpromised"] == 7
     )
     assert (
         client.post(f"/api/applications/{test_application.id}/resolve").status_code
@@ -232,7 +230,7 @@ def test_other_request_need_is_rejected(
     assert (
         client.put(
             f"/api/responses/{rid}/contributions",
-            json={"need_id": nid, "quantity_promised": 1},
+            json={"need_id": nid, "quantity_delivered": 1},
         ).status_code
         == 400
     )
@@ -275,31 +273,28 @@ def test_two_helpers_share_one_need(app, client, test_user, helper, test_applica
     assert (
         first.put(
             f"/api/responses/{id1}/contributions",
-            json={"need_id": nid, "quantity_promised": 3, "quantity_delivered": 3},
+            json={"need_id": nid, "quantity_delivered": 3},
         ).status_code
         == 200
     )
     assert (
         other.put(
             f"/api/responses/{id2}/contributions",
-            json={"need_id": nid, "quantity_promised": 4, "quantity_delivered": 2},
+            json={"need_id": nid, "quantity_delivered": 2},
         ).status_code
         == 200
     )
     assert (
         other.put(
             f"/api/responses/{id2}/contributions",
-            json={"need_id": nid, "quantity_promised": 8, "quantity_delivered": 2},
+            json={"need_id": nid, "quantity_delivered": 8},
         ).status_code
         == 409
     )
     totals = client.get(f"/api/applications/{test_application.id}/aid").json["needs"][0]
-    assert (
-        totals["quantity_promised"],
-        totals["quantity_delivered"],
-        totals["still_needed"],
-        totals["unpromised"],
-    ) == (7, 5, 5, 3)
+    assert (totals["quantity_delivered"], totals["still_needed"]) == (5, 5)
+    assert 'quantity_promised' not in totals and 'unpromised' not in totals
+
 
 
 def test_resource_owner_confirmation_and_expiration(app, client, test_user, helper):

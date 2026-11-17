@@ -168,7 +168,7 @@ def test_prepare_deploy_bootstraps_empty_database_and_can_run_again(app, test_us
             assert result.exit_code == 0, result.output
         with app.app_context():
             assert set(db.metadata.tables).issubset(inspect(db.engine).get_table_names())
-            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261117_telegram_link'
+            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261117_delivery_locations'
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
