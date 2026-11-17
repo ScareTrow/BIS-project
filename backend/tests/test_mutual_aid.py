@@ -7,7 +7,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from sqlalchemy import MetaData, create_engine, inspect
+from sqlalchemy import MetaData, inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from werkzeug.security import generate_password_hash
@@ -384,7 +384,7 @@ def test_triage_keeps_user_sos_and_checks_admin(app, client, test_user, admin_us
 
 
 def test_additive_migration_keeps_existing_records(app):
-    """Exercise the static migration against an isolated pre-update SQLite schema."""
+    """Exercise the static migration against an isolated legacy PostgreSQL schema."""
     old = MetaData()
     names = [
         "user",
@@ -407,13 +407,15 @@ def test_additive_migration_keeps_existing_records(app):
     for constraint in list(old.tables["rating"].constraints):
         if constraint.name == "uq_rating_response_pair":
             old.tables["rating"].constraints.remove(constraint)
-    engine = create_engine("sqlite:///:memory:")
+    with app.app_context():
+        db.drop_all()
+        engine = db.engine
     old.create_all(engine)
     path = Path(__file__).parents[1] / "migrations/versions/20261014_mutual_aid.py"
     spec = importlib.util.spec_from_file_location("mutual_aid_revision", path)
     revision = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(revision)
-    with engine.begin() as connection:
+    with engine.connect() as connection:
         connection.execute(
             old.tables["user"]
             .insert()
@@ -430,7 +432,9 @@ def test_additive_migration_keeps_existing_records(app):
                 is_blocked=False,
             )
         )
-        with Operations.context(MigrationContext.configure(connection)):
+        connection.commit()
+        context = MigrationContext.configure(connection)
+        with context.begin_transaction(), Operations.context(context):
             revision.upgrade()
             revision.upgrade()  # bootstrap/retry is idempotent
         assert connection.execute(old.tables["user"].select()).first().id == 42
