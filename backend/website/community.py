@@ -1,5 +1,7 @@
 """Mutual-aid workflows shared by HTTP endpoints and Telegram handlers."""
 
+from .regions import canonical_city, selected_city, filter_city, city_names
+
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 import json
@@ -174,7 +176,7 @@ def matching_users(application):
         User.query
         .filter(
             User.id != application.user_id,
-            func.lower(User.city) == (application.city or "").lower(),
+            func.lower(func.trim(User.city)).in_([n.lower() for n in city_names(application.city)]),
             User.is_blocked.is_(False),
         )
         .all()
@@ -592,7 +594,7 @@ def resources():
             name=text(data.get("name"), 160, True),
             description=text(data.get("description", ""), 5000),
             address=text(data.get("address", ""), 1000) or None,
-            city=text(data.get("city"), 200, True),
+            city=canonical_city(current_user.city or text(data.get("city"), 200, True)),
             category=category,
             latitude=lat,
             longitude=lon,
@@ -605,9 +607,8 @@ def resources():
     expire_confirmations()
     db.session.commit()
     query = Resource.query
-    city = request.args.get("city", "").strip()
-    if city:
-        query = query.filter(func.lower(Resource.city) == city.lower())
+    city = selected_city()
+    query = filter_city(query, Resource.city, city)
     category = request.args.get('category', '').strip()
     if category:
         query = query.filter(Resource.category == ApplicationCategory(category).value)

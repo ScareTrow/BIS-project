@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import NewApplicationPage from '../app/applications/new/page';
 import SOSDialog from '../components/home/SOSDialog';
 import HomePage from '../app/page';
+import ApplicationsPage from '../app/applications/page';
 import { apiClient } from '../lib/api';
 import { useStore } from '../lib/store';
 
@@ -12,7 +13,7 @@ jest.mock('next/dynamic', () => () => function Map({ onLocationSelect }: { onLoc
   return <button type="button" onClick={() => onLocationSelect?.(0, 0)}>Выбрать точку</button>;
 });
 jest.mock('../components/home/MapView', () => () => <div>Карта</div>);
-jest.mock('../components/home/ListView', () => () => <div>Список</div>);
+jest.mock('../components/home/ListView', () => ({ applications }: { applications: { id: number; description: string }[] }) => <div>Список{applications.map(a=><p key={a.id}>{a.description}</p>)}</div>);
 jest.mock('../components/home/CursorEffect', () => ({ children }: { children: React.ReactNode }) => <div>{children}</div>);
 jest.mock('../lib/community-api', () => ({ communityApi: { capabilities: jest.fn().mockResolvedValue([]) } }));
 jest.mock('../lib/api', () => ({ apiClient: {
@@ -23,6 +24,7 @@ jest.mock('../lib/api', () => ({ apiClient: {
 beforeEach(() => {
   jest.clearAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   useStore.setState({ authLoading: false, viewMode: 'map', shouldRefreshApplications: false, user: {
     id: 1, first_name: 'Test', email: 'test@example.com', city: 'Алматы',
     isAdmin: false, is_authenticated: true, rating_sum: 0, rating_count: 0,
@@ -86,17 +88,14 @@ test('one description field is bounded and coordinates cannot be entered manuall
 test('SOS supports manual location after denied geolocation and preserves data on error', async () => {
   const created = jest.fn();
   render(<SOSDialog onClose={jest.fn()} onCreated={created} />);
-  expect(screen.getByRole('status')).toHaveTextContent('Выберите точку');
+  expect(screen.getByRole('status')).toHaveTextContent(/выберите точку/i);
   expect(screen.getByRole('button', { name: 'Подтвердить и отправить SOS' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Выбрать точку' }));
-  const input = screen.getByLabelText<HTMLInputElement>(/Фото:/);
-  const photo = new File(['png'], 'proof.png', { type: 'image/png' });
-  fireEvent.change(input, { target: { files: [photo] } });
   jest.mocked(apiClient.createSOS).mockRejectedValueOnce(new Error('Лимит SOS достигнут'));
   fireEvent.submit(screen.getByRole('button', { name: 'Подтвердить и отправить SOS' }).closest('form')!);
   expect(await screen.findByRole('alert')).toHaveTextContent('Лимит SOS');
   expect(created).not.toHaveBeenCalled();
-  expect(input.files?.[0]).toBe(photo);
+  expect(document.querySelector('input[type=file]')).not.toBeInTheDocument();
   jest.mocked(apiClient.createSOS).mockResolvedValueOnce({ success: true, id: 7 });
   fireEvent.submit(screen.getByRole('button', { name: 'Подтвердить и отправить SOS' }).closest('form')!);
   await waitFor(() => expect(created).toHaveBeenCalledWith(7, [0, 0]));
@@ -116,13 +115,14 @@ test('address search selects a location and submits its address without coordina
   expect(apiClient.searchLocations).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Найти' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Алматы, Абая 10' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Выбрать точку' }));
   fireEvent.change(screen.getByLabelText(/Фото:/), { target: { files: [new File(['png'], 'proof.png', { type: 'image/png' })] } });
   jest.mocked(apiClient.createApplication).mockResolvedValueOnce({ success: true, id: 80 });
   submitRequest();
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/applications/80'));
   const data = jest.mocked(apiClient.createApplication).mock.calls[0][0] as FormData;
   expect(data.get('address')).toBe('Алматы, Абая 10');
-  expect(data.get('latitude')).toBe('43.23');
+  expect(data.get('latitude')).toBe('0');
   expect(data.has('needed_help')).toBe(false);
 });
 
@@ -147,4 +147,28 @@ test('delivery requires two locations and submits both entrances', async () => {
   expect(route.pickup.entrance).toBe('Со двора');
   expect(route.dropoff.entrance).toBe('Подъезд 2');
   expect(route.dropoff.latitude).toBe(0);
+});
+
+
+test('applications route loads approved requests for the profile region',async()=>{
+  render(<ApplicationsPage/>);
+  expect(screen.getByRole('heading',{name:'Заявки на помощь'})).toBeInTheDocument();
+  await waitFor(()=>expect(apiClient.getApplicationsList).toHaveBeenCalledWith(true,'Алматы','active'));
+  expect(screen.getByText('Ваш город: Алматы')).toBeInTheDocument();
+});
+
+test('late response from a previous region cannot hide newly approved requests',async()=>{
+  let finishOld: (data: never[])=>void = ()=>{};
+  localStorage.setItem('viewMode','list');
+  useStore.setState({user:{id:1,email:'test@example.com',first_name:'Test',isAdmin:false,is_authenticated:true,city:'Астана'}});
+  const old = new Promise<never[]>(resolve=>{finishOld=resolve;});
+  const item={id:100,description:'Новая одобренная заявка Алматы',category:'food' as const,user_id:2,
+    latitude:43.22,longitude:76.85,date:'2026-11-18',status:'open',is_sos:false,is_resolved:false,is_false_call:false,priority:0};
+  jest.mocked(apiClient.getApplicationsList).mockReturnValueOnce(old).mockResolvedValue([item]);
+  render(<HomePage/>);
+  await waitFor(()=>expect(apiClient.getApplicationsList).toHaveBeenCalledWith(false,'Астана','active'));
+  useStore.setState({user:{...useStore.getState().user!,city:'Алматы'}});
+  expect(await screen.findByText(item.description)).toBeInTheDocument();
+  finishOld([]);
+  await waitFor(()=>expect(screen.getByText(item.description)).toBeInTheDocument());
 });

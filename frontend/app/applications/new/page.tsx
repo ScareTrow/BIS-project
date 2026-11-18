@@ -110,6 +110,7 @@ export default function NewApplicationPage() {
             className="form-input"
             required
             maxLength={200}
+            readOnly={!!user?.city}
             value={form.city}
             onChange={(e) => setForm({ ...form, city: e.target.value })}
           />

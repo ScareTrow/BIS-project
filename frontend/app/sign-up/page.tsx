@@ -6,7 +6,7 @@ import CursorEffect from '@/components/home/CursorEffect';
 import { apiClient } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
 import { CityData, searchKazakhstanCities } from '@/lib/kazakhstanCities';
-import { getPasswordStrengthColor, PasswordValidationResult, validatePassword } from '@/lib/passwordValidation';
+import { getPasswordStrengthColor, PasswordValidationResult, validatePassword, passwordRequirements } from '@/lib/passwordValidation';
 import { useStore } from '@/lib/store';
 import { CheckCircle2, Eye, EyeOff, Lock, Mail, MapPin, MessageCircle, Phone, User, UserPlus, XCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -36,23 +36,6 @@ export default function SignUpPage(): JSX.Element {
   const [passwordValidation, setPasswordValidation] = useState<ReturnType<typeof validatePassword> | null>(null);
   const [citySuggestions, setCitySuggestions] = useState<CityData[]>([]);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-
-  // Функция для проверки выполнения требований к паролю
-  const checkPasswordRequirements = (password: string) => {
-    const hasMinLength = password.length >= 8;
-    const hasUpperCase = /[A-ZА-ЯЁ]/.test(password);
-    const hasLowerCase = /[a-zа-яё]/.test(password);
-    const hasNumbers = /[0-9]/.test(password);
-    const hasSpecialChars = /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\~`]/.test(password);
-
-    return {
-      hasMinLength,
-      hasUpperCase,
-      hasLowerCase,
-      hasNumbers,
-      hasSpecialChars
-    };
-  };
 
   const handlePasswordChange = (password: string) => {
     setFormData({ ...formData, password1: password });
@@ -129,14 +112,7 @@ export default function SignUpPage(): JSX.Element {
       });
 
       if (response.success) {
-        setUser({
-          id: response.user.id,
-          email: response.user.email,
-          first_name: response.user.first_name,
-          last_name: response.user.last_name,
-          isAdmin: response.user.isAdmin,
-          is_authenticated: true,
-        });
+        setUser({ ...response.user, is_authenticated: true });
         router.push('/profile');
       } else {
         setErrors({ submit: response.message || t('alerts.registrationError') });
@@ -514,16 +490,17 @@ export default function SignUpPage(): JSX.Element {
 
                 {/* Блок с требованиями - показывается после первого ввода пароля и перед подтверждением */}
                 {passwordValidation && formData.password1.length > 0 && (() => {
-                  const requirements = checkPasswordRequirements(formData.password1);
+                  const requirements = passwordRequirements(formData.password1);
                   return (
                     <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="text-xs font-semibold text-blue-900 mb-2">{t('auth.signup.passwordRequirements.title') || 'Требования к паролю:'}</div>
+                      <p className="mb-3 text-xs text-blue-800">Выполнено {Object.values(requirements).filter(Boolean).length} из 5. Нужно минимум 3: длина от 8 до 128 символов и любые два вида символов.</p>
                       <div className="space-y-1.5 text-xs text-blue-800">
                         <div className="flex items-start gap-2">
                           {requirements.hasMinLength ? (
                             <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-600 mt-0.5" />
                           ) : (
-                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500 mt-0.5" />
+                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400 mt-0.5" />
                           )}
                           <span className={requirements.hasMinLength ? 'text-green-700' : ''}>{t('auth.signup.passwordRequirements.minLength') || 'Минимум 8 символов'}</span>
                         </div>
@@ -531,7 +508,7 @@ export default function SignUpPage(): JSX.Element {
                           {requirements.hasUpperCase ? (
                             <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-600 mt-0.5" />
                           ) : (
-                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500 mt-0.5" />
+                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400 mt-0.5" />
                           )}
                           <span className={requirements.hasUpperCase ? 'text-green-700' : ''}>{t('auth.signup.passwordRequirements.uppercase') || 'Хотя бы одна заглавная буква'}</span>
                         </div>
@@ -539,7 +516,7 @@ export default function SignUpPage(): JSX.Element {
                           {requirements.hasLowerCase ? (
                             <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-600 mt-0.5" />
                           ) : (
-                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500 mt-0.5" />
+                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400 mt-0.5" />
                           )}
                           <span className={requirements.hasLowerCase ? 'text-green-700' : ''}>{t('auth.signup.passwordRequirements.lowercase') || 'Хотя бы одна строчная буква'}</span>
                         </div>
@@ -547,7 +524,7 @@ export default function SignUpPage(): JSX.Element {
                           {requirements.hasNumbers ? (
                             <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-600 mt-0.5" />
                           ) : (
-                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500 mt-0.5" />
+                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400 mt-0.5" />
                           )}
                           <span className={requirements.hasNumbers ? 'text-green-700' : ''}>{t('auth.signup.passwordRequirements.number') || 'Хотя бы одна цифра'}</span>
                         </div>
@@ -555,7 +532,7 @@ export default function SignUpPage(): JSX.Element {
                           {requirements.hasSpecialChars ? (
                             <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-600 mt-0.5" />
                           ) : (
-                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500 mt-0.5" />
+                            <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400 mt-0.5" />
                           )}
                           <span className={requirements.hasSpecialChars ? 'text-green-700' : ''}>{t('auth.signup.passwordRequirements.special') || 'Хотя бы один специальный символ (!@#$%^&*()_+-=[]{}|;:,.<>?)'}</span>
                         </div>
@@ -616,7 +593,7 @@ export default function SignUpPage(): JSX.Element {
               <div>
                 <button
                   type="submit"
-                  disabled={loading || !passwordValidation?.isValid}
+                  disabled={loading || !passwordValidation?.isValid || formData.password1 !== formData.password2}
                   className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {loading ? (

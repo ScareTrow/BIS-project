@@ -18,6 +18,7 @@ from .storage import save_upload, serve_upload
 from uuid import uuid4
 from pathlib import Path
 from sqlalchemy.exc import IntegrityError
+from .regions import canonical_city, selected_city, filter_city
 from werkzeug.exceptions import HTTPException
 
 views = Blueprint('views', __name__)
@@ -497,7 +498,7 @@ def api_edit_profile():
             db.session.add(history)
         
         if 'city' in request.form:
-            current_user.city = request.form.get('city') or None
+            current_user.city = canonical_city(request.form.get('city')) or None
         
         if request.form.get('telegram_id') and request.form['telegram_id'].strip() != (current_user.telegram_id or ''):
             return jsonify(error='Используйте ссылку привязки Telegram в профиле'), 400
@@ -601,7 +602,7 @@ def edit_profile():
             name_changes_remaining = 3 - recent_changes - 1
         
         if 'city' in request.form:
-            current_user.city = request.form.get('city') or None
+            current_user.city = canonical_city(request.form.get('city')) or None
         
         social_links_data = {}
         if 'instagram' in request.form and request.form.get('instagram'):
@@ -2002,15 +2003,12 @@ def get_map_points():
     from sqlalchemy import or_, and_, func
     from flask_login import current_user
     
-    city = request.args.get('city', '').strip()
+    city = selected_city()
     
     query = visible_requests(current_user, request.args.get('status', 'active'))
 
-    if city and city != 'all':
-        query = query.filter(
-            func.coalesce(Application.city, '').ilike(f'%{city}%')
-        )
-    
+    query = filter_city(query, Application.city, city, Application.user_id)
+
     applications = query.all()
     
     points = []
@@ -2052,15 +2050,12 @@ def get_applications_list_data():
     from sqlalchemy import or_, and_, func
     from flask_login import current_user
     
-    city = request.args.get('city', '').strip()
+    city = selected_city()
     
     query = visible_requests(current_user, request.args.get('status', 'active'))
 
-    if city and city != 'all':
-        query = query.filter(
-            func.coalesce(Application.city, '').ilike(f'%{city}%')
-        )
-    
+    query = filter_city(query, Application.city, city, Application.user_id)
+
     applications = query.order_by(Application.priority.desc(), Application.date.desc()).all()
     
     apps_data = []
@@ -2195,7 +2190,8 @@ def api_create_application():
         if not 1 <= expires_days <= 365:
             raise ValueError('Срок заявки должен быть от 1 до 365 дней')
         photos = request.files.getlist('media_files')
-        validate_photos(photos)
+        if photos or request.path != '/api/sos':
+            validate_photos(photos)
         verification = request.files.get('verification_document')
         if verification and verification.filename:
             validate_upload(verification, document=True)
@@ -2207,7 +2203,7 @@ def api_create_application():
     except (ValueError, TypeError) as error:
         return jsonify(error=str(error)), 400
     user = check_requester(current_user.id, sos=extras['priority'] == 'sos')
-    city, region = (supplied_city.strip(), None) if supplied_city else (user.city, None)
+    city, region = canonical_city(user.city or supplied_city), None
     # Explicit coordinates are sufficient to publish SOS without a slow geocoder.
     if not city and extras['priority'] != 'sos':
         city, region = get_location_info(latitude, longitude)
@@ -2220,7 +2216,8 @@ def api_create_application():
         db.session.add(application)
         db.session.flush()
         attach_application_extras(application, extras)
-        save_photos(application, photos)
+        if photos:
+            save_photos(application, photos)
         if verification and verification.filename:
             save_media_file(application, verification, 'application/pdf')
         if application.is_sos:
@@ -2312,7 +2309,7 @@ def search():
         if category_match:
             search_filter = or_(search_filter, Application.category == category_match)
         
-        applications_query = Application.query.filter(base_filter, search_filter)
+        applications_query = filter_city(Application.query.filter(base_filter, search_filter), Application.city, selected_city(), Application.user_id)
         
         if category_filter:
             try:
@@ -2520,18 +2517,15 @@ def api_uploaded_file(filename):
 @views.route('/api/stats/regional', methods=['GET'])
 def get_regional_stats():
     """Получить региональную статистику заявок"""
-    city = request.args.get('city', 'Алматы')
+    city = selected_city('Алматы')
     
     total_query = Application.query.filter(
         Application.moderation_status == ModerationStatus.APPROVED,
         Application.is_false_call == False
     )
     
-    if city and city != 'all':
-        total_query = total_query.filter(
-            func.coalesce(Application.city, '').ilike(f'{city}%')
-        )
-    
+    total_query = filter_city(total_query, Application.city, city, Application.user_id)
+
     total = total_query.count()
     
     active_query = total_query.filter(Application.is_resolved == False)

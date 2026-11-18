@@ -66,6 +66,7 @@ export default function ApplicationDetailPage() {
   };
 
   const handleRespond = async () => {
+    if (!user?.is_authenticated || application?.moderation_status !== 'approved' || application.is_resolved || application.is_false_call) return;
     try {
       await apiClient.respondToApplication(Number(params.id));
       alert(t('alerts.respondSuccess'));
@@ -336,10 +337,12 @@ export default function ApplicationDetailPage() {
             </div>
           )}
 
+          {application.moderation_status !== 'approved' && <p className="text-sm text-gray-600">Отклик станет доступен после одобрения заявки модератором.</p>}
           <div className="flex space-x-4">
             {!application.is_resolved && !userResponse && (application as any).user_id !== user?.id && (
               <button
                 onClick={handleRespond}
+                disabled={!user?.is_authenticated || application.moderation_status !== 'approved' || application.is_false_call}
                 className="btn btn-primary flex-1"
               >
                 Откликнуться

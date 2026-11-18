@@ -92,7 +92,7 @@ export const communityApi = {
   completeResponse: (id: number) => http.post(`/responses/${id}/complete`),
   rateResponse: (id: number, score: number) =>
     http.post(`/responses/${id}/rating`, { score }),
-  resources: (category?: string) => get<Resource[]>("/resources", { category }),
+  resources: (category?: string, city?: string) => get<Resource[]>("/resources", { category, city }),
   createResource: (
     data: Omit<
       Resource,
