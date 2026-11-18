@@ -30,14 +30,7 @@ export default function LoginPage() {
       const response = await apiClient.login(formData.email, formData.password);
       
       if (response.success) {
-        setUser({
-          id: response.user.id,
-          email: response.user.email,
-          first_name: response.user.first_name,
-          last_name: response.user.last_name,
-          isAdmin: response.user.isAdmin,
-          is_authenticated: true,
-        });
+        setUser({ ...response.user, is_authenticated: true });
         if (response.user.isAdmin) {
           router.push('/admin');
         } else {

@@ -15,9 +15,9 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function HomePage() {
-  const { viewMode, setViewMode, user, language, setLanguage: setLang, shouldRefreshApplications, setShouldRefreshApplications } = useStore();
+  const { viewMode, setViewMode, user, authLoading, language, setLanguage: setLang, shouldRefreshApplications, setShouldRefreshApplications } = useStore();
   const [showSOS, setShowSOS] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus>('open');
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus>('active');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, active: 0, emergency: 0, city: '' });
@@ -27,257 +27,89 @@ export default function HomePage() {
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([43.2220, 76.8512]);
   const pathname = usePathname();
-  const prevPathnameRef = useRef<string | null>(null);
+  const applicationsRequest = useRef(0);
+  const statsRequest = useRef(0);
+  const [loadError, setLoadError] = useState('');
+  const effectiveCity = (user?.city && (getCityByName(user.city)?.name || user.city)) || selectedCity || 'Алматы';
   const t = useTranslation(language);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedLang = getLanguage();
-      if (storedLang !== language) {
-        setLang(storedLang);
-      }
-
-      const storedViewMode = localStorage.getItem('viewMode') as 'map' | 'list' | null;
-      if (storedViewMode && (storedViewMode === 'map' || storedViewMode === 'list')) {
-        setViewMode(storedViewMode);
-      } else {
-        setViewMode('map');
-      }
-    }
+    const storedLang = getLanguage();
+    if (storedLang !== language) setLang(storedLang);
+    const storedMode = localStorage.getItem('viewMode');
+    if (storedMode === 'map' || storedMode === 'list') setViewMode(storedMode);
   }, []);
 
   useEffect(() => {
-    const determineUserCity = async () => {
-      if (user?.city) {
-        const cityData = getCityByName(user.city);
-        if (cityData) {
-          setSelectedCity(user.city);
-          setCitySearchValue(user.city);
-          setMapCenter([cityData.lat, cityData.lng]);
-        } else {
-          setSelectedCity(user.city);
-          setCitySearchValue(user.city);
-        }
-      } else if (typeof window !== 'undefined' && navigator.geolocation) {
-        try {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              const userLat = position.coords.latitude;
-              const userLng = position.coords.longitude;
+    if (authLoading) return;
+    let active = true;
+    function chooseCity(name: string) {
+      if (!active) return;
+      const city = getCityByName(name);
+      setSelectedCity(city?.name || name);
+      setCitySearchValue(city?.name || name);
+      if (city) setMapCenter([city.lat, city.lng]);
+    }
+    if (user?.city) chooseCity(user.city);
+    else if (navigator.geolocation) navigator.geolocation.getCurrentPosition(position => {
+      const nearest = [...kazakhstanCities].sort((a,b) =>
+        Math.hypot(a.lat-position.coords.latitude,a.lng-position.coords.longitude) - Math.hypot(b.lat-position.coords.latitude,b.lng-position.coords.longitude))[0];
+      chooseCity(nearest.name);
+    }, () => chooseCity('Алматы'), { timeout: 8000 });
+    else chooseCity('Алматы');
+    return () => { active = false; };
+  }, [authLoading, user?.city]);
 
-              let closestCity: CityData | null = null;
-              let minDistance = Infinity;
-
-              for (const city of kazakhstanCities) {
-                const distance = Math.sqrt(
-                  Math.pow(city.lat - userLat, 2) + Math.pow(city.lng - userLng, 2)
-                );
-                if (distance < minDistance) {
-                  minDistance = distance;
-                  closestCity = city;
-                }
-              }
-
-              if (closestCity) {
-                setSelectedCity(closestCity.name);
-                setCitySearchValue(closestCity.name);
-                setMapCenter([closestCity.lat, closestCity.lng]);
-              }
-            },
-            () => {
-              const defaultCity = getCityByName('Алматы');
-              if (defaultCity) {
-                setSelectedCity('Алматы');
-                setCitySearchValue('Алматы');
-                setMapCenter([defaultCity.lat, defaultCity.lng]);
-              } else {
-                setSelectedCity('Алматы');
-                setCitySearchValue('Алматы');
-              }
-            }
-          );
-        } catch (error) {
-          const defaultCity = getCityByName('Алматы');
-          if (defaultCity) {
-            setSelectedCity('Алматы');
-            setCitySearchValue('Алматы');
-            setMapCenter([defaultCity.lat, defaultCity.lng]);
-          } else {
-            setSelectedCity('Алматы');
-            setCitySearchValue('Алматы');
-          }
-        }
-      } else {
-        const defaultCity = getCityByName('Алматы');
-        if (defaultCity) {
-          setSelectedCity('Алматы');
-          setCitySearchValue('Алматы');
-          setMapCenter([defaultCity.lat, defaultCity.lng]);
-        } else {
-          setSelectedCity('Алматы');
-          setCitySearchValue('Алматы');
-        }
-      }
-    };
-
-    determineUserCity();
-  }, [user]);
-
-  const loadApplications = useCallback(async (forceRefresh: boolean = false, city?: string, status: ApplicationStatus = statusFilter) => {
+  const loadApplications = useCallback(async (forceRefresh = false, city?: string, status: ApplicationStatus = statusFilter) => {
+    if (authLoading) return;
+    const requestId = ++applicationsRequest.current;
+    setLoading(true); setLoadError('');
     try {
-      setLoading(true);
-      const filterCity = city || selectedCity || 'Алматы';
-      console.log('Загрузка заявок...', { viewMode, forceRefresh, city: filterCity });
+      const region = user?.city ? effectiveCity : city || effectiveCity;
       const data = viewMode === 'list'
-        ? await apiClient.getApplicationsList(forceRefresh, filterCity, status)
-        : await apiClient.getApplications(forceRefresh, filterCity, status);
-      console.log('Заявки загружены:', data?.length || 0);
-      setApplications(data || []);
+        ? await apiClient.getApplicationsList(forceRefresh, region, status)
+        : await apiClient.getApplications(forceRefresh, region, status);
+      if (requestId === applicationsRequest.current) setApplications(data || []);
     } catch (error) {
-      console.error('Error loading applications:', error);
-      setApplications([]);
+      if (requestId === applicationsRequest.current) setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить заявки');
     } finally {
-      setLoading(false);
+      if (requestId === applicationsRequest.current) setLoading(false);
     }
-  }, [viewMode, selectedCity, statusFilter]);
+  }, [authLoading, user?.city, effectiveCity, viewMode, statusFilter]);
 
-  const loadStats = useCallback(async (forceRefresh: boolean = false, city?: string) => {
+  const loadStats = useCallback(async (_forceRefresh = false, city?: string) => {
+    if (authLoading) return;
+    const requestId = ++statsRequest.current;
     try {
-      const filterCity = city || selectedCity || 'Алматы';
-      const statsData = await apiClient.getRegionalStats(filterCity);
-      setStats({
-        total: statsData.total || 0,
-        active: statsData.active || 0,
-        emergency: statsData.emergency || 0,
-        city: statsData.city || filterCity
-      });
-      console.log('Региональная статистика обновлена:', statsData);
-    } catch (error) {
-      console.error('Error loading stats:', error);
-      try {
-        const filterCity = city || selectedCity;
-        const data = await apiClient.getApplications(forceRefresh, filterCity);
-        const emergencyCount = data.filter((app: Application) => app.is_sos).length;
-        const activeCount = data.filter((app: Application) => !app.is_resolved).length;
-        setStats({
-          total: data.length,
-          active: activeCount,
-          emergency: emergencyCount,
-          city: filterCity || 'Алматы'
-        });
-      } catch (fallbackError) {
-        console.error('Error loading fallback stats:', fallbackError);
-      }
-    }
-  }, [selectedCity]);
+      const region = user?.city ? effectiveCity : city || effectiveCity;
+      const data = await apiClient.getRegionalStats(region);
+      if (requestId === statsRequest.current) setStats({total:data.total || 0, active:data.active || 0, emergency:data.emergency || 0, city:region});
+    } catch (error) { console.error('Error loading stats:', error); }
+  }, [authLoading, user?.city, effectiveCity]);
 
   useEffect(() => {
-    const cityToUse = selectedCity || 'Алматы';
-    loadApplications(false, cityToUse);
-    loadStats(false, cityToUse);
-  }, [selectedCity, loadApplications, loadStats]);
-
-  useEffect(() => {
-    if (pathname === '/' && prevPathnameRef.current && prevPathnameRef.current !== '/') {
-      const shouldRefresh = typeof window !== 'undefined' && sessionStorage.getItem('shouldRefreshApplications') === 'true';
-
-      setTimeout(() => {
-        console.log('Обновление данных при переходе на главную страницу...', { shouldRefresh });
-        loadApplications(shouldRefresh, selectedCity);
-        loadStats(shouldRefresh, selectedCity);
-        if (shouldRefresh) {
-          sessionStorage.removeItem('shouldRefreshApplications');
-          setShouldRefreshApplications(false);
-        }
-      }, shouldRefresh ? 1000 : 300);
-    }
-    prevPathnameRef.current = pathname;
-  }, [pathname, loadApplications, loadStats, setShouldRefreshApplications, selectedCity]);
+    const refresh = () => { loadApplications(true); loadStats(true); };
+    const onVisible = () => { if (!document.hidden) refresh(); };
+    loadApplications(); loadStats();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('applications-updated', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      applicationsRequest.current++; statsRequest.current++;
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('applications-updated', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [pathname, loadApplications, loadStats]);
 
   useEffect(() => {
     if (shouldRefreshApplications) {
-      console.log('Флаг обновления установлен, начинаем обновление данных...');
-      const lastApplicationId = typeof window !== 'undefined'
-        ? sessionStorage.getItem('lastApplicationId')
-        : null;
-
-      const timeoutId = setTimeout(async () => {
-        console.log('Принудительное обновление данных после создания заявки...', { lastApplicationId });
-        await loadApplications(true, selectedCity);
-        await loadStats(true, selectedCity);
-
-        if (lastApplicationId) {
-          setTimeout(async () => {
-            const currentData = viewMode === 'list'
-              ? await apiClient.getApplicationsList(true, selectedCity, statusFilter)
-              : await apiClient.getApplications(true, selectedCity, statusFilter);
-            const found = currentData.some((app: Application) => String(app.id) === lastApplicationId);
-            console.log('Проверка новой заявки после повторной загрузки:', { lastApplicationId, found, applicationsCount: currentData.length });
-
-            if (found) {
-              setApplications(currentData);
-              const emergencyCount = currentData.filter((app: Application) => app.is_sos).length;
-              setStats({
-                total: currentData.length,
-                active: currentData.length,
-                emergency: emergencyCount,
-                city: stats.city || selectedCity || 'Алматы'
-              });
-            }
-          }, 1000);
-        }
-
-        setShouldRefreshApplications(false);
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('shouldRefreshApplications');
-          sessionStorage.removeItem('lastApplicationId');
-        }
-      }, 1000);
-      return () => clearTimeout(timeoutId);
+      loadApplications(true); loadStats(true);
+      setShouldRefreshApplications(false);
+      sessionStorage.removeItem('shouldRefreshApplications');
+      sessionStorage.removeItem('lastApplicationId');
     }
-  }, [shouldRefreshApplications, loadApplications, loadStats, setShouldRefreshApplications, viewMode, selectedCity]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const shouldRefresh = sessionStorage.getItem('shouldRefreshApplications');
-      if (shouldRefresh === 'true') {
-        setShouldRefreshApplications(true);
-        sessionStorage.removeItem('shouldRefreshApplications');
-      }
-    }
-  }, [setShouldRefreshApplications]);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('Обновление данных при фокусе окна...');
-      loadApplications(true, selectedCity);
-      loadStats(true, selectedCity);
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('Обновление данных при возврате на страницу...');
-        loadApplications(true, selectedCity);
-        loadStats(true, selectedCity);
-      }
-    };
-
-    const handleApplicationUpdate = () => {
-      console.log('Событие обновления заявок получено...');
-      loadApplications(true, selectedCity);
-      loadStats(true, selectedCity);
-    };
-
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('applications-updated', handleApplicationUpdate);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('applications-updated', handleApplicationUpdate);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [loadApplications, loadStats, selectedCity]);
+  }, [shouldRefreshApplications, loadApplications, loadStats, setShouldRefreshApplications]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -300,7 +132,7 @@ export default function HomePage() {
                 {t('home.hero.subtitle')}
               </p>
               {user?.is_authenticated ? (
-                <div className="flex gap-4 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center">
                   <button
                     onClick={() => setShowSOS(true)}
                     className="sos-button bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center"
@@ -318,7 +150,7 @@ export default function HomePage() {
                   </Link>
                 </div>
               ) : (
-                <div className="flex gap-4 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center">
                   <Link href="/login" className="btn bg-white text-blue-700 hover:bg-gray-50 border border-gray-300">
                     {t('nav.login')}
                   </Link>
@@ -383,6 +215,7 @@ export default function HomePage() {
               </p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              {user?.is_authenticated ? <p className="text-sm text-gray-600">Ваш город: <strong>{effectiveCity}</strong> · <Link href="/profile/edit" className="text-blue-700 underline">Изменить в профиле</Link></p> : <>
               <div className="relative" ref={(node) => {
                 if (node) {
                   const handleClickOutside = (event: MouseEvent) => {
@@ -508,7 +341,7 @@ export default function HomePage() {
                     ))}
                   </div>
                 )}
-              </div>
+              </div></>}
               <label className="form-field">Статус заявки
                 <select aria-label="Статус заявки" className="form-select" value={statusFilter}
                   onChange={event => setStatusFilter(event.target.value as ApplicationStatus)}>
@@ -522,6 +355,7 @@ export default function HomePage() {
             </div>
           </div>
 
+          {loadError && <p role="alert" className="mb-4 text-red-700">{loadError} <button type="button" className="underline" onClick={() => loadApplications(true)}>Повторить загрузку</button></p>}
           {loading ? (
             <div className="flex justify-center items-center h-96">
               <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
@@ -529,7 +363,7 @@ export default function HomePage() {
           ) : viewMode === 'list' ? (
             <ListView applications={applications} />
           ) : (
-            <MapView applications={applications} center={mapCenter} city={selectedCity} />
+            <MapView applications={applications} center={mapCenter} city={effectiveCity} />
           )}
         </div>
 

@@ -80,7 +80,7 @@ export default function Header() {
 
   const links = user?.is_authenticated ? [
     { href: '/', label: t('nav.home'), icon: Home },
-    { href: '/applications/new', label: t('nav.applications'), icon: FileText },
+    { href: '/applications', label: t('nav.applications'), icon: FileText },
     { href: '/news', label: 'Новости', icon: Newspaper },
     { href: '/resources', label: 'Ресурсы', icon: FileText },
     { href: '/profile', label: t('nav.profile'), icon: User },

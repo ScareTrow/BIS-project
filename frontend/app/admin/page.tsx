@@ -45,14 +45,7 @@ export default function AdminPage() {
         try {
           const data = await apiClient.getCurrentUser();
           if (data.user) {
-            setUser({
-              id: data.user.id,
-              email: data.user.email,
-              first_name: data.user.first_name,
-              last_name: data.user.last_name,
-              isAdmin: data.user.isAdmin,
-              is_authenticated: true,
-            });
+            setUser({ ...data.user, is_authenticated: true });
             if (!data.user.isAdmin) {
               router.push('/');
               return;

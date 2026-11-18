@@ -5,18 +5,23 @@ export interface PasswordValidationResult {
 export function getPasswordStrengthColor(color: PasswordValidationResult['color']) {
   return { red: '#ef4444', yellow: '#f59e0b', green: '#22c55e' }[color];
 }
+export function passwordRequirements(password: string) {
+  return {
+    hasMinLength: password.length >= 8 && password.length <= 128,
+    hasUpperCase: /[A-ZА-ЯЁ]/.test(password),
+    hasLowerCase: /[a-zа-яё]/.test(password),
+    hasNumbers: /[0-9]/.test(password),
+    hasSpecialChars: /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\~\x60]/.test(password),
+  };
+}
 export function validatePassword(password: string): PasswordValidationResult {
-  const checks: [boolean, string][] = [
-    [password.length >= 8 && password.length <= 128, 'Пароль должен содержать от 8 до 128 символов'],
-    [/[A-ZА-ЯЁ]/.test(password), 'Добавьте заглавную букву'],
-    [/[a-zа-яё]/.test(password), 'Добавьте строчную букву'],
-    [/[0-9]/.test(password), 'Добавьте цифру'],
-    [/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\~\x60]/.test(password), 'Добавьте специальный символ'],
-    [!/(.)\1{2,}|012|123|234|345|456|567|678|789|890|qwerty|asdfgh|zxcvbn|password/i.test(password), 'Пароль содержит слабые паттерны'],
-  ];
-  const errors = checks.filter(([ok]) => !ok).map(([, message]) => message);
-  const progress = Math.round((checks.length - errors.length) / checks.length * 100);
-  const strength = errors.length === 0 ? 'strong' : progress >= 50 ? 'medium' : 'weak';
+  const checks = passwordRequirements(password);
+  const met = Object.values(checks).filter(Boolean).length;
+  const errors: string[] = [];
+  if (!checks.hasMinLength) errors.push('Пароль должен содержать от 8 до 128 символов');
+  if (met < 3) errors.push('Выполните минимум 3 условия: длина и любые два вида символов');
+  if (/(.)\1{2,}|012|123|234|345|456|567|678|789|890|qwerty|asdfgh|zxcvbn|password/i.test(password)) errors.push('Пароль содержит слабые паттерны');
+  const progress = Math.round(met / 5 * 100);
+  const strength = errors.length ? 'weak' : met === 5 ? 'strong' : 'medium';
   return { isValid: errors.length === 0, errors, progress, strength, color: strength === 'strong' ? 'green' : strength === 'medium' ? 'yellow' : 'red' };
 }
-

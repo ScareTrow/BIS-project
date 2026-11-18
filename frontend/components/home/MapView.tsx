@@ -61,7 +61,7 @@ export default function MapView({ applications, center, city }: MapViewProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [showResources, setShowResources] = useState(true);
   const [resourceError, setResourceError] = useState('');
-  useEffect(() => { communityApi.resources(city).then(setResources).catch(e=>setResourceError(e.message)); },[city]);
+  useEffect(() => { communityApi.resources(undefined, city).then(setResources).catch(e=>setResourceError(e.message)); },[city]);
 
   useEffect(() => {
     setIsClient(true);

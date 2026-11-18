@@ -1,6 +1,7 @@
 'use client';
 
 import TelegramLink from '@/components/community/TelegramLink';
+import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, User } from '@/lib/api';
@@ -134,6 +135,8 @@ export default function EditProfilePage() {
       }
 
       await apiClient.updateProfile(formDataToSend);
+      const refreshed = await apiClient.getCurrentUser();
+      useStore.getState().setUser({ ...refreshed.user, is_authenticated: true });
       router.push('/profile');
     } catch (error: any) {
       setErrors({ submit: error.message || t('alerts.profileSaveError') });

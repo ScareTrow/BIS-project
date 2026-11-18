@@ -38,7 +38,7 @@ export default function ResourcesPage() {
   }
   useEffect(() => {
     load();
-    if (user?.city) setForm(f => f.city ? f : { ...f, city: user.city! });
+    if (user?.city) setForm(f => ({ ...f, city: user.city! }));
   }, [categoryFilter, user]);
   async function perform(action: () => Promise<unknown>) {
     setBusy(true);
@@ -182,6 +182,7 @@ export default function ResourcesPage() {
               className="form-input"
               required
               maxLength={200}
+              readOnly={!!user?.city}
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
             />
