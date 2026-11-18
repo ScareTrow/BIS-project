@@ -5,7 +5,8 @@ import time
 
 import requests
 from flask import Blueprint, current_app, jsonify, request
-from flask_login import login_required
+from flask_login import login_required, current_user
+from .regions import canonical_city
 from werkzeug.exceptions import BadRequest, ServiceUnavailable
 
 locations = Blueprint('locations', __name__)
@@ -54,7 +55,19 @@ def search_location():
         raise BadRequest('Введите адрес или название здания: от 3 до 200 символов')
     if not isinstance(city, str) or len(city) > 200:
         raise BadRequest('Некорректный город')
-    results = lookup('search', q=', '.join(filter(None, [query.strip(), city.strip()])),
-        format='jsonv2', countrycodes='kz', limit=5, addressdetails=1)
-    return jsonify([dict(address=r['display_name'], latitude=float(r['lat']),
+    results = lookup('search', q=', '.join(filter(None, [query.strip(), canonical_city(city or current_user.city)])),
+        format='jsonv2', countrycodes='kz', limit=5, addressdetails=1, namedetails=1)
+    return jsonify([dict(address=short_address(r), latitude=float(r['lat']),
         longitude=float(r['lon'])) for r in results])
+
+
+def short_address(place):
+    address = place.get('address') or {}
+    names = place.get('namedetails') or {}
+    name = names.get('name:ru') or place.get('name') or names.get('name')
+    street = next((address[k] for k in ('road','pedestrian','residential','footway','path') if address.get(k)), None)
+    parts = []
+    for part in (name, street, address.get('house_number')):
+        if part and part.lower() not in [p.lower() for p in parts]:
+            parts.append(part)
+    return ', '.join(parts) if parts else ', '.join(place['display_name'].split(',')[:2]).strip()

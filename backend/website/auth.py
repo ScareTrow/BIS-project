@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from .models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
+from .regions import canonical_city
 from flask_login import login_user, login_required, logout_user, current_user
 
 
@@ -64,7 +65,7 @@ def _validate_signup(user, email, first_name, password1, password2):
     if password1 != password2:
         return "Пароли не совпадают"
 
-    # NIST Password Policy (SP 800-63B)
+    # Eight characters plus any two character classes: three displayed conditions.
     if len(password1) < 8:
         return "Пароль должен содержать минимум 8 символов"
     
@@ -77,19 +78,9 @@ def _validate_signup(user, email, first_name, password1, password2):
     has_digit = bool(re.search(r'[0-9]', password1))
     has_special = bool(re.search(r'[!@#$%^&*()_+\-=\[\]{}|;:\'",.<>?\/\\~`]', password1))
     
-    errors = []
-    if not has_upper:
-        errors.append("заглавную букву")
-    if not has_lower:
-        errors.append("строчную букву")
-    if not has_digit:
-        errors.append("цифру")
-    if not has_special:
-        errors.append("специальный символ (!@#$%^&*()_+-=[]{}|;:,.<>?)")
-    
-    if errors:
-        return f"Пароль должен содержать: {', '.join(errors)}"
-    
+    if sum((has_upper, has_lower, has_digit, has_special)) < 2:
+        return "Пароль: минимум 3 условия — от 8 символов и любые два вида символов"
+
     # Check for common weak patterns
     common_patterns = [
         r'(.)\1{2,}',  # Repeated characters
@@ -188,7 +179,9 @@ def api_login():
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'isAdmin': user.isAdmin
+                'isAdmin': user.isAdmin,
+                'city': canonical_city(user.city),
+                'city_hidden': user.city_hidden,
             }
         })
     
@@ -213,7 +206,7 @@ def api_signup():
     password1 = data.get('password1', '')
     password2 = data.get('password2', '')
     phone = data.get('phone', '').strip()
-    city = data.get('city', '').strip()
+    city = canonical_city(data.get('city', ''))
     city_hidden = data.get('cityHidden', False)
 
     # Валидация телефона (обязательное поле)
@@ -267,7 +260,9 @@ def api_signup():
                 'email': new_user.email,
                 'first_name': new_user.first_name,
                 'last_name': new_user.last_name,
-                'isAdmin': new_user.isAdmin
+                'isAdmin': new_user.isAdmin,
+                'city': canonical_city(new_user.city),
+                'city_hidden': new_user.city_hidden,
             }
         })
 
