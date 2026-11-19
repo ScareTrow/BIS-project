@@ -132,16 +132,6 @@ export default function NewsPage() {
         </div>
       )}
 
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          О платформе ASAR
-        </h2>
-        <p className="text-gray-700 mb-4">
-          ASAR - это платформа для экстренной помощи и обмена ресурсами в Казахстане.
-          Мы объединяем людей, которые нуждаются в помощи, и тех, кто готов помочь.
-        </p>
-
-      </div>
     </div>
   );
 }

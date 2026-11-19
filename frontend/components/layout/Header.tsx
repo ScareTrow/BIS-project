@@ -4,14 +4,17 @@ import SearchBar from '@/components/common/SearchBar';
 import { apiClient, Notification } from '@/lib/api';
 import { getLanguage, Language, useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
-import { Bell, ChevronDown, FileText, Globe, Home, LogOut, Newspaper, Shield, User, Menu, X } from 'lucide-react';
+import { Bell, ChevronDown, FileText, Globe, Home, LogOut, Shield, User, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import NotificationsDropdown from './NotificationsDropdown';
+import { useToast } from '@/components/ui/Toast';
 
 export default function Header() {
   const router = useRouter();
+  const navigation = useRef(router);
+  navigation.current = router;
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, setUser, language, setLanguage: setLang, viewMode, setViewMode } = useStore();
@@ -21,6 +24,9 @@ export default function Header() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const showToast = useToast()?.show;
+  const notificationVersion = useRef(0);
+  const seen = useRef<Set<number> | null>(null);
   const t = useTranslation(language);
 
   useEffect(() => {
@@ -53,23 +59,47 @@ export default function Header() {
     }
   }, [showLangMenu, showNotifications]);
 
-  useEffect(() => {
-    if (user?.is_authenticated) {
-      loadNotifications();
-      const interval = setInterval(loadNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
+    const revision = ++notificationVersion.current;
     try {
       const data = await apiClient.getNotifications();
-      setNotifications(data.notifications || []);
+      if (revision !== notificationVersion.current) return;
+      const items = data.notifications || [];
+      if (seen.current) {
+        for (const item of items.slice().reverse()) {
+          if (!item.is_read && !seen.current.has(item.id)) showToast?.({
+            id: `notification-${item.id}`, title: item.title, message: item.message,
+            onClick: item.related_application_id ? () => navigation.current.push(`/applications/${item.related_application_id}`) : undefined,
+          });
+          seen.current.add(item.id);
+        }
+      } else {
+        seen.current = new Set(items.map(item => item.id));
+      }
+      setNotifications(items);
       setUnreadCount(data.unread_count || 0);
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    seen.current = null;
+    setNotifications([]);
+    setUnreadCount(0);
+    if (!user?.is_authenticated) return;
+    const refresh = () => { if (!document.hidden) void loadNotifications(); };
+    refresh();
+    const interval = window.setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      notificationVersion.current++;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [user?.is_authenticated, user?.id, loadNotifications]);
 
   useEffect(() => { setMenuOpen(false); setShowNotifications(false); }, [pathname]);
   useEffect(() => {
@@ -81,14 +111,14 @@ export default function Header() {
   const links = user?.is_authenticated ? [
     { href: '/', label: t('nav.home'), icon: Home },
     { href: '/applications', label: t('nav.applications'), icon: FileText },
-    { href: '/news', label: 'Новости', icon: Newspaper },
-    { href: '/resources', label: 'Ресурсы', icon: FileText },
+    { href: '/resources', label: t('nav.resources'), icon: FileText },
     { href: '/profile', label: t('nav.profile'), icon: User },
     ...(user.isAdmin ? [{ href: '/admin', label: t('admin.title'), icon: Shield }] : []),
   ] : [
     { href: '/', label: t('nav.home'), icon: Home },
+    { href: '/applications', label: t('nav.applications'), icon: FileText },
     { href: '/about', label: t('nav.about'), icon: FileText },
-    { href: '/resources', label: 'Ресурсы', icon: FileText },
+    { href: '/resources', label: t('nav.resources'), icon: FileText },
     { href: '/login', label: t('nav.login'), icon: User },
   ];
 
@@ -117,7 +147,7 @@ export default function Header() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {user?.is_authenticated && <div className="relative" ref={notificationsRef}>
-              <button type="button" aria-label="Уведомления" aria-expanded={showNotifications}
+              <button type="button" aria-label={t('notifications.title')} aria-expanded={showNotifications}
                 onClick={() => { setShowNotifications(!showNotifications); setShowLangMenu(false); }}
                 className="relative rounded-md p-2 text-gray-700 hover:bg-blue-50">
                 <Bell className="h-5 w-5" />

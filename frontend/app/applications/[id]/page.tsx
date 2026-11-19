@@ -2,6 +2,8 @@
 
 import { mapTiles } from '@/lib/mapTiles';
 import RequestAid from '@/components/community/RequestAid';
+import { ActionFeedback, InlineConfirm } from '@/components/ui/ActionFeedback';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -11,7 +13,7 @@ import { MapPin, User, Check, X, Star } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useStore } from '@/lib/store';
-import { useTranslation, getLanguage } from '@/lib/i18n';
+import { useTranslation } from '@/lib/i18n';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
@@ -33,13 +35,15 @@ const LeafletIconFix = dynamic(
 export default function ApplicationDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useStore();
-  const t = useTranslation(getLanguage());
+  const { user, language } = useStore();
+  const t = useTranslation(language);
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [responses, setResponses] = useState<ApplicationResponse[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [userResponse, setUserResponse] = useState<ApplicationResponse | null>(null);
+  const [respondFeedback, setRespondFeedback] = useState<{ message?: string; error?: boolean }>({});
+  const [responseBusy, setResponseBusy] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -48,9 +52,9 @@ export default function ApplicationDetailPage() {
     }
   }, [params.id]);
 
-  const loadApplication = async () => {
+  const loadApplication = async (refresh = false) => {
     try {
-      setLoading(true);
+      if (!refresh) setLoading(true);
 
       const data = await apiClient.getApplication(Number(params.id));
       setApplication(data);
@@ -67,13 +71,15 @@ export default function ApplicationDetailPage() {
 
   const handleRespond = async () => {
     if (!user?.is_authenticated || application?.moderation_status !== 'approved' || application.is_resolved || application.is_false_call) return;
+    setResponseBusy(true);
     try {
       await apiClient.respondToApplication(Number(params.id));
-      alert(t('alerts.respondSuccess'));
-      loadApplication();
-    } catch (error: any) {
-      console.error('Error responding:', error);
-      alert(error.message || t('alerts.respondError'));
+      setRespondFeedback({ message: t('alerts.respondSuccess') });
+      await loadApplication(true);
+    } catch (error) {
+      setRespondFeedback({ message: error instanceof Error ? error.message : t('alerts.respondError'), error: true });
+    } finally {
+      setResponseBusy(false);
     }
   };
 
@@ -92,17 +98,6 @@ export default function ApplicationDetailPage() {
       loadApplication();
     } catch (error) {
       console.error('Error rejecting response:', error);
-    }
-  };
-
-  const handleResolve = async () => {
-    try {
-      await apiClient.resolveApplication(Number(params.id));
-      alert(t('alerts.resolvedSuccess'));
-      loadApplication();
-    } catch (error: any) {
-      console.error('Error resolving application:', error);
-      alert(error.message || t('alerts.resolvedError'));
     }
   };
 
@@ -287,8 +282,14 @@ export default function ApplicationDetailPage() {
               )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Статус:</span>
-                <span className="font-medium">{application.status}</span>
+                <StatusBadge status={application.is_false_call ? 'false_call' : application.status} />
               </div>
+              {application.author_contact && <div className="flex flex-wrap justify-between gap-2">
+                <span className="text-gray-600">{t('request.authorContact')}</span>
+                {application.author_contact.phone
+                  ? <a className="text-primary underline" href={`tel:${application.author_contact.phone.replace(/[^+\d]/g, '')}`}>{application.author_contact.phone}</a>
+                  : <span>{t('request.noContact')}</span>}
+              </div>}
             </div>
           </div>
 
@@ -342,7 +343,8 @@ export default function ApplicationDetailPage() {
             {!application.is_resolved && !userResponse && (application as any).user_id !== user?.id && (
               <button
                 onClick={handleRespond}
-                disabled={!user?.is_authenticated || application.moderation_status !== 'approved' || application.is_false_call}
+                disabled={responseBusy || !user?.is_authenticated || application.moderation_status !== 'approved' || application.is_false_call ||
+                  (!!application.expires_at && Date.parse(application.expires_at) <= Date.now())}
                 className="btn btn-primary flex-1"
               >
                 Откликнуться
@@ -353,16 +355,16 @@ export default function ApplicationDetailPage() {
                 Вы уже откликнулись на эту заявку. Статус: <span className="ml-2 font-medium">{userResponse.status === 'pending' ? 'Ожидает рассмотрения' : userResponse.status === 'accepted' ? 'Принят' : userResponse.status === 'cancelled' ? 'Отклонен' : userResponse.status === 'completed' ? 'Завершен' : userResponse.status}</span>
               </div>
             )}
-            {!application.is_resolved && 
+            {!application.is_resolved && application.moderation_status === 'approved' && !application.is_false_call &&
              application.user_id === user?.id && (
-              <button
-                onClick={handleResolve}
-                className="btn btn-success flex-1"
-              >
-                Отметить как решенную
-              </button>
+              <InlineConfirm prompt={t('request.resolveConfirm')} onConfirm={async () => {
+                await apiClient.resolveApplication(Number(params.id));
+                setRespondFeedback({ message: t('alerts.resolvedSuccess') });
+                await loadApplication(true);
+              }}>{t('application.resolve')}</InlineConfirm>
             )}
           </div>
+          <ActionFeedback {...respondFeedback} />
         </div>
       </div>
     </div>
