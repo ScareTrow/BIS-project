@@ -1,12 +1,17 @@
 'use client';
 import TelegramLink from '@/components/community/TelegramLink';
 import VolunteerSettings from '@/components/community/VolunteerSettings';
+import VolunteerLocation from '@/components/community/VolunteerLocation';
+import { Badge } from '@/components/ui/Badge';
+import { communityApi } from '@/lib/community-api';
+import { useTranslation } from '@/lib/i18n';
+import { useStore } from '@/lib/store';
 
 import { apiClient, Application, User } from '@/lib/api';
 import { Award, CheckCircle, Clock, Edit, Heart, HelpCircle, MapPin, Star, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const categoryLabels: Record<string, string> = {
   food: 'Еда',
@@ -30,6 +35,9 @@ const responseStatusLabels: Record<string, string> = {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const t = useTranslation(useStore(state => state.language));
+  const onboarding = useRef<HTMLDialogElement>(null);
+  const claimingOnboarding = useRef(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
@@ -40,6 +48,14 @@ export default function ProfilePage() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (loading || user?.capability_onboarding_seen !== false || claimingOnboarding.current) return;
+    claimingOnboarding.current = true;
+    communityApi.claimCapabilityOnboarding().then(({ show }) => {
+      if (show) onboarding.current?.showModal();
+    }).catch(() => { claimingOnboarding.current = false; });
+  }, [loading, user?.capability_onboarding_seen]);
 
   const loadProfile = async () => {
     try {
@@ -92,9 +108,11 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-        <VolunteerSettings />
+      <dialog ref={onboarding} aria-label={t('capability.title')} className="w-[calc(100%-2rem)] max-w-lg rounded-xl border p-5 backdrop:bg-gray-900/40">
+        {user.capability_onboarding_seen === false && <VolunteerSettings onDone={() => onboarding.current?.close()} />}
+      </dialog>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Мой профиль</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t('profile.title')}</h1>
         <Link
           href="/profile/edit"
           className="btn btn-primary flex items-center space-x-2"
@@ -125,7 +143,7 @@ export default function ProfilePage() {
             </h2>
             <p className="text-gray-600 mb-4">{user.email}</p>
             {user.city && (
-              <p className="text-gray-600 mb-4">📍 {user.city}</p>
+              <Badge tone="info" className="mb-4"><MapPin aria-hidden="true" className="h-4 w-4" />{user.city}</Badge>
             )}
 
             {user.social_links && (() => {
@@ -213,6 +231,7 @@ export default function ProfilePage() {
             <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm font-medium text-blue-800 mb-3">Telegram-оповещения</p>
               <TelegramLink telegramId={user.telegram_id} onLinked={() => loadProfile()} />
+              <VolunteerLocation />
             </div>
           </div>
         </div>

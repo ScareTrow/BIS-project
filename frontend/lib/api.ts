@@ -9,6 +9,7 @@ export interface User {
   social_links?: string | null; telegram_id?: string | null;
   rating_sum: number; rating_count: number; average_rating?: number; badge?: string | null;
   is_blocked?: boolean; blocked_until?: string | null; blocked_reason?: string | null;
+  capability_onboarding_seen?: boolean;
 }
 export interface ApplicationResponse {
   id: number; responder_id: number; status: string; created_at: string;
@@ -30,6 +31,7 @@ export interface Application {
   creator?: { id: number; first_name: string; last_name?: string | null; avatar?: string | null };
   media_files?: { id: number; file_path: string; file_type: string }[];
   responses?: ApplicationResponse[];
+  author_contact?: { phone: string | null };
 }
 export interface Notification {
   id: number; title: string; message: string; notification_type: string;
@@ -66,6 +68,7 @@ const post = <T = Result>(path: string, body?: unknown): Promise<T> => http.post
 
 export const apiClient = {
   searchLocations: (query: string, city = '') => post<LocationPoint[]>('/locations/search', { query, city }),
+  reverseLocation: (latitude: number, longitude: number) => post<LocationPoint>('/locations/reverse', { latitude, longitude }),
   getApplications: async (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => {
     const data = await get<MapFeatures | Application[]>('/map/points', { city, status, format: 'geojson' });
     if (Array.isArray(data)) return data;

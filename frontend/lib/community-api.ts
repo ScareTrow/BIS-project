@@ -64,6 +64,7 @@ const get = <T>(path: string, params?: object) =>
   http.get<T>(path, { params }).then((r) => r.data);
 export const communityApi = {
   capabilities: () => get<Capability[]>("/capabilities"),
+  claimCapabilityOnboarding: () => http.post<{ show: boolean }>("/user/capabilities/onboarding").then(response => response.data),
   preferences: () =>
     get<{ capability_ids: number[]; is_available: boolean }>(
       "/user/capabilities",
@@ -90,8 +91,9 @@ export const communityApi = {
     },
   ) => http.put(`/responses/${id}/contributions`, data),
   completeResponse: (id: number) => http.post(`/responses/${id}/complete`),
-  rateResponse: (id: number, score: number) =>
-    http.post(`/responses/${id}/rating`, { score }),
+  rateResponse: (id: number, score: number, comment?: string) =>
+    http.post(`/responses/${id}/rating`, { score, ...(comment ? { comment } : {}) }),
+  hideReview: (id: number) => http.post(`/admin/reviews/${id}/hide`),
   resources: (category?: string, city?: string) => get<Resource[]>("/resources", { category, city }),
   createResource: (
     data: Omit<
