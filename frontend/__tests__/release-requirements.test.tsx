@@ -87,6 +87,15 @@ test('one description field is bounded and coordinates cannot be entered manuall
   expect(screen.queryByLabelText('Долгота')).not.toBeInTheDocument();
 });
 
+test('normal request asks for geolocation after the location button and keeps the manual fallback', async () => {
+  await fillRequest();
+  expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Моё местоположение' }));
+  expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+  expect(await screen.findByText(/не удалось определить местоположение/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Выбрать точку' })).toBeEnabled();
+});
+
 test('SOS supports manual location after denied geolocation and preserves data on error', async () => {
   const created = jest.fn();
   render(<SOSDialog onClose={jest.fn()} onCreated={created} />);
