@@ -9,11 +9,12 @@ import { useTranslation } from '@/lib/i18n';
 
 const LocationMap = dynamic(() => import('./ApplicationMap'), { ssr: false });
 
-export default function AddressPicker({ title, city = '', value, onChange }: {
+export default function AddressPicker({ title, city = '', value, onChange, allowCurrentLocation }: {
   title?: string;
   city?: string;
   value: LocationPoint | null;
   onChange: (point: LocationPoint | null) => void;
+  allowCurrentLocation?: boolean;
 }) {
   const id = useId();
   const language = useStore(state => state.language);
@@ -28,6 +29,29 @@ export default function AddressPicker({ title, city = '', value, onChange }: {
   const [results, setResults] = useState<LocationPoint[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  function choosePoint(latitude: number, longitude: number) {
+    const revision = ++lookupVersion.current;
+    setResults([]);
+    setMessage('');
+    onChange({ latitude, longitude, address: '' });
+    apiClient.reverseLocation(latitude, longitude).then(place => {
+      if (place.address && lookupVersion.current === revision) onChange(place);
+    }).catch(() => { /* The selected point is usable without an address. */ });
+  }
+  function locate() {
+    if (!navigator.geolocation) {
+      setMessage(t('sos.denied'));
+      return;
+    }
+    const revision = ++lookupVersion.current;
+    setMessage(t('sos.locating'));
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      if (lookupVersion.current !== revision) return;
+      choosePoint(coords.latitude, coords.longitude);
+    }, () => {
+      if (lookupVersion.current === revision) setMessage(t('sos.denied'));
+    }, { timeout: 8000, maximumAge: 0 });
+  }
 
   async function search() {
     if (busy) return;
@@ -54,6 +78,7 @@ export default function AddressPicker({ title, city = '', value, onChange }: {
         {busy ? t('ui.loading') : t('location.search')}
       </button>
     </div>
+    {allowCurrentLocation && <button type="button" className="btn btn-secondary text-sm" onClick={locate}>{t('location.useCurrent')}</button>}
     {!!results.length && <ul className="overflow-hidden rounded-lg border border-gray-200 divide-y divide-gray-100">
       {results.map((point, index) => <li key={index}>
         <button type="button" className="w-full break-words p-3 text-left text-sm text-gray-700 hover:bg-blue-50 focus-visible:bg-blue-50"
@@ -66,12 +91,6 @@ export default function AddressPicker({ title, city = '', value, onChange }: {
     {value && <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('location.selected', { address: value.address || t('location.selectedPoint') })}</p>}
     <LocationMap selected={value !== null}
       center={value ? [value.latitude, value.longitude] : cityPoint ? [cityPoint.lat, cityPoint.lng] : [43.222, 76.8512]}
-      onLocationSelect={(latitude, longitude) => {
-        const revision = ++lookupVersion.current;
-        onChange({ latitude, longitude, address: '' });
-        apiClient.reverseLocation(latitude, longitude).then(place => {
-          if (place.address && lookupVersion.current === revision) onChange(place);
-        }).catch(() => { /* The selected point is usable without an address. */ });
-      }} />
+      onLocationSelect={choosePoint} />
   </section>;
 }

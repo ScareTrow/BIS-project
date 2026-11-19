@@ -66,7 +66,8 @@ export default function NewApplicationPage() {
       setError(t(category === 'delivery' ? 'request.create.deliveryError' : 'request.create.locationError'));
       return;
     }
-    const filledNeeds = needs.filter(need => need.resource_name.trim() || need.unit.trim() || ![0, 1].includes(need.quantity_needed));
+    const filledNeeds = needs.filter(need => need.resource_name.trim() || need.unit.trim() ||
+      (need.quantity_needed !== 1 && !Number.isNaN(need.quantity_needed)));
     if (filledNeeds.some(need => !need.resource_name.trim() || !need.unit.trim() || !Number.isFinite(need.quantity_needed) || need.quantity_needed <= 0)) {
       setError(t('request.create.needsError'));
       return;
@@ -110,12 +111,12 @@ export default function NewApplicationPage() {
             <input className="form-input" maxLength={200} value={pickupEntrance} placeholder="Например: вход со двора, подъезд 2"
               onChange={event => setPickupEntrance(event.target.value)} />
           </label>
-          <AddressPicker title="Куда доставить" value={dropoff} onChange={setDropoff} />
+          <AddressPicker title="Куда доставить" value={dropoff} onChange={setDropoff} allowCurrentLocation />
           <label className="form-field">Подъезд / вход для доставки
             <input className="form-input" maxLength={200} value={dropoffEntrance} placeholder="Например: главный вход, позвонить у двери"
               onChange={event => setDropoffEntrance(event.target.value)} />
           </label>
-        </div> : <AddressPicker title={t('request.create.location')} value={location} onChange={setLocation} />}
+        </div> : <AddressPicker title={t('request.create.location')} value={location} onChange={setLocation} allowCurrentLocation />}
         {catalog.length > 0 && <CheckboxChipGroup label={t('request.create.capabilities')} value={ids} onChange={setIds}
           options={catalog.map(c => ({value: c.id, label: t(`capability.${c.code}`) === `capability.${c.code}` ? c.name : t(`capability.${c.code}`)}))} />}
         <fieldset className="space-y-3">
@@ -158,12 +159,12 @@ export default function NewApplicationPage() {
                 type="number"
                 min="0.001"
                 step="0.001"
-                value={n.quantity_needed}
+                value={Number.isNaN(n.quantity_needed) ? '' : n.quantity_needed}
                 onChange={(e) =>
                   setNeeds(
                     needs.map((x, j) =>
                       j === i
-                        ? { ...x, quantity_needed: Number(e.target.value) }
+                        ? { ...x, quantity_needed: e.target.valueAsNumber }
                         : x,
                     ),
                   )

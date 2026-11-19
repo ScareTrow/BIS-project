@@ -141,6 +141,7 @@ export const translations: Record<string, readonly [string, string, string]> = {
   'location.searchShort': ['Введите хотя бы 3 символа адреса или названия здания', 'Мекенжайдың немесе ғимарат атауының кемінде 3 таңбасын енгізіңіз', 'Enter at least 3 characters of the address or building name'],
   'location.searchEmpty': ['Место не найдено. Уточните адрес и город или выберите точку на карте.', 'Орын табылмады. Мекенжай мен қаланы нақтылаңыз немесе картадан нүкте таңдаңыз.', 'No location found. Refine your search or select a point on the map.'],
   'location.search': ['Найти', 'Іздеу', 'Search'],
+  'location.useCurrent': ['Моё местоположение', 'Менің орналасқан жерім', 'Use my location'],
   'resources.available': ['Доступен', 'Қолжетімді', 'Available'],
   'resources.unavailable': ['Недоступен', 'Қолжетімсіз', 'Unavailable'],
   'resources.outdated': ['Информация устарела', 'Ақпарат ескірген', 'Information is outdated'],
