@@ -59,7 +59,6 @@ export default function MapView({ applications, center, city }: MapViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [mapKey, setMapKey] = useState(0);
   const [resources, setResources] = useState<Resource[]>([]);
-  const [showResources, setShowResources] = useState(true);
   const [resourceError, setResourceError] = useState('');
   useEffect(() => { communityApi.resources(undefined, city).then(setResources).catch(e=>setResourceError(e.message)); },[city]);
 
@@ -99,7 +98,6 @@ export default function MapView({ applications, center, city }: MapViewProps) {
       {resourceError && <p role="alert">Не удалось загрузить ресурсы: {resourceError}</p>}
       <div className="bg-white rounded-lg shadow-md p-4 mb-4">
         <div className="flex flex-wrap gap-2 items-center">
-          <label className="flex gap-2"><input type="checkbox" checked={showResources} onChange={e=>setShowResources(e.target.checked)} />Ресурсы (круглые метки)</label>
           <span className="text-sm text-gray-600 font-semibold">Категории заявок:</span>
           {categories.map(({ key, category }) => (
             <button
@@ -142,7 +140,7 @@ export default function MapView({ applications, center, city }: MapViewProps) {
               <MapInitializer />
               <MapCenterController center={center} />
               <TileLayer {...mapTiles} />
-              {showResources && resources.map(r=><CircleMarker key={`resource-${r.id}`} center={[r.latitude,r.longitude]} radius={10} pathOptions={{color:r.availability==='available'?'#15803d':'#a16207'}}><Popup><strong>{r.name}</strong><p>{r.availability==='available'?'Доступен':r.availability==='outdated'?'Информация устарела':'Недоступен'}</p><Link href={`/resources#resource-${r.id}`}>Подробнее о ресурсе</Link></Popup></CircleMarker>)}
+              {resources.map(r=><CircleMarker key={`resource-${r.id}`} center={[r.latitude,r.longitude]} radius={10} pathOptions={{color:r.availability==='available'?'#15803d':'#a16207'}}><Popup><strong>{r.name}</strong><p>{r.availability==='available'?'Доступен':r.availability==='outdated'?'Информация устарела':'Недоступен'}</p><Link href={`/resources#resource-${r.id}`}>Подробнее о ресурсе</Link></Popup></CircleMarker>)}
               {filteredApplications.map((app) => (
                 <ApplicationMarker key={app.id} application={app} />
               ))}

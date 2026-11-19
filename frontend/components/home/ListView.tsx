@@ -2,7 +2,9 @@
 
 import CategoryBadge from '@/components/common/CategoryBadge';
 import { Application } from '@/lib/api';
-import { MapPin, AlertCircle, Star, Clock, Calendar } from 'lucide-react';
+import { MapPin, AlertCircle, Clock, Calendar } from 'lucide-react';
+import { StarRating } from '@/components/ui/StarRating';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
@@ -29,7 +31,7 @@ export default function ListView({ applications }: ListViewProps) {
       {applications.map((app) => (
         <div
           key={app.id}
-          className={`card hover:scale-105 transition-transform duration-300 ${
+          className={`card ${
             app.is_sos ? 'card-emergency' : ''
           }`}
         >
@@ -45,21 +47,11 @@ export default function ListView({ applications }: ListViewProps) {
                   SOS
                 </span>
               )}
-              {app.priority !== undefined && app.priority > 0 && (
-                <span className="badge bg-blue-600 text-white border border-blue-700">
-                  <Star className="inline w-3 h-3 mr-1" />
-                  {app.priority}
-                </span>
-              )}
-              {(app as any).moderation_status === 'pending' && (app as any).is_own && (
-                <span className="badge bg-yellow-500 text-white border border-yellow-600">
-                  На модерации
-                </span>
-              )}
+              <StatusBadge status={app.status} />
             </div>
           </div>
 
-          <p className="text-gray-700 mb-4 line-clamp-3 text-sm leading-relaxed">
+          <p className="text-gray-700 mb-4 line-clamp-3 text-base leading-relaxed">
             {app.description}
           </p>
 
@@ -85,9 +77,7 @@ export default function ListView({ applications }: ListViewProps) {
             )}
             {app.priority > 0 && (
               <div className="flex items-center text-sm text-gray-600">
-                <Star className="w-4 h-4 mr-2 text-blue-600" />
-                <span className="font-semibold">{t('application.priority')}:</span>
-                <span className="ml-2">{app.priority}/5</span>
+                <StarRating value={app.priority} label={t('ui.priority', { value: app.priority })} />
               </div>
             )}
           </div>

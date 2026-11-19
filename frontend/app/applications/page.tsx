@@ -5,9 +5,13 @@ import ListView from '@/components/home/ListView';
 import { apiClient, Application, ApplicationStatus } from '@/lib/api';
 import { useStore } from '@/lib/store';
 import { getCityByName } from '@/lib/kazakhstanCities';
+import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { useTranslation } from '@/lib/i18n';
 
 export default function ApplicationsPage() {
-  const { user, authLoading } = useStore();
+  const { user, authLoading, language } = useStore();
+  const t = useTranslation(language);
   const city = user?.city ? getCityByName(user.city)?.name || user.city : undefined;
   const [applications, setApplications] = useState<Application[]>([]);
   const [status, setStatus] = useState<ApplicationStatus>('active');
@@ -36,16 +40,12 @@ export default function ApplicationsPage() {
   return <div className="container mx-auto space-y-6 px-4 py-8">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><h1 className="text-3xl font-bold">Заявки на помощь</h1>
-        <p className="mt-2 text-gray-600">{city ? `Ваш город: ${city}` : 'Заявки во всех городах'} {user?.is_authenticated && <Link href="/profile/edit" className="text-blue-700 underline">Изменить город</Link>}</p>
+        {city && <Badge tone="info" className="mt-2">{city}</Badge>}
       </div>
       <Link href={user?.is_authenticated ? '/applications/new' : '/login'} className="btn btn-primary">Попросить помощь</Link>
     </div>
-    <label className="form-field max-w-xs">Статус заявки
-      <select className="form-select" value={status} onChange={event => setStatus(event.target.value as ApplicationStatus)}>
-        <option value="active">Все активные</option><option value="open">Открытые</option>
-        <option value="in_progress">В работе</option><option value="completed">Завершённые</option>
-      </select>
-    </label>
+    <div className="max-w-xs"><Select label={t('ui.status')} value={status} onChange={setStatus}
+      options={( ['active', 'open', 'in_progress', 'completed'] as const).map(value => ({ value, label: t(`status.${value}`) }))} /></div>
     {error ? <p role="alert" className="text-red-700">{error} <button type="button" className="underline" onClick={() => setRevision(n=>n+1)}>Повторить загрузку</button></p>
       : loading ? <p role="status">Загрузка заявок…</p> : <ListView applications={applications} />}
   </div>;
