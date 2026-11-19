@@ -140,7 +140,8 @@ def test_nearby_alerts_ignore_tags_availability_and_city(app, client, test_user,
     assert admin.post(f'/api/admin/applications/{aid}/approve').status_code == 200
     alerts = [s for s in sent if s['notification_type'] == 'new_request']
     assert len(alerts) == 1 and alerts[0]['telegram_id'] == 'near'
-    assert 'км' in alerts[0]['message'] and f'/applications/{aid}' in alerts[0]['message']
+    public_ref = client.get(f'/api/applications/{aid}').json['public_id']
+    assert 'км' in alerts[0]['message'] and f'/applications/{public_ref}' in alerts[0]['message']
     assert 'Продукты' in alerts[0]['message']
 
 
@@ -157,7 +158,8 @@ def test_map_status_filter_and_own_pending(app, client, test_user, test_applicat
         pending_id, finished_id = pending.id, finished.id
     for path in ['/api/map/points', '/api/applications/list']:
         assert {p['id'] for p in client.get(path + '?status=open').json} == {test_application.id, pending_id}
-        assert {p['id'] for p in app.test_client().get(path + '?status=completed').json} == {finished_id}
+        completed = {p['id'] for p in app.test_client().get(path + '?status=completed').json}
+        assert completed == (set() if path == '/api/map/points' else {finished_id})
         assert client.get(path + '?status=invalid').status_code == 400
 
 

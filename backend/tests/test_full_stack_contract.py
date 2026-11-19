@@ -1,6 +1,7 @@
 """Production-route contracts used by the restored Next.js client."""
 from backend.tests.request_helpers import png_bytes
 import io
+import json
 from backend.website import db
 from backend.website.models import User
 
@@ -14,6 +15,9 @@ def sign_in(client, email, password=PASSWORD):
 
 
 def test_request_moderation_response_and_rating(app, client, test_user, admin_user):
+    with app.app_context():
+        db.session.get(User, test_user.id).social_links = json.dumps({'phone': '+77005550100'})
+        db.session.commit()
     helper = app.test_client()
     response = helper.post('/api/auth/signup', json={
         'email': 'helper-flow@example.com', 'firstName': 'Helper',
@@ -24,6 +28,7 @@ def test_request_moderation_response_and_rating(app, client, test_user, admin_us
     helper_id = response.json['user']['id']
     sign_in(helper, 'helper-flow@example.com')
     sign_in(client, test_user.email)
+    assert client.post('/api/profile/edit', data={'city': 'Almaty'}).status_code == 200
     response = client.post('/api/applications', data={
         'latitude': '43.22', 'longitude': '76.85', 'category': 'food',
         'description': 'Food request from a full workflow',
@@ -31,6 +36,7 @@ def test_request_moderation_response_and_rating(app, client, test_user, admin_us
     })
     assert response.status_code == 201, response.json
     application_id = response.json['id']
+    application_ref = response.json['public_id']
     admin = app.test_client()
     sign_in(admin, admin_user.email, 'Admin1234!@#$')
     assert client.post(f'/api/admin/applications/{application_id}/approve').status_code == 403
@@ -40,7 +46,11 @@ def test_request_moderation_response_and_rating(app, client, test_user, admin_us
     response = helper.post(f'/api/applications/{application_id}/respond')
     assert response.status_code == 200, response.json
     response_id = response.json['response_id']
+    assert 'author_contact' not in helper.get(f'/api/applications/{application_ref}').json
+    assert 'email' not in helper.get(f'/api/users/{test_user.id}').json
     assert client.post(f'/api/applications/{application_id}/responses/{response_id}/accept').status_code == 200
+    assert helper.get(f'/api/applications/{application_ref}').json['author_contact'] == {'phone': '+77005550100'}
+    assert 'author_contact' not in app.test_client().get(f'/api/applications/{application_ref}').json
     assert client.post(f'/api/applications/{application_id}/resolve').status_code == 200
     rating = client.post(f'/api/applications/{application_id}/rate-volunteer-simple',
                          json={'helper_id': helper_id, 'is_positive': True})

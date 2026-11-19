@@ -39,12 +39,12 @@ test('profile location searches automatically use the current profile city',asyn
  await waitFor(()=>expect(apiClient.searchLocations).toHaveBeenCalledWith('Мега','Астана'));
 });
 
-test('quick SOS with GPS requires no details, photos or map interaction',async()=>{
+test('quick SOS with GPS attaches proof without manual map interaction',async()=>{
  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:jest.fn(success=>success({coords:{latitude:51.16,longitude:71.43}}))}});
  jest.mocked(apiClient.createSOS).mockResolvedValue({success:true,id:51});
  const created=jest.fn();render(<SOSDialog onClose={jest.fn()} onCreated={created}/>);
  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
- expect(document.querySelector('input[type="file"]')).not.toBeInTheDocument();
+ fireEvent.change(screen.getByLabelText(/Фото:/), { target: { files: [new File(['png'], 'proof.png', { type: 'image/png' })] } });
  fireEvent.click(screen.getByRole('button',{name:'Подтвердить и отправить SOS'}));
  await waitFor(()=>expect(created).toHaveBeenCalledWith(51,[51.16,71.43]));
 });
