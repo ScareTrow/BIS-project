@@ -6,7 +6,7 @@ import { Heart, Users, MapPin, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AboutPage() {
-  const { language } = useStore();
+  const { language, user, authLoading } = useStore();
   const t = useTranslation(language);
 
   return (
@@ -112,21 +112,21 @@ export default function AboutPage() {
             </div>
           </div>
 
-          <div className="bg-blue-600 rounded-lg shadow-sm border border-blue-700 p-8 text-white text-center">
+          {!authLoading && <div className="bg-blue-600 rounded-lg shadow-sm border border-blue-700 p-8 text-white text-center">
             <h2 className="text-2xl font-bold mb-4">
-              {language === 'ru' ? 'Присоединяйтесь к нам!' : language === 'kk' ? 'Бізбен бірге болыңыз!' : 'Join us!'}
+              {user?.is_authenticated ? t('about.memberTitle') : language === 'ru' ? 'Присоединяйтесь к нам!' : language === 'kk' ? 'Бізбен бірге болыңыз!' : 'Join us!'}
             </h2>
             <p className="text-lg mb-6 text-blue-100">
-              {language === 'ru'
+              {user?.is_authenticated ? t('about.memberDescription') : language === 'ru'
                 ? 'Помогайте другим и получайте помощь, когда она нужна'
                 : language === 'kk'
                 ? 'Басқаларға көмектесіңіз және қажет болғанда көмек алыңыз'
                 : 'Help others and get help when you need it'}
             </p>
-            <Link href="/sign-up" className="btn bg-white text-blue-700 hover:bg-gray-50 inline-block border border-gray-300">
-              {t('nav.signup')}
+            <Link href={user?.is_authenticated ? '/#request-map' : '/sign-up'} className="btn bg-white text-blue-700 hover:bg-gray-50 inline-block border border-gray-300">
+              {t(user?.is_authenticated ? 'about.memberAction' : 'nav.signup')}
             </Link>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

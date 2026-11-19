@@ -41,6 +41,9 @@ export interface Resource {
   longitude: number;
   availability: string;
   last_confirmed_at: string | null;
+  moderation_status?: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string | null;
+  photos?: string[];
 }
 export interface Confirmation {
   id: number;
@@ -95,12 +98,11 @@ export const communityApi = {
     http.post(`/responses/${id}/rating`, { score, ...(comment ? { comment } : {}) }),
   hideReview: (id: number) => http.post(`/admin/reviews/${id}/hide`),
   resources: (category?: string, city?: string) => get<Resource[]>("/resources", { category, city }),
-  createResource: (
-    data: Omit<
-      Resource,
-      "id" | "owner_id" | "availability" | "last_confirmed_at"
-    >,
-  ) => http.post<Resource>("/resources", data).then((r) => r.data),
+  myResources: () => get<Resource[]>('/resources/mine'),
+  createResource: (data: FormData) => http.post<Resource>('/resources', data).then(response => response.data),
+  resourceReviewQueue: () => get<Resource[]>('/admin/resources'),
+  reviewResource: (id: number, decision: 'approved' | 'rejected', reason?: string) =>
+    http.post<Resource>(`/admin/resources/${id}/review`, { decision, reason }),
   remind: (id: number) => http.post(`/resources/${id}/reminders`),
   confirmations: () => get<Confirmation[]>("/resource-confirmations"),
   confirm: (id: number, answer: string) =>
