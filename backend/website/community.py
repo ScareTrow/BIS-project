@@ -5,8 +5,10 @@ from .regions import canonical_city, selected_city, filter_city, city_names
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 import json
+from pathlib import Path
+from uuid import uuid4
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, make_response, request
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -32,7 +34,8 @@ from .models import (
     ModerationAction,
     Rating,
 )
-from .validation import coordinates
+from .validation import UploadValidationError, coordinates, validate_photos
+from .storage import save_upload, serve_upload
 from .notifications import create_notification
 
 community = Blueprint("community", __name__)
@@ -313,6 +316,9 @@ def resource_data(r):
         latitude=r.latitude,
         longitude=r.longitude,
         availability=r.availability,
+        moderation_status=r.moderation_status,
+        rejection_reason=r.rejection_reason,
+        photos=[f"/api/resources/{r.id}/photos/{filename}" for filename in (r.photos or [])],
         last_confirmed_at=(
             r.last_confirmed_at.isoformat() if r.last_confirmed_at else None
         ),
@@ -610,7 +616,13 @@ def resources():
     if request.method == "POST":
         if not current_user.is_authenticated:
             return jsonify(error="Authentication required"), 401
-        data = payload()
+        data = request.form if request.mimetype == 'multipart/form-data' else payload()
+        files = request.files.getlist('media_files')
+        try:
+            if files:
+                validate_photos(files)
+        except UploadValidationError as error:
+            return jsonify(error=str(error)), error.status_code
         lat, lon = coordinates(data.get("latitude"), data.get("longitude"))
         category = ApplicationCategory(data.get("category", "food")).value
         r = Resource(
@@ -623,14 +635,24 @@ def resources():
             latitude=lat,
             longitude=lon,
             availability="available",
-            last_confirmed_at=now(),
         )
         db.session.add(r)
-        db.session.commit()
+        try:
+            photos = []
+            for file in files:
+                extension = Path(file.filename).suffix.lower()
+                filename = f'resource_{uuid4().hex}{extension}'
+                save_upload(file, filename, 'image/png' if extension == '.png' else 'image/jpeg')
+                photos.append(filename)
+            r.photos = photos
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return jsonify(resource_data(r)), 201
     expire_confirmations()
     db.session.commit()
-    query = Resource.query
+    query = Resource.query.filter_by(moderation_status='approved')
     city = selected_city()
     query = filter_city(query, Resource.city, city)
     category = request.args.get('category', '').strip()
@@ -639,10 +661,62 @@ def resources():
     return jsonify([resource_data(r) for r in query.order_by(Resource.id.desc())])
 
 
+@community.get('/api/resources/mine')
+@login_required
+def my_resources():
+    rows = Resource.query.filter_by(owner_id=current_user.id).order_by(Resource.id.desc())
+    return jsonify([resource_data(row) for row in rows])
+
+
+@community.get('/api/resources/<int:resource_id>/photos/<filename>')
+def resource_photo(resource_id, filename):
+    resource = db.session.get(Resource, resource_id)
+    if resource is None or filename not in (resource.photos or []):
+        return jsonify(error='Resource photo not found'), 404
+    if resource.moderation_status != 'approved' and not (
+        current_user.is_authenticated and (current_user.id == resource.owner_id or current_user.isAdmin)
+    ):
+        return jsonify(error='Resource photo not found'), 404
+    response = make_response(serve_upload(filename))
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@community.get('/api/admin/resources')
+@login_required
+def resource_review_queue():
+    if not current_user.isAdmin:
+        return jsonify(error='Доступ запрещён'), 403
+    rows = Resource.query.filter_by(moderation_status='pending').order_by(Resource.id)
+    return jsonify([resource_data(row) for row in rows])
+
+
+@community.post('/api/admin/resources/<int:resource_id>/review')
+@login_required
+def review_resource(resource_id):
+    if not current_user.isAdmin:
+        return jsonify(error='Доступ запрещён'), 403
+    data = payload()
+    decision = data.get('decision')
+    if decision not in ('approved', 'rejected'):
+        return jsonify(error='Укажите решение по точке помощи'), 400
+    reason = text(data.get('reason'), 1000, True) if decision == 'rejected' else None
+    resource = Resource.query.filter_by(id=resource_id).with_for_update().first_or_404()
+    if resource.moderation_status != 'pending':
+        return jsonify(error='Точка помощи уже проверена'), 409
+    resource.moderation_status = decision
+    resource.rejection_reason = reason
+    if decision == 'approved' and resource.last_confirmed_at is None:
+        resource.last_confirmed_at = now()
+    db.session.commit()
+    return jsonify(resource_data(resource))
+
+
 @community.post("/api/resources/<int:resource_id>/reminders")
 @login_required
 def create_reminder(resource_id):
-    r = Resource.query.get_or_404(resource_id)
+    r = Resource.query.filter_by(id=resource_id, moderation_status='approved').first_or_404()
     if r.owner_id != current_user.id and not current_user.isAdmin:
         return jsonify(error="Доступ запрещён"), 403
     outstanding = (
@@ -845,7 +919,7 @@ def register_commands(app):
         expire_confirmations()
         cutoff = now() - timedelta(days=7)
         queue = []
-        for resource in Resource.query.all():
+        for resource in Resource.query.filter_by(moderation_status='approved'):
             if resource.last_confirmed_at and utc(resource.last_confirmed_at) > cutoff:
                 continue
             if (

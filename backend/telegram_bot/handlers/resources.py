@@ -20,7 +20,7 @@ async def cmd_resources(message: Message):
         with flask_app.app_context():
             expire_confirmations()
             db.session.commit()
-            query = Resource.query.filter_by(availability="available")
+            query = Resource.query.filter_by(availability="available", moderation_status="approved")
             if user.city:
                 query = query.filter_by(city=user.city)
             resources = query.order_by(Resource.id.desc()).limit(10).all()
