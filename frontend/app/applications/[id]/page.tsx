@@ -16,7 +16,7 @@ import { useStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
 
 const MapContainer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.MapContainer),
+  () => import('@/components/common/LeafletMap'),
   { ssr: false }
 );
 const TileLayer = dynamic(

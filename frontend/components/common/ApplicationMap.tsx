@@ -3,7 +3,8 @@
 import { mapTiles } from '@/lib/mapTiles';
 
 import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import MapContainer from './LeafletMap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import LeafletIconFix from './LeafletIconFix';

@@ -9,7 +9,8 @@ import Link from 'next/link';
 import { communityApi, Resource } from '@/lib/community-api';
 import { useStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, Popup, TileLayer, useMap } from 'react-leaflet';
+import MapContainer from '@/components/common/LeafletMap';
 import ApplicationMarker from './ApplicationMarker';
 import MapResizeHandler from './MapResizeHandler';
 import MapInitializer from './MapInitializer';
@@ -37,9 +38,7 @@ function MapCenterController({ center }: { center?: [number, number] }) {
 
 export default function MapView({ applications, center, city }: MapViewProps) {
   const t = useTranslation(useStore(state => state.language));
-  const [isClient, setIsClient] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
-  const [mapKey, setMapKey] = useState(0);
   const [resources, setResources] = useState<Resource[]>([]);
   const [resourceError, setResourceError] = useState(false);
   useEffect(() => {
@@ -51,12 +50,6 @@ export default function MapView({ applications, center, city }: MapViewProps) {
     return () => { active = false; };
   }, [city]);
 
-  useEffect(() => {
-    setIsClient(true);
-    // Принудительное обновление карты только при монтировании
-    setMapKey(prev => prev + 1);
-  }, []);
-
   // React Leaflet автоматически обновит маркеры при изменении пропса applications
   // Не нужно обновлять mapKey, так как это вызывает полную перерисовку карты и ошибки
 
@@ -67,18 +60,6 @@ export default function MapView({ applications, center, city }: MapViewProps) {
   const handleCategoryClick = (category: CategoryFilter) => {
     setSelectedCategory(selectedCategory === category ? 'all' : category);
   };
-
-  if (!isClient) {
-    return (
-      <div className="w-full">
-        <div className="h-[420px] overflow-hidden rounded-lg border bg-white sm:h-[560px]">
-          <div className="w-full h-full flex items-center justify-center text-gray-500">
-            <p>{t('home.mapLoading')}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const categories: { key: CategoryFilter; category: ApplicationCategory }[] = ['food','clothing','household','delivery','volunteering','social_project','medicine','shelter','emergency'].map(c=>({key:c as ApplicationCategory,category:c as ApplicationCategory}));
 
@@ -116,9 +97,7 @@ export default function MapView({ applications, center, city }: MapViewProps) {
             maxWidth: '100%'
           }}
         >
-          {isClient && (
             <MapContainer
-              key={mapKey}
               center={center || [43.2220, 76.8512]}
               zoom={10}
               style={{ height: '100%', width: '100%' }}
@@ -140,7 +119,6 @@ export default function MapView({ applications, center, city }: MapViewProps) {
                 <ApplicationMarker key={app.id} application={app} />
               ))}
             </MapContainer>
-          )}
         </div>
       </div>
 
