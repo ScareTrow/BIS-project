@@ -1,5 +1,9 @@
 # UI inventory and design reference
 
+The [frontend design system](../frontend/DESIGN.md) defines the shared tokens
+and UI primitives for the screen-by-screen migration. Shared styles are in use
+already. The route inventory below describes the current screens.
+
 Prepared from the implemented Next.js pages. This document does not assert a visual comparison with the inaccessible Figma source.
 
 Original reference from TSIS 3: [ASAR Figma prototype](https://www.figma.com/make/XwYtlDOqLQT7hzT4ddQmYA/Homepage-Design-for-Asar).
@@ -17,5 +21,5 @@ Additional materials: [Google Drive folder](https://drive.google.com/drive/folde
 
 The restored library provides API types and client methods, Zustand state, all 112 literal translation keys in Russian/Kazakh/English, a major-city coordinate lookup with aliases, Leaflet icon setup and password validation. Existing hardcoded Russian UI text remains; this restoration does not claim full localization of every screen.
 
-The local city lookup contains the major cities and regional centers, not every settlement. Existing geocoding continues to support other locations. Existing styles and layouts are retained.
+The local city lookup contains major cities and regional centers. Geocoding supports other locations.
 
