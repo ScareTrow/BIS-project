@@ -1,4 +1,4 @@
-import { http, ApplicationCategory } from "./api";
+import { http, ApplicationCategory, ApplicationRef } from "./api";
 export interface Capability {
   id: number;
   code: string;
@@ -82,7 +82,7 @@ export const communityApi = {
         category: ApplicationCategory;
       }[]
     >("/applications/matching"),
-  aid: (id: number) => get<Aid>(`/applications/${id}/aid`),
+  aid: (id: ApplicationRef) => get<Aid>(`/applications/${id}/aid`),
   contribute: (
     id: number,
     data: {

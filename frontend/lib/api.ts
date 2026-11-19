@@ -16,6 +16,7 @@ export interface ApplicationResponse {
   responder?: Pick<User, 'id' | 'first_name' | 'last_name' | 'avatar'> | null;
 }
 export type ApplicationStatus = 'active' | 'open' | 'in_progress' | 'completed';
+export type ApplicationRef = string | number;
 export interface LocationPoint { address: string; latitude: number; longitude: number }
 export interface DeliveryRoute {
   pickup: LocationPoint & { entrance: string };
@@ -32,10 +33,14 @@ export interface Application {
   media_files?: { id: number; file_path: string; file_type: string }[];
   responses?: ApplicationResponse[];
   author_contact?: { phone: string | null };
+  is_own?: boolean;
+  public_id?: string;
 }
 export interface Notification {
   id: number; title: string; message: string; notification_type: string;
   is_read: boolean; created_at: string; related_application_id?: number | null;
+  related_application_public_id?: string | null;
+  related_application_category?: ApplicationCategory | null;
 }
 export interface SearchResult {
   applications: Application[];
@@ -48,7 +53,7 @@ interface MapFeatures {
   type: 'FeatureCollection';
   features: { id: number; geometry: { type: 'Point'; coordinates: [number, number] }; properties: Application }[];
 }
-interface Result { success: boolean; message?: string; id?: number; error?: string }
+interface Result { success: boolean; message?: string; id?: number; public_id?: string; error?: string }
 export interface NewsItem {
   id: number; title: string; content: string; news_type: string; is_published: boolean;
   created_at: string; updated_at: string; author: { id: number; first_name: string; last_name?: string | null };
@@ -76,7 +81,7 @@ export const apiClient = {
       latitude: feature.geometry.coordinates[1], longitude: feature.geometry.coordinates[0] }));
   },
   getApplicationsList: (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => get<Application[]>('/applications/list', { city, status }),
-  getApplication: (id: number) => get<Application>('/applications/' + id),
+  getApplication: (id: ApplicationRef) => get<Application>('/applications/' + id),
   createApplication: (data: FormData | { latitude: number; longitude: number; category: string; description: string; expires_days?: number }) => post('/applications', data),
   createSOS: (data: FormData) => post('/sos', data),
   getVolunteerLocation: () => get<{ latitude: number | null; longitude: number | null }>('/user/location'),
@@ -100,19 +105,19 @@ export const apiClient = {
   getAdminStats: () => get<{ total_applications: number; pending_applications: number; approved_applications: number; rejected_applications: number; total_responses: number; volunteers_count: number; false_calls_count: number; category_stats: { category: string; count: number }[] }>('/admin/stats'),
   getAdminUsers: () => get<(User & { total_applications: number; resolved_applications: number; false_calls_count: number; help_given: number; average_rating: number; is_super_admin: boolean; is_blocked: boolean })[]>('/admin/users'),
   getAdminApplications: (status = 'all') => get<Application[]>('/admin/applications', { status }),
-  approveApplication: (id: number) => post('/admin/applications/' + id + '/approve'),
-  rejectApplication: (id: number, reason: string) => post('/admin/applications/' + id + '/reject', { reason }),
-  markFalseApplication: (id: number) => post('/admin/applications/' + id + '/mark-false'),
-  setApplicationPriority: (id: number, priority: number) => post('/admin/applications/' + id + '/set-priority', { priority }),
+  approveApplication: (id: ApplicationRef) => post('/admin/applications/' + id + '/approve'),
+  rejectApplication: (id: ApplicationRef, reason: string) => post('/admin/applications/' + id + '/reject', { reason }),
+  markFalseApplication: (id: ApplicationRef) => post('/admin/applications/' + id + '/mark-false'),
+  setApplicationPriority: (id: ApplicationRef, priority: number) => post('/admin/applications/' + id + '/set-priority', { priority }),
   makeAdmin: (id: number) => post('/admin/users/' + id + '/make-admin'),
   blockUser: (id: number, days: number, reason: string) => post('/admin/users/' + id + '/block', { days, reason }),
   unblockUser: (id: number) => post('/admin/users/' + id + '/unblock'),
   deleteUser: (id: number) => post('/admin/users/' + id + '/delete'),
-  respondToApplication: (id: number) => post('/applications/' + id + '/respond'),
-  acceptResponse: (id: number, responseId: number) => post('/applications/' + id + '/responses/' + responseId + '/accept'),
-  rejectResponse: (id: number, responseId: number) => post('/applications/' + id + '/responses/' + responseId + '/reject'),
-  resolveApplication: (id: number) => post('/applications/' + id + '/resolve'),
-  rateVolunteer: (id: number, helper_id: number, is_positive: boolean) => post('/applications/' + id + '/rate-volunteer-simple', { helper_id, is_positive }),
+  respondToApplication: (id: ApplicationRef) => post('/applications/' + id + '/respond'),
+  acceptResponse: (id: ApplicationRef, responseId: number) => post('/applications/' + id + '/responses/' + responseId + '/accept'),
+  rejectResponse: (id: ApplicationRef, responseId: number) => post('/applications/' + id + '/responses/' + responseId + '/reject'),
+  resolveApplication: (id: ApplicationRef) => post('/applications/' + id + '/resolve'),
+  rateVolunteer: (id: ApplicationRef, helper_id: number, is_positive: boolean) => post('/applications/' + id + '/rate-volunteer-simple', { helper_id, is_positive }),
   getNews: (limit = 20, offset = 0) => get<{ news: NewsItem[]; total: number }>('/news', { limit, offset }),
   getSingleNews: (id: number) => get<NewsItem>('/news/' + id),
   getAdminNews: () => get<{ news: NewsItem[]; total: number }>('/admin/news'),

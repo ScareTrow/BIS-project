@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [userApplications, setUserApplications] = useState<Application[]>([]);
   const [userResponses, setUserResponses] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(true);
+  const [activity, setActivity] = useState<'requests' | 'responses'>('requests');
 
   useEffect(() => {
     loadProfile();
@@ -260,8 +261,14 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="text-xl font-semibold mb-4">Мои последние заявки</h3>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={activity === 'requests'} className={`btn ${activity === 'requests' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActivity('requests')}>{t('profile.requests')}</button>
+            <button type="button" aria-pressed={activity === 'responses'} className={`btn ${activity === 'responses' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActivity('responses')}>{t('profile.responses')}</button>
+          </div>
+          <div className="card" hidden={activity !== 'requests'}>
+            <h3 className="text-xl font-semibold mb-4">{t('profile.requests')}</h3>
             {loadingApplications ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -271,7 +278,7 @@ export default function ProfilePage() {
                 {userApplications.map((app: any) => (
                   <Link
                     key={app.id}
-                    href={`/applications/${app.id}`}
+                    href={`/applications/${app.public_id || app.id}`}
                     className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -321,8 +328,8 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="card">
-            <h3 className="text-xl font-semibold mb-4">Заявки, на которые я откликнулся</h3>
+          <div className="card" hidden={activity !== 'responses'}>
+            <h3 className="text-xl font-semibold mb-4">{t('profile.responses')}</h3>
             {loadingApplications ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -332,7 +339,7 @@ export default function ProfilePage() {
                 {userResponses.map((app: any) => (
                   <Link
                     key={app.id}
-                    href={`/applications/${app.id}`}
+                    href={`/applications/${app.public_id || app.id}`}
                     className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -471,7 +478,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     {rating.comment && (
-                      <p className="text-sm text-gray-700 mt-2 pl-13 italic">"{rating.comment}"</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-700">{rating.comment}</p>
                     )}
                   </div>
                 ))}

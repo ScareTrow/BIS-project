@@ -91,7 +91,7 @@ export default function HomePage() {
   return <PageContainer>
     <PageHeader title={t('home.hero.title')} description={t('home.hero.subtitle')} />
     <div className="flex flex-wrap gap-3">
-      <Link href={user?.is_authenticated ? '/applications/new' : '/login'} className={buttonClassName()}>{t('home.hero.createApplication')}</Link>
+      <Link href={user?.is_authenticated ? '/applications/new' : '/login?next=%2Fapplications%2Fnew'} className={buttonClassName()}>{t('home.hero.createApplication')}</Link>
       <a href="#request-map" className={buttonClassName({ variant: 'secondary' })}>{t('home.helpOthers')}</a>
       {sosAction}
     </div>

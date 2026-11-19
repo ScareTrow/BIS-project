@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Aid, Capability, communityApi } from "@/lib/community-api";
-import { ApplicationResponse } from "@/lib/api";
+import { ApplicationRef, ApplicationResponse } from "@/lib/api";
 import { StarRating } from '@/components/ui/StarRating';
 import { Textarea } from '@/components/ui/Input';
 import { useStore } from '@/lib/store';
@@ -13,7 +13,7 @@ export default function RequestAid({
   isAuthor,
   onChange,
 }: {
-  applicationId: number;
+  applicationId: ApplicationRef;
   responses: ApplicationResponse[];
   isAuthor: boolean;
   onChange: () => void;

@@ -1,6 +1,7 @@
 'use client';
 
-import { Heart, Mail, Phone } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
 
@@ -23,10 +24,10 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-semibold mb-4">{t('footer.quickLinks')}</h4>
             <ul className="space-y-2 text-blue-200 text-sm">
-              <li><a href="/" className="hover:text-white transition-colors">{t('nav.home')}</a></li>
-              <li><a href="/applications" className="hover:text-white transition-colors">{t('nav.applications')}</a></li>
-              <li><a href="/news" className="hover:text-white transition-colors">{t('nav.news')}</a></li>
-              <li><a href="/about" className="hover:text-white transition-colors">{t('nav.about')}</a></li>
+              <li><Link href="/" className="hover:text-white transition-colors">{t('nav.home')}</Link></li>
+              <li><Link href="/applications" className="hover:text-white transition-colors">{t('nav.applications')}</Link></li>
+              <li><Link href="/news" className="hover:text-white transition-colors">{t('nav.news')}</Link></li>
+              <li><Link href="/about" className="hover:text-white transition-colors">{t('nav.about')}</Link></li>
             </ul>
           </div>
           <div>

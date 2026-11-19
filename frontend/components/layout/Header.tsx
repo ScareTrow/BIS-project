@@ -17,7 +17,7 @@ export default function Header() {
   navigation.current = router;
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user, setUser, language, setLanguage: setLang, viewMode, setViewMode } = useStore();
+  const { user, setUser, language, setLanguage: setLang } = useStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -28,16 +28,15 @@ export default function Header() {
   const notificationVersion = useRef(0);
   const seen = useRef<Set<number> | null>(null);
   const t = useTranslation(language);
+  const translate = useRef(t);
+  translate.current = t;
+  useEffect(() => { document.documentElement.lang = language; }, [language]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedLang = getLanguage();
       if (storedLang !== language) {
         setLang(storedLang);
-      }
-      const storedViewMode = (localStorage.getItem('viewMode') as 'map' | 'list') || 'map';
-      if (storedViewMode !== viewMode) {
-        setViewMode(storedViewMode);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,8 +67,11 @@ export default function Header() {
       if (seen.current) {
         for (const item of items.slice().reverse()) {
           if (!item.is_read && !seen.current.has(item.id)) showToast?.({
-            id: `notification-${item.id}`, title: item.title, message: item.message,
-            onClick: item.related_application_id ? () => navigation.current.push(`/applications/${item.related_application_id}`) : undefined,
+            id: `notification-${item.id}`, title: item.title,
+            message: item.related_application_category && item.related_application_id
+              ? item.message.replace(`#${item.related_application_id}`, `«${translate.current(`category.${item.related_application_category}`)}»`)
+              : item.message,
+            onClick: item.related_application_id ? () => navigation.current.push(`/applications/${item.related_application_public_id || item.related_application_id}`) : undefined,
           });
           seen.current.add(item.id);
         }

@@ -9,14 +9,16 @@ import { useTranslation } from '@/lib/i18n';
 
 const LocationMap = dynamic(() => import('./ApplicationMap'), { ssr: false });
 
-export default function AddressPicker({ title = 'Местоположение', city = '', value, onChange }: {
+export default function AddressPicker({ title, city = '', value, onChange }: {
   title?: string;
   city?: string;
   value: LocationPoint | null;
   onChange: (point: LocationPoint | null) => void;
 }) {
   const id = useId();
-  const t = useTranslation(useStore(state => state.language));
+  const language = useStore(state => state.language);
+  const t = useTranslation(language);
+  const sectionTitle = title || t('location.title');
   const lookupVersion = useRef(0);
   useEffect(() => () => { lookupVersion.current++; }, []);
   const profileCity = useStore(state => state.user?.city);
@@ -29,27 +31,27 @@ export default function AddressPicker({ title = 'Местоположение', 
 
   async function search() {
     if (busy) return;
-    if (query.trim().length < 3) { setMessage('Введите хотя бы 3 символа адреса или названия здания'); return; }
+    if (query.trim().length < 3) { setMessage(t('location.searchShort')); return; }
     setBusy(true); setMessage(''); setResults([]);
     try {
       const points = await apiClient.searchLocations(query.trim(), region);
       setResults(points);
-      if (!points.length) setMessage('Место не найдено. Уточните адрес и город или выберите точку на карте.');
+      if (!points.length) setMessage(t('location.searchEmpty'));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Не удалось найти адрес');
+      setMessage(error instanceof Error && language === 'ru' ? error.message : t('ui.action.error'));
     } finally { setBusy(false); }
   }
 
-  return <section className="min-w-0 space-y-3" aria-label={title}>
-    <h3 className="font-semibold text-gray-900">{title}</h3>
-    <label htmlFor={id} className="form-field">Адрес или название здания</label>
+  return <section className="min-w-0 space-y-3" aria-label={sectionTitle}>
+    <h3 className="font-semibold text-gray-900">{sectionTitle}</h3>
+    <label htmlFor={id} className="form-field">{t('location.searchLabel')}</label>
     <div className="flex flex-col gap-2 sm:flex-row">
       <input id={id} className="form-input" value={query} maxLength={200}
-        placeholder={region ? `Улица, дом или здание · ${region}` : 'Улица, дом или название здания'}
+        placeholder={region ? `${t('location.searchPlaceholder')} · ${region}` : t('location.searchPlaceholder')}
         onChange={event => { lookupVersion.current++; setQuery(event.target.value); setResults([]); onChange(null); }}
         onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); search(); } }} />
       <button type="button" className="btn btn-outline shrink-0" disabled={busy} onClick={search}>
-        {busy ? 'Ищем…' : 'Найти'}
+        {busy ? t('ui.loading') : t('location.search')}
       </button>
     </div>
     {!!results.length && <ul className="overflow-hidden rounded-lg border border-gray-200 divide-y divide-gray-100">

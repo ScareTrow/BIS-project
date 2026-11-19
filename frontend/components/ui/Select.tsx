@@ -56,9 +56,9 @@ export function Select<Value extends string>({ label, value, options, onChange, 
 
   return <div ref={wrapper} className="relative min-w-0">
     <span id={`${id}-label`} className={hideLabel ? 'sr-only' : 'mb-2 block text-sm font-medium text-gray-700'}>{label}</span>
-    <button ref={trigger} type="button" className="form-select flex items-center justify-between gap-2 text-left"
+    <button ref={trigger} type="button" className={`form-select flex items-center justify-between gap-2 text-left ${error ? 'border-danger' : ''}`}
       aria-labelledby={`${id}-label ${id}-value`} aria-haspopup="listbox" aria-expanded={open}
-      aria-controls={open ? `${id}-options` : undefined} aria-invalid={error ? true : undefined}
+      aria-controls={open ? `${id}-options` : undefined}
       aria-describedby={error ? `${id}-error` : undefined} disabled={disabled || first < 0}
       onClick={() => open ? close() : show(selected >= 0 && !options[selected].disabled ? selected : first)}
       onKeyDown={event => {

@@ -42,7 +42,7 @@ export default function ApplicationsPage() {
       <div><h1 className="text-3xl font-bold">Заявки на помощь</h1>
         {city && <Badge tone="info" className="mt-2">{city}</Badge>}
       </div>
-      <Link href={user?.is_authenticated ? '/applications/new' : '/login'} className="btn btn-primary">Попросить помощь</Link>
+      <Link href={user?.is_authenticated ? '/applications/new' : '/login?next=%2Fapplications%2Fnew'} className="btn btn-primary">{t('request.create.title')}</Link>
     </div>
     <div className="max-w-xs"><Select label={t('ui.status')} value={status} onChange={setStatus}
       options={( ['active', 'open', 'in_progress', 'completed'] as const).map(value => ({ value, label: t(`status.${value}`) }))} /></div>

@@ -83,7 +83,7 @@ export default function ListView({ applications }: ListViewProps) {
           </div>
 
           <Link
-            href={`/applications/${app.id}`}
+            href={`/applications/${app.public_id || app.id}`}
             className="block w-full text-center btn btn-primary"
           >
             {t('common.more')}

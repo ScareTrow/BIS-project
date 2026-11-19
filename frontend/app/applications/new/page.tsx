@@ -71,7 +71,7 @@ export default function NewApplicationPage() {
       setError(t('request.create.needsError'));
       return;
     }
-    const photoError = validateRequestPhotos(photos);
+    const photoError = validateRequestPhotos(photos, t);
     if (photoError) { setError(photoError); return; }
     const fields = { description: description.trim(), category, latitude: destination.latitude, longitude: destination.longitude, address: destination.address,
       ...(pickup && category === 'delivery' ? { delivery_details: { pickup: { ...pickup, entrance: pickupEntrance }, dropoff: { ...destination, entrance: dropoffEntrance } } } : {}),
@@ -84,7 +84,7 @@ export default function NewApplicationPage() {
       photos.forEach((f) => data.append("media_files", f));
       const result = await apiClient.createApplication(data);
       setShouldRefreshApplications(true);
-      router.push(`/applications/${result.id}`);
+      router.push(`/applications/${result.public_id || result.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось отправить заявку");
     } finally {

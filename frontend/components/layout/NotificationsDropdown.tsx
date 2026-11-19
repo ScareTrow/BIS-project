@@ -39,11 +39,14 @@ export default function NotificationsDropdown({ notifications, onClose, onMarkRe
       {!notifications.length && <li className="p-6 text-center text-gray-600">{t('notifications.empty')}</li>}
       {notifications.map(item => {
         const Icon = icons[item.notification_type] || Bell;
+        const message = item.related_application_category && item.related_application_id
+          ? item.message.replace(`#${item.related_application_id}`, `«${t(`category.${item.related_application_category}`)}»`)
+          : item.message;
         const content = <>
           <Icon aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-primary" />
           <span className="min-w-0 flex-1">
             <span className="block font-medium">{item.title}</span>
-            <span className="mt-1 block break-words text-sm text-gray-600">{item.message}</span>
+            <span className="mt-1 block break-words text-sm text-gray-600">{message}</span>
             <time dateTime={item.created_at} className="mt-1 block text-xs text-gray-600">
               {new Date(item.created_at).toLocaleString(language === 'en' ? 'en-GB' : language === 'kk' ? 'kk-KZ' : 'ru-RU')}
             </time>
@@ -53,7 +56,7 @@ export default function NotificationsDropdown({ notifications, onClose, onMarkRe
         const read = () => { if (!item.is_read) mark(() => onMarkRead(item.id)); };
         return <li key={item.id} className={!item.is_read ? 'bg-primary-light' : ''}>
           {item.related_application_id
-            ? <Link href={`/applications/${item.related_application_id}`} className={classes} onClick={() => { read(); onClose(); }}>{content}</Link>
+            ? <Link href={`/applications/${item.related_application_public_id || item.related_application_id}`} className={classes} onClick={() => { read(); onClose(); }}>{content}</Link>
             : <button type="button" className={classes} onClick={read}>{content}</button>}
         </li>;
       })}
