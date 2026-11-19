@@ -709,10 +709,15 @@ def applications_list():
 @views.route('/applications/<int:app_id>')
 @login_required
 def application_detail(app_id):
-    application = Application.query.get_or_404(app_id)
-    responses = ApplicationResponse.query.filter_by(
-        application_id=app_id
-    ).all()
+    query = Application.query.filter_by(id=app_id)
+    if not current_user.isAdmin:
+        query = query.filter(or_(Application.user_id == current_user.id,
+                                  Application.moderation_status == ModerationStatus.APPROVED))
+    application = query.first_or_404()
+    response_query = ApplicationResponse.query.filter_by(application_id=app_id)
+    if not current_user.isAdmin and application.user_id != current_user.id:
+        response_query = response_query.filter_by(responder_id=current_user.id)
+    responses = response_query.all()
     user_response = None
     if current_user.is_authenticated:
         user_response = ApplicationResponse.query.filter_by(
@@ -1799,16 +1804,12 @@ def reject_response(app_id, response_id):
 @views.route('/rate-helper/<int:app_id>', methods=['GET', 'POST'])
 @login_required
 def rate_helper(app_id):
-    application = Application.query.get_or_404(app_id)
-    
-    if application.user_id != current_user.id:
-        flash('Вы можете оценивать только помощников по своим заявкам', 'error')
-        return redirect(url_for('views.application_detail', app_id=app_id))
+    application = Application.query.filter_by(id=app_id, user_id=current_user.id).first_or_404()
     
     if request.method == 'POST':
         helper_id = request.form.get('helper_id')
         
-        if not helper_id:
+        if not helper_id or not helper_id.isdecimal():
             flash('Выберите помощника', 'error')
             return redirect(url_for('views.rate_helper', app_id=app_id))
         
@@ -1822,6 +1823,15 @@ def rate_helper(app_id):
             return redirect(url_for('views.rate_helper', app_id=app_id))
         
         comment = request.form.get('comment', '').strip()
+        if len(comment) > 1000:
+            flash('Комментарий должен содержать до 1000 символов', 'error')
+            return redirect(url_for('views.rate_helper', app_id=app_id))
+
+        response = ApplicationResponse.query.filter_by(application_id=app_id, responder_id=int(helper_id),
+            status=ResponseStatus.COMPLETED).with_for_update().first()
+        if not application.is_resolved or response is None:
+            flash('Можно оценить помощника после завершения помощи', 'error')
+            return redirect(url_for('views.application_detail', app_id=app_id))
         
         from .models import User
         helper = User.query.get_or_404(int(helper_id))
