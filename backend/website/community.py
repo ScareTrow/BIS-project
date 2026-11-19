@@ -431,7 +431,7 @@ def matching():
     )
 
 
-@community.get("/api/applications/<int:app_id>/aid")
+@community.get("/api/applications/<appref:app_id>/aid")
 def application_aid(app_id):
     a = Application.query.get_or_404(app_id)
     owner = current_user.is_authenticated and (

@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from sqlalchemy.sql import func
 from sqlalchemy import Enum
 import enum
+from uuid import uuid4
 
 
 class ApplicationCategory(enum.Enum):
@@ -95,6 +96,7 @@ class User(db.Model, UserMixin):
 
 class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.Uuid(), default=uuid4, nullable=False, unique=True)
     description = db.Column(db.String(10000), nullable=False)
     needed_help = db.Column(db.Text)
     address = db.Column(db.Text)

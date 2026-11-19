@@ -85,6 +85,8 @@ def create_app(test_config=None):
 
     db.init_app(app)
     migrate.init_app(app, db, directory=os.path.join(backend_dir, 'migrations'))
+    from .application_refs import register_application_references
+    register_application_references(app)
 
     from .views import views
     from .auth import auth

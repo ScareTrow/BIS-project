@@ -71,7 +71,7 @@ def notify_nearby(application):
         if distance > 10 or notification_exists(user.id, application.id):
             continue
         category = CATEGORY_NAMES[application.category.value]
-        link = f'{Config.WEB_APP_URL.rstrip("/")}/applications/{application.id}'
+        link = f'{Config.WEB_APP_URL.rstrip("/")}/applications/{application.public_id}'
         create_notification(user.id, 'SOS: рядом нужна помощь' if application.is_sos else 'Рядом нужна помощь',
             f'{category} · {distance:.1f} км\n{application.description[:150]}\n{link}',
             'new_request', application.id)
