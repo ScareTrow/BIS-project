@@ -12,6 +12,7 @@ Additional materials: [Google Drive folder](https://drive.google.com/drive/folde
 | Area | Existing implementation |
 |---|---|
 | Home | Request and resource map, city badge, request-status and capability filters, SOS |
+| Aid point submission | Address picker with live location on request, optional photos, review status for the author |
 | Request creation | Description, category, point by address or map, JPEG/PNG photos, optional needs and capabilities |
 | Request detail | Status progression, responses, restricted contact, completion, star rating and optional review |
 | Authentication/profile | Registration, profile editing, capability onboarding, Telegram linking and opt-in location updates |
