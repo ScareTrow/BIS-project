@@ -35,6 +35,7 @@ export default function AdminPage() {
       <SectionTitle>{t('admin.quickActions')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
         <Link href="/admin/applications?status=pending" className={buttonClassName({ variant: 'secondary' })}>{t('admin.moderation.title')}</Link>
+        <Link href="/admin/resources" className={buttonClassName({ variant: 'secondary' })}>{t('resources.moderation')}</Link>
         <Link href="/admin/users" className={buttonClassName({ variant: 'secondary' })}>{t('admin.users.title')}</Link>
         <Link href="/admin/news" className={buttonClassName({ variant: 'secondary' })}>{t('nav.news')}</Link>
       </div>

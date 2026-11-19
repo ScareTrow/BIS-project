@@ -115,6 +115,9 @@ class Resource(db.Model):
     name = db.Column(db.String(160), nullable=False)
     description = db.Column(db.Text)
     address = db.Column(db.Text)
+    moderation_status = db.Column(db.String(16), nullable=False, default="pending", server_default="pending")
+    rejection_reason = db.Column(db.String(1000))
+    photos = db.Column(db.JSON)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     availability = db.Column(
@@ -131,6 +134,8 @@ class Resource(db.Model):
         onupdate=func.now(),
     )
     __table_args__ = (
+        db.CheckConstraint("moderation_status IN ('pending', 'approved', 'rejected')",
+                           name="ck_resource_moderation_status"),
         db.CheckConstraint(
             "availability IN ('available', 'unavailable', 'outdated')",
             name="ck_resource_availability",

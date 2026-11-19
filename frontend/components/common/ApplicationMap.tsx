@@ -8,11 +8,14 @@ import MapContainer from './LeafletMap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import LeafletIconFix from './LeafletIconFix';
+import CurrentLocationMarker from './CurrentLocationMarker';
+import type { MapPosition } from './CurrentLocationControl';
 
 interface ApplicationMapProps {
   center: [number, number];
   onLocationSelect: (lat: number, lng: number) => void;
   selected?: boolean;
+  userPosition?: MapPosition;
 }
 
 function LocationMarker({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) {
@@ -52,7 +55,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export default function ApplicationMap({ center, onLocationSelect, selected = true }: ApplicationMapProps) {
+export default function ApplicationMap({ center, onLocationSelect, selected = true, userPosition }: ApplicationMapProps) {
   const markerRef = useRef<L.Marker>(null);
 
   useEffect(() => {
@@ -92,6 +95,7 @@ export default function ApplicationMap({ center, onLocationSelect, selected = tr
         })}
       />}
       <LocationMarker onLocationSelect={onLocationSelect} />
+      {userPosition && <CurrentLocationMarker point={userPosition} />}
     </MapContainer>
     </div>
   );

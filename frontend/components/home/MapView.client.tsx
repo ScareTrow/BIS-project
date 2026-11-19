@@ -5,12 +5,13 @@ import { mapTiles } from '@/lib/mapTiles';
 import CategoryBadge from '@/components/common/CategoryBadge';
 import { Application, ApplicationCategory } from '@/lib/api';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { communityApi, Resource } from '@/lib/community-api';
 import { useStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
 import { CircleMarker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MapContainer from '@/components/common/LeafletMap';
+import CurrentLocationMarker from '@/components/common/CurrentLocationMarker';
+import type { MapPosition } from '@/components/common/CurrentLocationControl';
 import ApplicationMarker from './ApplicationMarker';
 import MapResizeHandler from './MapResizeHandler';
 import MapInitializer from './MapInitializer';
@@ -19,6 +20,7 @@ interface MapViewProps {
   applications: Application[];
   center?: [number, number];
   city?: string;
+  userPosition?: MapPosition;
 }
 
 type CategoryFilter = ApplicationCategory | 'all';
@@ -36,7 +38,7 @@ function MapCenterController({ center }: { center?: [number, number] }) {
   return null;
 }
 
-export default function MapView({ applications, center, city }: MapViewProps) {
+export default function MapView({ applications, center, city, userPosition }: MapViewProps) {
   const t = useTranslation(useStore(state => state.language));
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [resources, setResources] = useState<Resource[]>([]);
@@ -112,12 +114,17 @@ export default function MapView({ applications, center, city }: MapViewProps) {
                 <Popup>
                   <strong>{resource.name}</strong>
                   <p>{t(`resources.${resource.availability}`)}</p>
-                  <Link href={`/resources#resource-${resource.id}`}>{t('common.more')}</Link>
+                  {resource.address && <p>{resource.address}</p>}
+                  {resource.description && <p className="max-h-28 overflow-y-auto break-words">{resource.description}</p>}
+                  {resource.photos?.[0] && <a href={resource.photos[0]} target="_blank" rel="noreferrer">
+                    <img src={resource.photos[0]} alt={t('resources.photo')} className="max-h-28 w-full rounded object-contain" />
+                  </a>}
                 </Popup>
               </CircleMarker>)}
               {filteredApplications.map((app) => (
                 <ApplicationMarker key={app.id} application={app} />
               ))}
+              {userPosition && <CurrentLocationMarker point={userPosition} />}
             </MapContainer>
         </div>
       </div>

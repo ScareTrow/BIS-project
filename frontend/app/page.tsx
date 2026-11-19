@@ -1,6 +1,7 @@
 'use client';
 
 import MapView from '@/components/home/MapView';
+import { CurrentLocationControl, useCurrentLocation } from '@/components/common/CurrentLocationControl';
 import SOSDialog from '@/components/home/SOSDialog';
 import { Badge } from '@/components/ui/Badge';
 import { Button, buttonClassName } from '@/components/ui/Button';
@@ -32,9 +33,10 @@ export default function HomePage() {
   const [guestCity, setGuestCity] = useState(defaultCity);
   const [sosCenter, setSosCenter] = useState<[number, number] | null>(null);
   const [revision, setRevision] = useState(0);
+  const currentLocation = useCurrentLocation();
   const city = (user?.city && (getCityByName(user.city)?.name || user.city)) || guestCity;
   const cityPoint = getCityByName(city);
-  const center = sosCenter || (cityPoint ? [cityPoint.lat, cityPoint.lng] as [number, number] : undefined);
+  const center = sosCenter || currentLocation.fix?.initial || (cityPoint ? [cityPoint.lat, cityPoint.lng] as [number, number] : undefined);
   const onlyMatches = matching && !!user?.is_authenticated;
 
   useEffect(() => {
@@ -117,6 +119,7 @@ export default function HomePage() {
           options={[{ value: 'all', label: t('home.allRequests') }, { value: 'matching', label: t('home.matchingRequests') }]} />}
       </div>
       <div className="flex flex-wrap items-center gap-3">
+        <CurrentLocationControl {...currentLocation} />
         <Link href="/applications" className="text-primary underline">{t('home.hero.viewAll')}</Link>
         {user?.is_authenticated && <Button size="sm" variant="ghost" onClick={openSOS}>{t('home.mapSOS')}</Button>}
       </div>
@@ -125,7 +128,7 @@ export default function HomePage() {
       {!loading && !error && applications.length === 0 && <p className="text-gray-600">
         {t(onlyMatches ? 'home.noMatches' : 'home.noApplications')}{onlyMatches && <> <Link href="/profile/edit" className="text-primary underline">{t('home.preferences')}</Link></>}
       </p>}
-      <MapView applications={applications} center={center} city={city} />
+      <MapView applications={applications} center={center} city={city} userPosition={currentLocation.fix?.point} />
     </section>
   </PageContainer>;
 }

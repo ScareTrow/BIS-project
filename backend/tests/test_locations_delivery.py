@@ -75,12 +75,16 @@ def test_delivery_rejects_incomplete_or_invalid_route(app, client, test_user, ba
         assert Application.query.count() == 0
 
 
-def test_resources_filter_by_type_and_preserve_address(app, client, test_user):
+def test_resources_filter_by_type_and_preserve_address(app, client, test_user, admin_user):
     login(client, test_user)
+    moderator = app.test_client()
+    login(moderator, admin_user, 'Admin1234!@#$')
     for category in ('medicine', 'food', 'shelter'):
         response = client.post('/api/resources', json=dict(name=category, city='Алматы', category=category,
             latitude=43.22, longitude=76.91, address='Абая 10'))
         assert response.status_code == 201
+        assert moderator.post(f"/api/admin/resources/{response.json['id']}/review",
+                              json={'decision': 'approved'}).status_code == 200
     filtered = client.get('/api/resources?category=medicine')
     assert [r['category'] for r in filtered.json] == ['medicine']
     assert filtered.json[0]['address'] == 'Абая 10'
@@ -102,6 +106,7 @@ def test_delivery_migration_preserves_delivered_quantities_and_existing_requests
         db.session.execute(text('ALTER TABLE "user" DROP COLUMN capability_onboarding_seen'))
         db.session.execute(text('ALTER TABLE rating DROP COLUMN is_hidden'))
         db.session.execute(text('ALTER TABLE application DROP COLUMN public_id'))
+        db.session.execute(text('ALTER TABLE resources DROP COLUMN moderation_status, DROP COLUMN rejection_reason, DROP COLUMN photos'))
         params = dict(a=test_application.id, r=test_response[0].id)
         nid = db.session.execute(text("INSERT INTO application_needs (application_id,resource_name,unit,quantity_needed) VALUES (:a,'Вода','л',10) RETURNING id"), params).scalar()
         db.session.execute(text("INSERT INTO contributions (application_id,need_id,response_id,quantity_promised,quantity_delivered,status,created_at,updated_at) VALUES (:a,:n,:r,5,2,'promised',now(),now())"), {**params, 'n': nid})

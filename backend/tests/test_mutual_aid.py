@@ -297,7 +297,7 @@ def test_two_helpers_share_one_need(app, client, test_user, helper, test_applica
 
 
 
-def test_resource_owner_confirmation_and_expiration(app, client, test_user, helper):
+def test_resource_owner_confirmation_and_expiration(app, client, test_user, helper, admin_user):
     login(client, test_user)
     created = client.post(
         "/api/resources",
@@ -311,6 +311,9 @@ def test_resource_owner_confirmation_and_expiration(app, client, test_user, help
     )
     assert created.status_code == 201
     rid = created.json["id"]
+    moderator = app.test_client()
+    login(moderator, admin_user, 'Admin1234!@#$')
+    assert moderator.post(f'/api/admin/resources/{rid}/review', json={'decision': 'approved'}).status_code == 200
     reminder = client.post(f"/api/resources/{rid}/reminders")
     cid = reminder.json["id"]
     assert reminder.status_code == 201

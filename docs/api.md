@@ -20,6 +20,12 @@ The authoritative implementations are `backend/website/views.py` and `auth.py`. 
 | POST /api/user/capabilities/onboarding | Session cookie | `show: true` for the first claim of the onboarding prompt |
 | POST /api/responses/{id}/rating | Request author, a completed response, score 1–5, optional comment up to 1000 characters | HTTP 201 and rating ID |
 | POST /api/admin/reviews/{id}/hide | Administrator session | Hide the review comment while retaining the score |
+| GET /api/resources | Optional city and category | Approved aid points and their photos |
+| POST /api/resources | Signed-in user; JSON fields or multipart with optional `media_files` | HTTP 201, pending aid point |
+| GET /api/resources/mine | Session cookie | The author's aid points and review status |
+| GET /api/resources/{id}/photos/{filename} | Approved point, author or administrator | Photo or HTTP 404 |
+| GET /api/admin/resources | Administrator session | Pending aid points and their photos |
+| POST /api/admin/resources/{id}/review | Administrator session; `decision` is `approved` or `rejected`, with `reason` for rejection | Updated aid point |
 
 Map points carry numeric `latitude` and `longitude`. GeoJSON geometry uses
 `[longitude, latitude]` as required by GeoJSON. The map omits completed and

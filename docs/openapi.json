@@ -1891,7 +1891,7 @@
     "/api/resources": {
       "get": {
         "operationId": "resources_get",
-        "summary": "resources",
+        "summary": "List approved aid points",
         "tags": [
           "Mutual aid"
         ],
@@ -1919,15 +1919,12 @@
       },
       "post": {
         "operationId": "resources_post",
-        "summary": "resources",
+        "summary": "Submit an aid point for moderation",
         "tags": [
           "Mutual aid"
         ],
         "description": "General route inventory; payload and ownership details: docs/mutual-aid-implementation.md.",
         "responses": {
-          "200": {
-            "description": "Successful response; see implementation for envelope"
-          },
           "400": {
             "description": "Invalid input"
           },
@@ -1944,14 +1941,101 @@
             "description": "Conflicting state or duplicate change"
           },
           "201": {
-            "description": "Created where applicable; see implementation"
+            "description": "Pending aid point"
+          },
+          "413": {
+            "description": "Photo too large"
+          },
+          "415": {
+            "description": "Unsupported photo format"
           }
         },
         "security": [
           {
             "sessionCookie": []
           }
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "latitude",
+                  "longitude"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "latitude": {
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "latitude",
+                  "longitude"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "latitude": {
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "type": "number"
+                  },
+                  "media_files": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/resources/{resource_id}/reminders": {
@@ -2287,6 +2371,133 @@
             }
           }
         ]
+      }
+    },
+    "/api/resources/mine": {
+      "get": {
+        "operationId": "my_resources",
+        "summary": "List your aid point submissions",
+        "responses": {
+          "200": {
+            "description": "List your aid point submissions"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/admin/resources": {
+      "get": {
+        "operationId": "resource_review_queue",
+        "summary": "List pending aid points for administrators",
+        "responses": {
+          "200": {
+            "description": "List pending aid points for administrators"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/resources/{resource_id}/photos/{filename}": {
+      "get": {
+        "operationId": "resource_photo",
+        "summary": "Read a photo from an approved point or as an authorized reviewer",
+        "responses": {
+          "200": {
+            "description": "Read a photo from an approved point or as an authorized reviewer"
+          },
+          "302": {
+            "description": "Short-lived signed storage URL"
+          },
+          "404": {
+            "description": "Photo not found or not visible"
+          }
+        },
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/resources/{resource_id}/review": {
+      "post": {
+        "operationId": "review_resource",
+        "summary": "Approve or reject a pending aid point",
+        "responses": {
+          "200": {
+            "description": "Approve or reject a pending aid point"
+          },
+          "400": {
+            "description": "Invalid decision or missing rejection reason"
+          },
+          "403": {
+            "description": "Administrator required"
+          },
+          "409": {
+            "description": "Already reviewed"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "decision"
+                ],
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "approved",
+                      "rejected"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },

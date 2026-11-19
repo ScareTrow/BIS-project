@@ -6,15 +6,18 @@ import { useStore } from '@/lib/store';
 import { getCityByName } from '@/lib/kazakhstanCities';
 import { apiClient, LocationPoint } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
+import type { MapPosition } from './CurrentLocationControl';
 
 const LocationMap = dynamic(() => import('./ApplicationMap'), { ssr: false });
 
-export default function AddressPicker({ title, city = '', value, onChange, allowCurrentLocation }: {
+export default function AddressPicker({ title, city = '', value, onChange, allowCurrentLocation, userPosition, userCenter }: {
   title?: string;
   city?: string;
   value: LocationPoint | null;
   onChange: (point: LocationPoint | null) => void;
   allowCurrentLocation?: boolean;
+  userPosition?: MapPosition;
+  userCenter?: MapPosition;
 }) {
   const id = useId();
   const language = useStore(state => state.language);
@@ -90,7 +93,8 @@ export default function AddressPicker({ title, city = '', value, onChange, allow
     {message && <p role="status" className="text-sm text-gray-600">{message}</p>}
     {value && <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('location.selected', { address: value.address || t('location.selectedPoint') })}</p>}
     <LocationMap selected={value !== null}
-      center={value ? [value.latitude, value.longitude] : cityPoint ? [cityPoint.lat, cityPoint.lng] : [43.222, 76.8512]}
+      center={value ? [value.latitude, value.longitude] : userCenter || (cityPoint ? [cityPoint.lat, cityPoint.lng] : [43.222, 76.8512])}
+      userPosition={userPosition}
       onLocationSelect={choosePoint} />
   </section>;
 }

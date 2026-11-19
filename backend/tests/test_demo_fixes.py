@@ -96,7 +96,8 @@ def test_address_search_defaults_to_profile_region_and_uses_short_label(client,t
 def test_resources_and_stats_share_the_profile_region(app,client,test_user):
     with app.app_context():
         for city in ('Алматы','Almaty','Астана'):
-            db.session.add(Resource(owner_id=test_user.id,name='Вода',category='food',city=city,latitude=43.22,longitude=76.85))
+            db.session.add(Resource(owner_id=test_user.id,name='Вода',category='food',city=city,latitude=43.22,longitude=76.85,
+                                    moderation_status='approved'))
         db.session.commit()
     login(client,test_user)
     assert len(client.get('/api/resources?city=all').json)==2

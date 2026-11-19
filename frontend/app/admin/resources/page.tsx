@@ -1,0 +1,81 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import CategoryBadge from '@/components/common/CategoryBadge';
+import { InlineConfirm, ActionFeedback } from '@/components/ui/ActionFeedback';
+import { Card } from '@/components/ui/Card';
+import { Textarea } from '@/components/ui/Input';
+import { PageContainer } from '@/components/ui/PageContainer';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { communityApi, type Resource } from '@/lib/community-api';
+import { useTranslation } from '@/lib/i18n';
+import { useStore } from '@/lib/store';
+
+function ReviewCard({ resource, onReviewed }: { resource: Resource; onReviewed: () => void }) {
+  const t = useTranslation(useStore(state => state.language));
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function review(decision: 'approved' | 'rejected') {
+    setBusy(true);
+    try {
+      await communityApi.reviewResource(resource.id, decision, reason.trim());
+      onReviewed();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <Card className="space-y-4">
+    <div className="flex flex-wrap items-center gap-2">
+      <h2 className="text-xl font-semibold">{resource.name}</h2>
+      <CategoryBadge category={resource.category} />
+    </div>
+    <p>{resource.city}{resource.address ? ` · ${resource.address}` : ''}</p>
+    {resource.description && <p className="whitespace-pre-wrap break-words">{resource.description}</p>}
+    <a className="text-primary underline" target="_blank" rel="noreferrer"
+      href={`https://www.openstreetmap.org/?mlat=${resource.latitude}&mlon=${resource.longitude}#map=17/${resource.latitude}/${resource.longitude}`}>
+      {t('resources.inspectMap')}
+    </a>
+    {!!resource.photos?.length && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {resource.photos.map(photo => <a href={photo} key={photo} target="_blank" rel="noreferrer">
+        <img className="h-32 w-full rounded border object-contain" src={photo} alt={t('resources.photo')} />
+      </a>)}
+    </div>}
+    <Textarea id={`resource-reason-${resource.id}`} label={t('admin.moderation.reason')} rows={2}
+      maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} />
+    <div className="flex flex-wrap items-start gap-2">
+      <InlineConfirm disabled={busy} prompt={t('resources.approvePrompt')} onConfirm={() => review('approved')}>
+        {t('admin.moderation.approve')}
+      </InlineConfirm>
+      <InlineConfirm danger disabled={busy || !reason.trim()} prompt={t('resources.rejectPrompt')} onConfirm={() => review('rejected')}>
+        {t('admin.moderation.reject')}
+      </InlineConfirm>
+    </div>
+  </Card>;
+}
+
+export default function AdminResourcesPage() {
+  const { user, language, authLoading } = useStore();
+  const t = useTranslation(language);
+  const [queue, setQueue] = useState<Resource[] | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    let active = true;
+    communityApi.resourceReviewQueue().then(rows => { if (active) setQueue(rows); })
+      .catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [user?.isAdmin]);
+  if (authLoading) return <p role="status">{t('ui.loading')}</p>;
+  if (!user?.isAdmin) return null;
+  return <PageContainer width="content">
+    <Link href="/admin" className="text-primary underline">{t('admin.title')}</Link>
+    <PageHeader title={t('resources.moderation')} />
+    {error ? <ActionFeedback message={t('resources.loadError')} error /> : queue === null
+      ? <p role="status">{t('ui.loading')}</p>
+      : queue.length === 0 ? <Card><p>{t('resources.emptyQueue')}</p></Card>
+      : queue.map(resource => <ReviewCard key={resource.id} resource={resource}
+        onReviewed={() => setQueue(rows => rows?.filter(item => item.id !== resource.id) ?? [])} />)}
+  </PageContainer>;
+}

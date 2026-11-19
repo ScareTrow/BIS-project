@@ -9,7 +9,7 @@
 | Uploads | Approved image attachments are public. Verification PDFs, pending images and unpublished images are limited to author and administrator. | Flask checks the related request before forwarding to storage. |
 | Notifications | Recipient only. | Notification reads and updates include the current user in the query. New request links use the request UUID. |
 | Reviews | Author rates a completed response. Administrators may hide review text. | Rating is unique per request and helper. Hidden review text is excluded from the JSON profile representation. |
-| Resources | Public map. Resource owner manages availability; administrators manage policy. | Resource and confirmation endpoints have their own owner and role checks. |
+| Resources | Approved points and their photos appear on the public home map. Owners and administrators can inspect their eligible pending or rejected submissions. | Admins review submissions. Photo authorization is checked before signing storage URLs. Resource owners can answer availability reminders for published points. |
 | Administration | Administrator role for moderation and news. Privileged user actions have additional role checks. | Flask checks role independently of navigation. |
 | Telegram | Authenticated account creates the short-lived linking token. Webhook requires its configured secret. | Telegram implementation continues to use internal identifiers for its state. |
 
