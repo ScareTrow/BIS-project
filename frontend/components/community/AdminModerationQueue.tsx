@@ -37,15 +37,15 @@ function RequestActions({ request, refresh }: { request: ModerationApplication; 
     {reviewable && <Textarea id={`reason-${request.id}`} label={t('admin.moderation.reason')} rows={2}
       maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} />}
     <div className="flex flex-wrap items-start gap-2">
-      <Link href={`/applications/${request.id}`} className={buttonClassName({ variant: 'ghost', size: 'sm' })}>{t('common.more')}</Link>
+      <Link href={`/applications/${request.public_id || request.id}`} className={buttonClassName({ variant: 'ghost', size: 'sm' })}>{t('common.more')}</Link>
       {reviewable && <>
         <InlineConfirm prompt={t('admin.moderation.approvePrompt')} success={t('status.approved')}
-          onConfirm={() => perform(() => apiClient.approveApplication(request.id))}>{t('admin.moderation.approve')}</InlineConfirm>
+          onConfirm={() => perform(() => apiClient.approveApplication(request.public_id || request.id))}>{t('admin.moderation.approve')}</InlineConfirm>
         <InlineConfirm prompt={t('admin.moderation.rejectPrompt')} success={t('status.rejected')} danger disabled={!reason.trim()}
-          onConfirm={() => perform(() => apiClient.rejectApplication(request.id, reason.trim()))}>{t('admin.moderation.reject')}</InlineConfirm>
+          onConfirm={() => perform(() => apiClient.rejectApplication(request.public_id || request.id, reason.trim()))}>{t('admin.moderation.reject')}</InlineConfirm>
       </>}
       {status === 'approved' && !request.is_false_call && <InlineConfirm prompt={t('admin.moderation.falsePrompt')}
-        success={t('status.false_call')} danger onConfirm={() => perform(() => apiClient.markFalseApplication(request.id))}>
+        success={t('status.false_call')} danger onConfirm={() => perform(() => apiClient.markFalseApplication(request.public_id || request.id))}>
         {t('status.false_call')}
       </InlineConfirm>}
     </div>
@@ -53,7 +53,7 @@ function RequestActions({ request, refresh }: { request: ModerationApplication; 
       <Select label={t('application.priority')} value={priority} onChange={setPriority}
         options={[0, 1, 2, 3, 4, 5].map(value => ({ value: String(value), label: String(value) }))} />
       <InlineConfirm prompt={t('admin.moderation.priorityPrompt')} disabled={Number(priority) === request.priority}
-        onConfirm={() => perform(() => apiClient.setApplicationPriority(request.id, Number(priority)))}>
+        onConfirm={() => perform(() => apiClient.setApplicationPriority(request.public_id || request.id, Number(priority)))}>
         {t('admin.moderation.priority')}
       </InlineConfirm>
     </div>}

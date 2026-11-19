@@ -1,4 +1,7 @@
 'use client';
+import { ActionFeedback, InlineConfirm } from '@/components/ui/ActionFeedback';
+import { Select } from '@/components/ui/Select';
+import { useTranslation } from '@/lib/i18n';
 
 import { apiClient } from '@/lib/api';
 import { useStore } from '@/lib/store';
@@ -21,6 +24,8 @@ interface NewsItem {
 }
 
 export default function AdminNewsPage() {
+    const t = useTranslation(useStore(state => state.language));
+    const [saveError, setSaveError] = useState('');
     const router = useRouter();
     const { user, authLoading } = useStore();
     const [loading, setLoading] = useState(true);
@@ -57,6 +62,7 @@ export default function AdminNewsPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSaveError('');
         try {
             if (editingNews) {
                 await apiClient.updateNews(editingNews.id, formData);
@@ -69,7 +75,7 @@ export default function AdminNewsPage() {
             loadNews();
         } catch (error) {
             console.error('Error saving news:', error);
-            alert('Ошибка при сохранении новости');
+            setSaveError(error instanceof Error ? error.message : t('ui.action.error'));
         }
     };
 
@@ -85,26 +91,13 @@ export default function AdminNewsPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm('Вы уверены, что хотите удалить эту новость?')) {
-            return;
-        }
-        try {
-            await apiClient.deleteNews(id);
-            loadNews();
-        } catch (error) {
-            console.error('Error deleting news:', error);
-            alert('Ошибка при удалении новости');
-        }
+        await apiClient.deleteNews(id);
+        await loadNews();
     };
 
     const handleTogglePublish = async (news: NewsItem) => {
-        try {
-            await apiClient.updateNews(news.id, { is_published: !news.is_published });
-            loadNews();
-        } catch (error) {
-            console.error('Error updating news:', error);
-            alert('Ошибка при обновлении новости');
-        }
+        await apiClient.updateNews(news.id, { is_published: !news.is_published });
+        await loadNews();
     };
 
     const formatDate = (dateString: string) => {
@@ -186,22 +179,10 @@ export default function AdminNewsPage() {
                                 required
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Тип новости
-                            </label>
-                            <select
-                                value={formData.news_type}
-                                onChange={(e) => setFormData({ ...formData, news_type: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="general">Общее</option>
-                                <option value="stats">Статистика</option>
-                                <option value="location">Местоположение</option>
-                                <option value="safety">Безопасность</option>
-                                <option value="volunteers">Волонтеры</option>
-                            </select>
-                        </div>
+                        <Select label={t('news.type')} value={formData.news_type}
+                          onChange={news_type => setFormData({ ...formData, news_type })}
+                          options={['general', 'stats', 'location', 'safety', 'volunteers'].map(value => ({ value, label: t(`news.type.${value}`) }))} />
+                        <ActionFeedback message={saveError} error />
                         <div className="flex items-center">
                             <input
                                 type="checkbox"
@@ -293,17 +274,10 @@ export default function AdminNewsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end space-x-2">
-                                                <button
-                                                    onClick={() => handleTogglePublish(item)}
-                                                    className="text-blue-600 hover:text-blue-900"
-                                                    title={item.is_published ? 'Снять с публикации' : 'Опубликовать'}
-                                                >
-                                                    {item.is_published ? (
-                                                        <EyeOff className="w-5 h-5" />
-                                                    ) : (
-                                                        <Eye className="w-5 h-5" />
-                                                    )}
-                                                </button>
+                                                <InlineConfirm onConfirm={() => handleTogglePublish(item)}
+                                                  prompt={t(item.is_published ? 'news.unpublishPrompt' : 'news.publishPrompt')}>
+                                                  {t(item.is_published ? 'news.unpublish' : 'news.publish')}
+                                                </InlineConfirm>
                                                 <button
                                                     onClick={() => handleEdit(item)}
                                                     className="text-indigo-600 hover:text-indigo-900"
@@ -311,13 +285,10 @@ export default function AdminNewsPage() {
                                                 >
                                                     <Edit className="w-5 h-5" />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(item.id)}
-                                                    className="text-red-600 hover:text-red-900"
-                                                    title="Удалить"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
+                                                <InlineConfirm onConfirm={() => handleDelete(item.id)} danger
+                                                  prompt={t('news.deletePrompt')} secondPrompt={t('admin.deletePermanent')}>
+                                                  {t('news.delete')}
+                                                </InlineConfirm>
                                             </div>
                                         </td>
                                     </tr>

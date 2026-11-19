@@ -1,4 +1,5 @@
 'use client';
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -131,43 +132,22 @@ export default function AdminUserDetailPage() {
 
   const handleBlock = async () => {
     if (!userDetail) return;
-    if (!confirm(`Заблокировать пользователя на ${blockDays} дней?`)) return;
-
-    try {
-      await apiClient.blockUser(userDetail.id, blockDays, blockReason);
-      await loadUserDetail();
-      setBlockReason('');
-      setBlockDays(7);
-    } catch (error) {
-      console.error('Error blocking user:', error);
-      alert(t('admin.users.blockError'));
-    }
+    await apiClient.blockUser(userDetail.id, blockDays, blockReason);
+    await loadUserDetail();
+    setBlockReason('');
+    setBlockDays(7);
   };
 
   const handleUnblock = async () => {
     if (!userDetail) return;
-    if (!confirm('Разблокировать пользователя?')) return;
-
-    try {
-      await apiClient.unblockUser(userDetail.id);
-      await loadUserDetail();
-    } catch (error) {
-      console.error('Error unblocking user:', error);
-      alert(t('admin.users.unblockError'));
-    }
+    await apiClient.unblockUser(userDetail.id);
+    await loadUserDetail();
   };
 
   const handleDelete = async () => {
     if (!userDetail) return;
-    if (!confirm('ВНИМАНИЕ! Это действие необратимо. Все данные пользователя будут удалены. Продолжить?')) return;
-
-    try {
-      await apiClient.deleteUser(userDetail.id);
-      router.push('/admin/users');
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert(t('admin.users.deleteError'));
-    }
+    await apiClient.deleteUser(userDetail.id);
+    router.push('/admin/users');
   };
 
   const getCategoryBadge = (category: string) => {
@@ -256,7 +236,7 @@ export default function AdminUserDetailPage() {
                   </p>
                 )}
 
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg p-4 mb-4 text-white">
+                <div className="mb-4 rounded-lg border bg-gray-50 p-4 text-gray-900">
                   <div className="text-5xl font-bold mb-2">{userDetail.average_rating.toFixed(1)}</div>
                   <div className="flex justify-center gap-1 mb-2">
                     {[1, 2, 3, 4, 5].map((star) => (
@@ -323,13 +303,9 @@ export default function AdminUserDetailPage() {
                 <h3 className="text-lg font-bold text-red-700 mb-4">Опасные действия</h3>
                 
                 {userDetail.is_blocked ? (
-                  <button
-                    onClick={handleUnblock}
-                    className="w-full btn bg-green-600 text-white hover:bg-green-700 mb-4 flex items-center justify-center gap-2"
-                  >
-                    <Unlock className="w-5 h-5" />
-                    Разблокировать
-                  </button>
+                  <InlineConfirm onConfirm={handleUnblock} prompt={t('admin.users.unblockPrompt')}>
+                    {t('admin.users.unblock')}
+                  </InlineConfirm>
                 ) : (
                   <div className="space-y-3 mb-4">
                     <div>
@@ -357,23 +333,17 @@ export default function AdminUserDetailPage() {
                         placeholder="Например: Ложные вызовы, нарушение правил"
                       />
                     </div>
-                    <button
-                      onClick={handleBlock}
-                      className="w-full btn bg-yellow-600 text-white hover:bg-yellow-700 flex items-center justify-center gap-2"
-                    >
-                      <Ban className="w-5 h-5" />
-                      Заблокировать
-                    </button>
+                    <InlineConfirm onConfirm={handleBlock} danger disabled={blockDays < 1 || blockDays > 365}
+                      prompt={t('admin.users.blockPrompt', { days: blockDays })}>
+                      {t('admin.users.block')}
+                    </InlineConfirm>
                   </div>
                 )}
 
-                <button
-                  onClick={handleDelete}
-                  className="w-full btn bg-red-700 text-white hover:bg-red-800 flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  Удалить пользователя
-                </button>
+                <div className="mt-3"><InlineConfirm onConfirm={handleDelete} danger
+                  prompt={t('admin.users.deletePrompt')} secondPrompt={t('admin.deletePermanent')}>
+                  {t('admin.users.delete')}
+                </InlineConfirm></div>
               </div>
             )}
 
