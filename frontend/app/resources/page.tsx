@@ -59,10 +59,11 @@ export default function ResourcesPage() {
       setFeedback({ message: t('request.create.locationError'), error: true });
       return;
     }
-    const data = new FormData(form);
-    const files = data.getAll('media_files').filter((file): file is File => file instanceof File && !!file.name);
+    const mediaInput = form.elements.namedItem('media_files');
+    const files = mediaInput instanceof HTMLInputElement ? Array.from(mediaInput.files ?? []) : [];
     const photoError = files.length ? validateRequestPhotos(files, t) : null;
     if (photoError) { setFeedback({ message: photoError, error: true }); return; }
+    const data = new FormData(form);
     data.delete('media_files');
     files.forEach(file => data.append('media_files', file));
     data.set('category', category);
