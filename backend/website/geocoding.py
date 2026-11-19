@@ -7,6 +7,7 @@ import requests
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import login_required, current_user
 from .regions import canonical_city
+from .validation import coordinates
 from werkzeug.exceptions import BadRequest, ServiceUnavailable
 
 locations = Blueprint('locations', __name__)
@@ -59,6 +60,22 @@ def search_location():
         format='jsonv2', countrycodes='kz', limit=5, addressdetails=1, namedetails=1)
     return jsonify([dict(address=short_address(r), latitude=float(r['lat']),
         longitude=float(r['lon'])) for r in results])
+
+
+@locations.post('/api/locations/reverse')
+@login_required
+def reverse_location():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise BadRequest('Некорректный запрос адреса')
+    try:
+        latitude, longitude = coordinates(data.get('latitude'), data.get('longitude'))
+    except (TypeError, ValueError) as error:
+        raise BadRequest(str(error)) from error
+    result = lookup('reverse', format='jsonv2', lat=latitude, lon=longitude, zoom=18,
+                    addressdetails=1, namedetails=1)
+    return jsonify(address=short_address(result) if result.get('display_name') else '',
+                   latitude=latitude, longitude=longitude)
 
 
 def short_address(place):

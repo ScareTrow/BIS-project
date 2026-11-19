@@ -72,11 +72,16 @@ def create_app(test_config=None):
         app.config.update(test_config)
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    CORS(app, 
-         origins=[os.getenv('WEB_APP_URL', 'http://localhost:3000').rstrip('/')] if production else ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+    allowed_origins = [app.config['WEB_APP_URL'].rstrip('/')] if production else [
+        'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'
+    ]
+    CORS(app,
+         origins=allowed_origins,
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+    from .request_protection import register_request_protection
+    register_request_protection(app, set(allowed_origins))
 
     db.init_app(app)
     migrate.init_app(app, db, directory=os.path.join(backend_dir, 'migrations'))

@@ -12,7 +12,7 @@ import html
 import re
 from .validation import coordinates, validate_upload, validate_photos, UploadValidationError
 from .community import parse_application_extras, attach_application_extras, record_moderation, need_data
-from .application_service import check_requester, save_photos, save_media_file, publish_sos, notify_nearby, visible_requests, lifecycle, pending_review
+from .application_service import check_requester, save_photos, save_media_file, publish_sos, notify_nearby, visible_requests, lifecycle, pending_review, unexpired_request
 from .notifications import create_notification
 from .storage import save_upload, serve_upload
 from uuid import uuid4
@@ -117,6 +117,8 @@ def get_current_user():
             'email': current_user.email,
             'first_name': current_user.first_name,
             'last_name': current_user.last_name,
+            'capability_onboarding_seen': current_user.capability_onboarding_seen,
+            'telegram_id': current_user.telegram_id,
             'avatar': current_user.avatar,
             'city': current_user.city,
             'social_links': current_user.social_links,
@@ -146,7 +148,7 @@ def get_current_user():
         'received_ratings': [{
             'id': rating.id,
             'rating_value': rating.rating_value,
-            'comment': rating.comment,
+            'comment': None if rating.is_hidden else rating.comment,
             'created_at': rating.created_at.isoformat(),
             'rater': {
                 'first_name': rating.rater.first_name,
@@ -733,6 +735,20 @@ def get_application(app_id):
             full_address = f"{application.latitude:.6f}, {application.longitude:.6f}"
     
     creator = application.user
+    phone = None
+    can_contact = application.moderation_status == ModerationStatus.APPROVED and not application.is_false_call and (
+        current_user.is_authenticated and (
+            current_user.isAdmin or (user_response is not None and
+                user_response.status in (ResponseStatus.ACCEPTED, ResponseStatus.COMPLETED))
+        )
+    )
+    if can_contact and creator and creator.social_links:
+        try:
+            links = json.loads(creator.social_links)
+            if isinstance(links, dict) and isinstance(links.get('phone'), str):
+                phone = links['phone']
+        except (ValueError, TypeError):
+            pass
     creator_info = {
         'id': creator.id,
         'first_name': creator.first_name,
@@ -826,6 +842,11 @@ def get_application(app_id):
         'is_author': current_user.is_authenticated and application.user_id == current_user.id,
         'accepted_volunteers': accepted_volunteers if current_user.is_authenticated and application.user_id == current_user.id else []
     }
+    if can_contact:
+        app_data['author_contact'] = {'phone': phone}
+    if not can_review:
+        app_data['responses'] = [response for response in app_data['responses']
+                                 if user_response and response['id'] == user_response.id]
     if can_review and application.moderation_status == ModerationStatus.REJECTED:
         from .models import ModerationAction
         decision = ModerationAction.query.filter_by(application_id=app_id, action='reject').order_by(ModerationAction.id.desc()).first()
@@ -1178,6 +1199,7 @@ def delete_user(user_id):
 def get_user(user_id):
     from .models import User
     user = User.query.get_or_404(user_id)
+    private_profile = current_user.is_authenticated and (current_user.id == user.id or current_user.isAdmin)
     
     total_applications = Application.query.filter_by(user_id=user_id).count()
     active_applications = Application.query.filter(
@@ -1205,12 +1227,11 @@ def get_user(user_id):
     
     return jsonify({
         'id': user.id,
-        'email': user.email,
+        **({'email': user.email, 'social_links': user.social_links} if private_profile else {}),
         'first_name': user.first_name,
         'last_name': user.last_name,
         'avatar': user.avatar,
         'city': user.city,
-        'social_links': user.social_links,
         'rating_sum': user.rating_sum,
         'rating_count': user.rating_count,
         'average_rating': round(avg_rating, 2),
@@ -1218,8 +1239,8 @@ def get_user(user_id):
         'isAdmin': user.isAdmin if hasattr(user, 'isAdmin') else False,
         'is_super_admin': user.is_super_admin if hasattr(user, 'is_super_admin') else False,
         'is_blocked': user.is_blocked if hasattr(user, 'is_blocked') else False,
-        'blocked_until': user.blocked_until.isoformat() if hasattr(user, 'blocked_until') and user.blocked_until else None,
-        'blocked_reason': user.blocked_reason if hasattr(user, 'blocked_reason') else None,
+        **({'blocked_until': user.blocked_until.isoformat() if user.blocked_until else None,
+            'blocked_reason': user.blocked_reason} if private_profile else {}),
         'total_applications': total_applications,
         'active_applications': active_applications,
         'resolved_applications': resolved_applications,
@@ -1228,8 +1249,10 @@ def get_user(user_id):
         'help_total': help_total,
         'received_ratings': [{
             'id': rating.id,
+            'application_id': rating.application_id if rating.application and
+                rating.application.moderation_status == ModerationStatus.APPROVED and not rating.application.is_false_call else None,
             'rating_value': rating.rating_value,
-            'comment': rating.comment,
+            'comment': None if rating.is_hidden else rating.comment,
             'created_at': rating.created_at.isoformat(),
             'rater': {
                 'first_name': rating.rater.first_name,
@@ -1523,16 +1546,17 @@ def set_application_priority(app_id):
 @views.route('/api/applications/<int:app_id>/resolve', methods=['POST'])
 @login_required
 def resolve_application(app_id):
-    application = Application.query.get_or_404(app_id)
-    from .models import ApplicationNeed
-    if any(need_data(n)['still_needed'] > 0 for n in ApplicationNeed.query.filter_by(application_id=app_id)):
-        return jsonify({'error': 'Сначала закройте количественные потребности'}), 409
-    
+    application = Application.query.filter_by(id=app_id).with_for_update().first_or_404()
     is_owner = application.user_id == current_user.id
     if not is_owner:
         return jsonify({'error': 'Завершение заявки подтверждает её автор'}), 403
     if application.moderation_status != ModerationStatus.APPROVED or application.is_false_call:
         return jsonify({'error': 'Заявка не доступна для завершения'}), 409
+    if application.is_resolved:
+        return jsonify(success=True, message='Заявка завершена')
+    from .models import ApplicationNeed
+    if any(need_data(n)['still_needed'] > 0 for n in ApplicationNeed.query.filter_by(application_id=app_id)):
+        return jsonify({'error': 'Сначала закройте количественные потребности'}), 409
 
     accepted_responses = ApplicationResponse.query.filter_by(
         application_id=app_id,
@@ -1612,7 +1636,7 @@ def mark_false_call(app_id):
 @views.route('/api/applications/<int:app_id>/respond', methods=['POST'])
 @login_required
 def respond_to_application(app_id):
-    application = Application.query.get_or_404(app_id)
+    application = Application.query.filter_by(id=app_id).with_for_update().first_or_404()
     
     if application.user_id == current_user.id:
         return jsonify({'error': 'Нельзя откликнуться на свою заявку'}), 403
@@ -1622,6 +1646,8 @@ def respond_to_application(app_id):
     
     if application.is_resolved or application.is_false_call:
         return jsonify({'error': 'Заявка уже решена или помечена как ложная'}), 400
+    if not Application.query.filter(Application.id == app_id, unexpired_request()).first():
+        return jsonify(error='Срок действия заявки истёк'), 409
     
     existing_response = ApplicationResponse.query.filter_by(
         application_id=app_id,
@@ -1850,7 +1876,11 @@ def api_rate_helper(app_id):
     if application.user_id != current_user.id:
         return jsonify({'success': False, 'message': 'Вы можете оценивать только помощников по своим заявкам'}), 403
     
-    data = request.get_json()
+    if not application.is_resolved:
+        return jsonify(success=False, message='Можно оценивать волонтеров только после завершения заявки'), 409
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(success=False, message='Некорректная оценка'), 400
     helper_id = data.get('helper_id')
     
     if not helper_id:
@@ -1863,10 +1893,21 @@ def api_rate_helper(app_id):
     except (ValueError, TypeError):
         return jsonify({'success': False, 'message': 'Некорректное значение оценки'}), 400
     
-    comment = data.get('comment', '').strip()
+    comment = data.get('comment', '')
+    if not isinstance(comment, str) or len(comment.strip()) > 1000:
+        return jsonify(success=False, message='Комментарий должен содержать до 1000 символов'), 400
+    comment = comment.strip()
     
     from .models import User
-    helper = User.query.get_or_404(int(helper_id))
+    try:
+        helper_id = int(helper_id)
+    except (ValueError, TypeError):
+        return jsonify(success=False, message='Выберите помощника'), 400
+    response = ApplicationResponse.query.filter_by(application_id=app_id, responder_id=helper_id,
+        status=ResponseStatus.COMPLETED).with_for_update().first()
+    if response is None:
+        return jsonify(success=False, message='Этот помощник не завершил помощь'), 409
+    helper = User.query.get_or_404(helper_id)
     
     existing_rating = Rating.query.filter_by(
         rater_id=current_user.id,
@@ -2005,7 +2046,7 @@ def get_map_points():
     
     city = selected_city()
     
-    query = visible_requests(current_user, request.args.get('status', 'active'))
+    query = visible_requests(current_user, request.args.get('status', 'active')).filter(Application.is_resolved.is_(False))
 
     query = filter_city(query, Application.city, city, Application.user_id)
 
@@ -2190,8 +2231,7 @@ def api_create_application():
         if not 1 <= expires_days <= 365:
             raise ValueError('Срок заявки должен быть от 1 до 365 дней')
         photos = request.files.getlist('media_files')
-        if photos or request.path != '/api/sos':
-            validate_photos(photos)
+        validate_photos(photos)
         verification = request.files.get('verification_document')
         if verification and verification.filename:
             validate_upload(verification, document=True)
@@ -2202,11 +2242,13 @@ def api_create_application():
         return jsonify(error=str(error)), error.status_code
     except (ValueError, TypeError) as error:
         return jsonify(error=str(error)), 400
+    # Keep SOS publication independent of geocoding latency.
+    if extras['priority'] == 'sos':
+        detected_city, region = None, None
+    else:
+        detected_city, region = get_location_info(latitude, longitude)
     user = check_requester(current_user.id, sos=extras['priority'] == 'sos')
-    city, region = canonical_city(user.city or supplied_city), None
-    # Explicit coordinates are sufficient to publish SOS without a slow geocoder.
-    if not city and extras['priority'] != 'sos':
-        city, region = get_location_info(latitude, longitude)
+    city = canonical_city(detected_city or supplied_city or user.city)
     application = Application(description=sanitize_description(description), latitude=latitude,
         longitude=longitude, category=category, user_id=user.id,
         moderation_status=ModerationStatus.PENDING, status='pending',
@@ -2528,7 +2570,7 @@ def get_regional_stats():
 
     total = total_query.count()
     
-    active_query = total_query.filter(Application.is_resolved == False)
+    active_query = total_query.filter(Application.is_resolved.is_(False), unexpired_request())
     active = active_query.count()
     
     emergency = active_query.filter(Application.is_sos == True).count()

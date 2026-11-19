@@ -49,6 +49,7 @@ class User(db.Model, UserMixin):
     avatar = db.Column(db.String(500), nullable=True)
     city = db.Column(db.String(150), nullable=True)
     city_hidden = db.Column(db.Boolean, default=False, nullable=False)
+    capability_onboarding_seen = db.Column(db.Boolean, default=False, nullable=False)
     social_links = db.Column(db.Text, nullable=True)
     
     is_blocked = db.Column(db.Boolean, default=False, nullable=False)
@@ -151,6 +152,7 @@ class Rating(db.Model):
     application_id = db.Column(db.Integer, db.ForeignKey('application.id'), nullable=False)
     rating_value = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.String(1000), nullable=True)
+    is_hidden = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now(), nullable=False)
 
     def __repr__(self):
