@@ -25,8 +25,11 @@
             {% endif %}
           </div>
           <h4>{{ target_user.first_name }} {{ target_user.last_name or '' }}</h4>
+          {% set can_view_private = user.id == target_user.id or user.isAdmin %}
+          {% if can_view_private %}
           <p class="text-muted">{{ target_user.email }}</p>
-          {% if target_user.city %}
+          {% endif %}
+          {% if target_user.city and (can_view_private or not target_user.city_hidden) %}
           <p class="text-muted">
             <i class="fa fa-map-marker"></i> {{ target_user.city }}
           </p>
@@ -84,7 +87,7 @@
     </div>
     
     <div class="col-md-8">
-      {% if target_user.social_links %}
+      {% if can_view_private and target_user.social_links %}
       {% set social_links = target_user.social_links|from_json %}
       <div class="card mb-4">
         <div class="card-header bg-secondary text-white">
@@ -138,7 +141,7 @@
                       <span class="ml-1"><strong>{{ rating.rating_value }}/5</strong></span>
                     </span>
                   </div>
-                  {% if rating.comment %}
+                  {% if rating.comment and not rating.is_hidden %}
                   <p class="mb-1"><em>"{{ rating.comment }}"</em></p>
                   {% endif %}
                   <small class="text-muted">

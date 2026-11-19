@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from sqlalchemy.sql import func
 from sqlalchemy import Enum
 import enum
+from uuid import uuid4
 
 
 class ApplicationCategory(enum.Enum):
@@ -49,6 +50,7 @@ class User(db.Model, UserMixin):
     avatar = db.Column(db.String(500), nullable=True)
     city = db.Column(db.String(150), nullable=True)
     city_hidden = db.Column(db.Boolean, default=False, nullable=False)
+    capability_onboarding_seen = db.Column(db.Boolean, default=False, nullable=False)
     social_links = db.Column(db.Text, nullable=True)
     
     is_blocked = db.Column(db.Boolean, default=False, nullable=False)
@@ -94,6 +96,7 @@ class User(db.Model, UserMixin):
 
 class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.Uuid(), default=uuid4, nullable=False, unique=True)
     description = db.Column(db.String(10000), nullable=False)
     needed_help = db.Column(db.Text)
     address = db.Column(db.Text)
@@ -151,6 +154,7 @@ class Rating(db.Model):
     application_id = db.Column(db.Integer, db.ForeignKey('application.id'), nullable=False)
     rating_value = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.String(1000), nullable=True)
+    is_hidden = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now(), nullable=False)
 
     def __repr__(self):

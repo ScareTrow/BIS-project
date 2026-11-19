@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-leaflet/core": "2.1.0",
     "axios": "^1.7.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.378.0",

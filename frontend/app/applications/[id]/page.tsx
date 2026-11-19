@@ -2,6 +2,8 @@
 
 import { mapTiles } from '@/lib/mapTiles';
 import RequestAid from '@/components/community/RequestAid';
+import { ActionFeedback, InlineConfirm } from '@/components/ui/ActionFeedback';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -11,10 +13,10 @@ import { MapPin, User, Check, X, Star } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useStore } from '@/lib/store';
-import { useTranslation, getLanguage } from '@/lib/i18n';
+import { useTranslation } from '@/lib/i18n';
 
 const MapContainer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.MapContainer),
+  () => import('@/components/common/LeafletMap'),
   { ssr: false }
 );
 const TileLayer = dynamic(
@@ -31,15 +33,18 @@ const LeafletIconFix = dynamic(
 );
 
 export default function ApplicationDetailPage() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useStore();
-  const t = useTranslation(getLanguage());
+  const { user, language } = useStore();
+  const t = useTranslation(language);
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [responses, setResponses] = useState<ApplicationResponse[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [userResponse, setUserResponse] = useState<ApplicationResponse | null>(null);
+  const [respondFeedback, setRespondFeedback] = useState<{ message?: string; error?: boolean }>({});
+  const [responseBusy, setResponseBusy] = useState(false);
+  const [decisionErrors, setDecisionErrors] = useState<Record<number, string>>({});
 
   useEffect(() => {
     setIsClient(true);
@@ -48,11 +53,11 @@ export default function ApplicationDetailPage() {
     }
   }, [params.id]);
 
-  const loadApplication = async () => {
+  const loadApplication = async (refresh = false) => {
     try {
-      setLoading(true);
+      if (!refresh) setLoading(true);
 
-      const data = await apiClient.getApplication(Number(params.id));
+      const data = await apiClient.getApplication(params.id);
       setApplication(data);
       setResponses(data.responses || []);
       // Сохраняем информацию об отклике текущего пользователя (если он есть, независимо от статуса)
@@ -67,42 +72,33 @@ export default function ApplicationDetailPage() {
 
   const handleRespond = async () => {
     if (!user?.is_authenticated || application?.moderation_status !== 'approved' || application.is_resolved || application.is_false_call) return;
+    setResponseBusy(true);
     try {
-      await apiClient.respondToApplication(Number(params.id));
-      alert(t('alerts.respondSuccess'));
-      loadApplication();
-    } catch (error: any) {
-      console.error('Error responding:', error);
-      alert(error.message || t('alerts.respondError'));
+      await apiClient.respondToApplication(params.id);
+      setRespondFeedback({ message: t('alerts.respondSuccess') });
+      await loadApplication(true);
+    } catch (error) {
+      setRespondFeedback({ message: error instanceof Error ? error.message : t('alerts.respondError'), error: true });
+    } finally {
+      setResponseBusy(false);
     }
   };
 
   const handleAcceptResponse = async (responseId: number) => {
     try {
-      await apiClient.acceptResponse(Number(params.id), responseId);
-      loadApplication();
+      await apiClient.acceptResponse(params.id, responseId);
+      await loadApplication(true);
     } catch (error) {
-      console.error('Error accepting response:', error);
+      setDecisionErrors(current => ({ ...current, [responseId]: error instanceof Error ? error.message : t('ui.action.error') }));
     }
   };
 
   const handleRejectResponse = async (responseId: number) => {
     try {
-      await apiClient.rejectResponse(Number(params.id), responseId);
-      loadApplication();
+      await apiClient.rejectResponse(params.id, responseId);
+      await loadApplication(true);
     } catch (error) {
-      console.error('Error rejecting response:', error);
-    }
-  };
-
-  const handleResolve = async () => {
-    try {
-      await apiClient.resolveApplication(Number(params.id));
-      alert(t('alerts.resolvedSuccess'));
-      loadApplication();
-    } catch (error: any) {
-      console.error('Error resolving application:', error);
-      alert(error.message || t('alerts.resolvedError'));
+      setDecisionErrors(current => ({ ...current, [responseId]: error instanceof Error ? error.message : t('ui.action.error') }));
     }
   };
 
@@ -128,7 +124,7 @@ export default function ApplicationDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-        <RequestAid applicationId={application.id} responses={responses} isAuthor={application.user_id === user?.id} onChange={loadApplication} />
+        <RequestAid applicationId={application.public_id || application.id} responses={responses} isAuthor={application.user_id === user?.id} onChange={loadApplication} />
       <div className="mb-6">
         <button
           onClick={() => router.back()}
@@ -287,8 +283,22 @@ export default function ApplicationDetailPage() {
               )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Статус:</span>
-                <span className="font-medium">{application.status}</span>
+                <StatusBadge status={application.is_false_call ? 'false_call' : application.status} />
               </div>
+              {application.status === 'rejected' ? application.rejection_reason && <p className="text-danger-dark">{application.rejection_reason}</p> :
+                <ol aria-label={t('request.progress')} className="flex flex-wrap gap-2">
+                  {['pending', 'open', 'in_progress', 'completed'].filter(status => status !== 'pending' || !application.is_sos).map(status =>
+                    <li key={status} aria-current={status === application.status ? 'step' : undefined}
+                      className={`rounded-md border px-2 py-1 text-xs ${status === application.status ? 'border-primary font-medium text-primary' : 'text-gray-600'}`}>
+                      {t(`status.${status}`)}
+                    </li>)}
+                </ol>}
+              {application.author_contact && <div className="flex flex-wrap justify-between gap-2">
+                <span className="text-gray-600">{t('request.authorContact')}</span>
+                {application.author_contact.phone
+                  ? <a className="text-primary underline" href={`tel:${application.author_contact.phone.replace(/[^+\d]/g, '')}`}>{application.author_contact.phone}</a>
+                  : <span>{t('request.noContact')}</span>}
+              </div>}
             </div>
           </div>
 
@@ -316,19 +326,22 @@ export default function ApplicationDetailPage() {
                       </div>
                     </div>
                     {response.status === 'pending' && (application as any).user_id === user?.id && (
-                      <div className="flex space-x-2">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => handleAcceptResponse(response.id)}
                           className="btn btn-success text-sm"
                         >
-                          <Check className="w-4 h-4" />
+                          {t('response.accept')}
                         </button>
                         <button
                           onClick={() => handleRejectResponse(response.id)}
                           className="btn btn-danger text-sm"
                         >
-                          <X className="w-4 h-4" />
+                          {t('response.reject')}
                         </button>
+                        </div>
+                        <ActionFeedback message={decisionErrors[response.id]} error />
                       </div>
                     )}
                   </div>
@@ -342,10 +355,11 @@ export default function ApplicationDetailPage() {
             {!application.is_resolved && !userResponse && (application as any).user_id !== user?.id && (
               <button
                 onClick={handleRespond}
-                disabled={!user?.is_authenticated || application.moderation_status !== 'approved' || application.is_false_call}
+                disabled={responseBusy || !user?.is_authenticated || application.moderation_status !== 'approved' || application.is_false_call ||
+                  (!!application.expires_at && Date.parse(application.expires_at) <= Date.now())}
                 className="btn btn-primary flex-1"
               >
-                Откликнуться
+                {t('request.respond')}
               </button>
             )}
             {userResponse && (application as any).user_id !== user?.id && (
@@ -353,16 +367,16 @@ export default function ApplicationDetailPage() {
                 Вы уже откликнулись на эту заявку. Статус: <span className="ml-2 font-medium">{userResponse.status === 'pending' ? 'Ожидает рассмотрения' : userResponse.status === 'accepted' ? 'Принят' : userResponse.status === 'cancelled' ? 'Отклонен' : userResponse.status === 'completed' ? 'Завершен' : userResponse.status}</span>
               </div>
             )}
-            {!application.is_resolved && 
+            {!application.is_resolved && application.moderation_status === 'approved' && !application.is_false_call &&
              application.user_id === user?.id && (
-              <button
-                onClick={handleResolve}
-                className="btn btn-success flex-1"
-              >
-                Отметить как решенную
-              </button>
+              <InlineConfirm prompt={t('request.resolveConfirm')} onConfirm={async () => {
+                await apiClient.resolveApplication(params.id);
+                setRespondFeedback({ message: t('alerts.resolvedSuccess') });
+                await loadApplication(true);
+              }}>{t('application.resolve')}</InlineConfirm>
             )}
           </div>
+          <ActionFeedback {...respondFeedback} />
         </div>
       </div>
     </div>

@@ -1,20 +1,27 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useStore } from '@/lib/store';
 import { getCityByName } from '@/lib/kazakhstanCities';
 import { apiClient, LocationPoint } from '@/lib/api';
+import { useTranslation } from '@/lib/i18n';
 
 const LocationMap = dynamic(() => import('./ApplicationMap'), { ssr: false });
 
-export default function AddressPicker({ title = 'Местоположение', city = '', value, onChange }: {
+export default function AddressPicker({ title, city = '', value, onChange, allowCurrentLocation }: {
   title?: string;
   city?: string;
   value: LocationPoint | null;
   onChange: (point: LocationPoint | null) => void;
+  allowCurrentLocation?: boolean;
 }) {
   const id = useId();
+  const language = useStore(state => state.language);
+  const t = useTranslation(language);
+  const sectionTitle = title || t('location.title');
+  const lookupVersion = useRef(0);
+  useEffect(() => () => { lookupVersion.current++; }, []);
   const profileCity = useStore(state => state.user?.city);
   const region = city || profileCity || '';
   const cityPoint = getCityByName(region);
@@ -22,46 +29,68 @@ export default function AddressPicker({ title = 'Местоположение', 
   const [results, setResults] = useState<LocationPoint[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  function choosePoint(latitude: number, longitude: number) {
+    const revision = ++lookupVersion.current;
+    setResults([]);
+    setMessage('');
+    onChange({ latitude, longitude, address: '' });
+    apiClient.reverseLocation(latitude, longitude).then(place => {
+      if (place.address && lookupVersion.current === revision) onChange(place);
+    }).catch(() => { /* The selected point is usable without an address. */ });
+  }
+  function locate() {
+    if (!navigator.geolocation) {
+      setMessage(t('sos.denied'));
+      return;
+    }
+    const revision = ++lookupVersion.current;
+    setMessage(t('sos.locating'));
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      if (lookupVersion.current !== revision) return;
+      choosePoint(coords.latitude, coords.longitude);
+    }, () => {
+      if (lookupVersion.current === revision) setMessage(t('sos.denied'));
+    }, { timeout: 8000, maximumAge: 0 });
+  }
 
   async function search() {
     if (busy) return;
-    if (query.trim().length < 3) { setMessage('Введите хотя бы 3 символа адреса или названия здания'); return; }
+    if (query.trim().length < 3) { setMessage(t('location.searchShort')); return; }
     setBusy(true); setMessage(''); setResults([]);
     try {
       const points = await apiClient.searchLocations(query.trim(), region);
       setResults(points);
-      if (!points.length) setMessage('Место не найдено. Уточните адрес и город или выберите точку на карте.');
+      if (!points.length) setMessage(t('location.searchEmpty'));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Не удалось найти адрес');
+      setMessage(error instanceof Error && language === 'ru' ? error.message : t('ui.action.error'));
     } finally { setBusy(false); }
   }
 
-  return <section className="min-w-0 space-y-3" aria-label={title}>
-    <h3 className="font-semibold text-gray-900">{title}</h3>
-    <label htmlFor={id} className="form-field">Адрес или название здания</label>
+  return <section className="min-w-0 space-y-3" aria-label={sectionTitle}>
+    <h3 className="font-semibold text-gray-900">{sectionTitle}</h3>
+    <label htmlFor={id} className="form-field">{t('location.searchLabel')}</label>
     <div className="flex flex-col gap-2 sm:flex-row">
       <input id={id} className="form-input" value={query} maxLength={200}
-        placeholder={region ? `Улица, дом или здание · ${region}` : 'Улица, дом или название здания'}
-        onChange={event => { setQuery(event.target.value); setResults([]); onChange(null); }}
+        placeholder={region ? `${t('location.searchPlaceholder')} · ${region}` : t('location.searchPlaceholder')}
+        onChange={event => { lookupVersion.current++; setQuery(event.target.value); setResults([]); onChange(null); }}
         onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); search(); } }} />
       <button type="button" className="btn btn-outline shrink-0" disabled={busy} onClick={search}>
-        {busy ? 'Ищем…' : 'Найти'}
+        {busy ? t('ui.loading') : t('location.search')}
       </button>
     </div>
+    {allowCurrentLocation && <button type="button" className="btn btn-secondary text-sm" onClick={locate}>{t('location.useCurrent')}</button>}
     {!!results.length && <ul className="overflow-hidden rounded-lg border border-gray-200 divide-y divide-gray-100">
       {results.map((point, index) => <li key={index}>
         <button type="button" className="w-full break-words p-3 text-left text-sm text-gray-700 hover:bg-blue-50 focus-visible:bg-blue-50"
-          onClick={() => { onChange(point); setResults([]); setMessage(''); }}>
+          onClick={() => { lookupVersion.current++; onChange(point); setResults([]); setMessage(''); }}>
           {point.address}
         </button>
       </li>)}
     </ul>}
     {message && <p role="status" className="text-sm text-gray-600">{message}</p>}
-    {value && <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">Выбрано: {value.address}</p>}
+    {value && <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('location.selected', { address: value.address || t('location.selectedPoint') })}</p>}
     <LocationMap selected={value !== null}
       center={value ? [value.latitude, value.longitude] : cityPoint ? [cityPoint.lat, cityPoint.lng] : [43.222, 76.8512]}
-      onLocationSelect={(latitude, longitude) => onChange({ latitude, longitude, address: value?.address || query.trim() || 'Точка, выбранная на карте' })} />
-    <p className="text-xs text-gray-500">Выберите найденное место или уточните точку на карте. Данные адресов — <a
-      href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a>.</p>
+      onLocationSelect={choosePoint} />
   </section>;
 }

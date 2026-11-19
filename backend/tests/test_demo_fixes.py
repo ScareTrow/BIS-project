@@ -6,16 +6,18 @@ from backend.tests.request_helpers import post_request
 from backend.tests.test_mutual_aid import login
 
 
-def test_quick_sos_requires_only_coordinates_and_keeps_rate_limit(app, client, test_user):
+def test_quick_sos_requires_photo_and_coordinates_and_keeps_rate_limit(app, client, test_user):
     login(client, test_user)
+    fields = dict(latitude=43.22, longitude=76.85)
+    assert client.post('/api/sos', json=fields).status_code == 400
     for _ in range(3):
-        result = client.post('/api/sos', json=dict(latitude=43.22, longitude=76.85))
+        result = post_request(client, fields, path='/api/sos')
         assert result.status_code == 201, result.json
         with app.app_context():
             made = db.session.get(Application, result.json['id'])
             assert made.is_sos and made.moderation_status == ModerationStatus.APPROVED
             assert made.city == 'Алматы'
-    assert client.post('/api/sos', json=dict(latitude=43.22, longitude=76.85)).status_code == 429
+    assert post_request(client, fields, path='/api/sos').status_code == 429
     assert post_request(client, dict(description='Обычная помощь нужна',latitude=43.22,longitude=76.85), path='/api/applications').status_code == 201
 
 
@@ -44,6 +46,29 @@ def test_request_uses_profile_city_without_reentry(app,client,test_user):
     result=post_request(client,dict(description='Нужна помощь продуктами',latitude=43.22,longitude=76.85))
     assert result.status_code==201
     with app.app_context(): assert db.session.get(Application,result.json['id']).city=='Алматы'
+
+
+def test_public_request_reference_respects_moderation_and_resolves_after_approval(app, client, test_user, admin_user):
+    login(client, test_user)
+    created = post_request(client, dict(description='Нужна помощь продуктами', latitude=43.22, longitude=76.85))
+    assert created.status_code == 201
+    ref = created.json['public_id']
+    endpoint = f'/api/applications/{ref}'
+    guest = app.test_client()
+    assert guest.get(endpoint).status_code == 404
+    assert client.get(endpoint).json['public_id'] == ref
+    admin = app.test_client()
+    login(admin, admin_user, 'Admin1234!@#$')
+    assert admin.post(f'/api/admin/applications/{ref}/approve').status_code == 200
+    assert guest.get(endpoint).json['public_id'] == ref
+
+
+def test_capability_onboarding_is_claimed_once(client, test_user):
+    login(client, test_user)
+    path = '/api/user/capabilities/onboarding'
+    assert client.post(path).json == {'show': True}
+    assert client.post(path).json == {'show': False}
+    assert client.get('/api/user/current').json['user']['capability_onboarding_seen'] is True
 
 
 @pytest.mark.parametrize('password',['RiverStone','riverston8','RIVERSTON8','RiverStone8'])

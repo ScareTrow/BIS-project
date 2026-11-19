@@ -31,7 +31,10 @@ export default function LoginPage() {
       
       if (response.success) {
         setUser({ ...response.user, is_authenticated: true });
-        if (response.user.isAdmin) {
+        const next = new URLSearchParams(window.location.search).get('next');
+        if (next && /^\/applications\/(?:new|[0-9]+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i.test(next)) {
+          router.push(next);
+        } else if (response.user.isAdmin) {
           router.push('/admin');
         } else {
           router.push('/');
@@ -47,10 +50,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <CursorEffect>
         <div className="max-w-md w-full space-y-8 relative z-10">
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <div className="card">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 {t('auth.login.title') || 'Вход в систему'}

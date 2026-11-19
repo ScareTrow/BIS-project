@@ -1,4 +1,5 @@
 'use client';
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,8 +40,6 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingAccess, setCheckingAccess] = useState(true);
-  const [blockDays, setBlockDays] = useState(7);
-  const [blockReason, setBlockReason] = useState('');
 
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -85,55 +84,9 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleBlock = async (userId: number) => {
-    if (!confirm(`Заблокировать пользователя на ${blockDays} дней?`)) return;
-
-    try {
-      await apiClient.blockUser(userId, blockDays, blockReason);
-      await loadUsers();
-      setBlockReason('');
-      setBlockDays(7);
-    } catch (error) {
-      console.error('Error blocking user:', error);
-      alert(t('admin.users.blockError'));
-    }
-  };
-
-  const handleUnblock = async (userId: number) => {
-    if (!confirm('Разблокировать пользователя?')) return;
-
-    try {
-      await apiClient.unblockUser(userId);
-      await loadUsers();
-    } catch (error) {
-      console.error('Error unblocking user:', error);
-      alert(t('admin.users.unblockError'));
-    }
-  };
-
   const handleMakeAdmin = async (userId: number) => {
-    if (!confirm('Назначить пользователя администратором?')) return;
-
-    try {
-      await apiClient.makeAdmin(userId);
-      await loadUsers();
-    } catch (error) {
-      console.error('Error making admin:', error);
-      alert(t('admin.users.adminError'));
-    }
-  };
-
-  const handleDelete = async (userId: number) => {
-    if (!confirm('ВНИМАНИЕ! Это действие необратимо. Удалить пользователя?')) return;
-    if (!confirm('Вы уверены? Это удалит все данные пользователя!')) return;
-
-    try {
-      await apiClient.deleteUser(userId);
-      await loadUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert(t('admin.users.deleteError'));
-    }
+    await apiClient.makeAdmin(userId);
+    await loadUsers();
   };
 
   if (checkingAccess) {
@@ -149,18 +102,15 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <Link href="/admin" className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4 font-medium transition-colors">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Назад к панели администратора
           </Link>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl shadow-lg">
-              <Users className="w-8 h-8 text-white" />
-            </div>
-            Управление пользователями
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            {t('admin.users.title')}
           </h1>
           <p className="text-gray-600 mt-2 text-lg">Всего пользователей: <span className="font-bold text-blue-600">{users.length}</span></p>
         </div>
@@ -171,10 +121,10 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="hidden lg:block bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="hidden overflow-hidden rounded-xl border bg-white lg:block">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Имя</th>
@@ -268,12 +218,9 @@ export default function AdminUsersPage() {
                             Просмотр
                           </Link>
                           {!u.is_super_admin && !u.isAdmin && user?.is_super_admin && (
-                            <button
-                              onClick={() => handleMakeAdmin(u.id)}
-                              className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 transition-colors font-medium"
-                            >
-                              Сделать админом
-                            </button>
+                            <InlineConfirm prompt={t('admin.users.promotePrompt')} onConfirm={() => handleMakeAdmin(u.id)}>
+                              {t('admin.users.promote')}
+                            </InlineConfirm>
                           )}
                         </td>
                       </tr>
@@ -287,7 +234,7 @@ export default function AdminUsersPage() {
               {users.map((u) => (
                 <div
                   key={u.id}
-                  className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300"
+                  className="card"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -358,15 +305,6 @@ export default function AdminUsersPage() {
                     </div>
                   </div>
                   
-                  <div className="mt-3">
-                    <Link
-                      href={`/admin/users/${u.id}`}
-                      className="btn btn-outline text-sm"
-                    >
-                      Подробнее
-                    </Link>
-                  </div>
-
                   {u.is_blocked && u.blocked_until && (
                     <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                       Заблокирован до: {new Date(u.blocked_until).toLocaleDateString('ru-RU')}
@@ -377,18 +315,14 @@ export default function AdminUsersPage() {
                   <div className="mt-4 space-y-2">
                     <Link
                       href={`/admin/users/${u.id}`}
-                      className="btn bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm w-full hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all"
+                      className="btn btn-outline inline-flex text-sm"
                     >
                       Подробнее
                     </Link>
                     {!u.is_super_admin && !u.isAdmin && user?.is_super_admin && (
-                      <button
-                        onClick={() => handleMakeAdmin(u.id)}
-                        className="btn bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-sm w-full hover:from-yellow-600 hover:to-yellow-700 shadow-md hover:shadow-lg transition-all"
-                      >
-                        <Shield className="w-4 h-4 mr-1 inline" />
-                        Сделать админом
-                      </button>
+                      <InlineConfirm prompt={t('admin.users.promotePrompt')} onConfirm={() => handleMakeAdmin(u.id)}>
+                        {t('admin.users.promote')}
+                      </InlineConfirm>
                     )}
                   </div>
                 </div>

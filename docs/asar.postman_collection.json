@@ -152,21 +152,43 @@
       "name": "04 Create request",
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
+        "header": [],
         "url": "{{baseUrl}}/api/applications",
         "body": {
-          "mode": "raw",
-          "raw": "{\n  \"latitude\": 43.22,\n  \"longitude\": 76.85,\n  \"category\": \"food\",\n  \"description\": \"ASAR QA request\",\n  \"expires_days\": 7\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "latitude",
+              "value": "43.22",
+              "type": "text"
+            },
+            {
+              "key": "longitude",
+              "value": "76.85",
+              "type": "text"
+            },
+            {
+              "key": "category",
+              "value": "food",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "value": "ASAR QA request",
+              "type": "text"
+            },
+            {
+              "key": "expires_days",
+              "value": "7",
+              "type": "text"
+            },
+            {
+              "key": "media_files",
+              "type": "file",
+              "src": "proof.png",
+              "description": "Select a local JPEG/PNG before running."
             }
-          }
+          ]
         }
       },
       "event": [
@@ -175,9 +197,8 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
-              "pm.test(\"Created\", () => pm.expect(pm.response.code).to.equal(200));",
-              "if (pm.response.code === 200) pm.collectionVariables.set(\"applicationId\", pm.response.json().id);"
+              "pm.test(\"Created\", () => pm.expect(pm.response.code).to.equal(201));",
+              "if (pm.response.code === 201) pm.collectionVariables.set(\"applicationId\", pm.response.json().public_id);"
             ]
           }
         }
@@ -439,21 +460,28 @@
       "name": "16 SOS",
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
+        "header": [],
         "url": "{{baseUrl}}/api/sos",
         "body": {
-          "mode": "raw",
-          "raw": "{\n  \"latitude\": 43.22,\n  \"longitude\": 76.85\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "latitude",
+              "value": "43.22",
+              "type": "text"
+            },
+            {
+              "key": "longitude",
+              "value": "76.85",
+              "type": "text"
+            },
+            {
+              "key": "media_files",
+              "type": "file",
+              "src": "proof.png",
+              "description": "Select a local JPEG/PNG before running."
             }
-          }
+          ]
         }
       },
       "event": [
@@ -462,7 +490,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));"
+              "pm.test(\"Created\", () => pm.expect(pm.response.code).to.equal(201));"
             ]
           }
         }

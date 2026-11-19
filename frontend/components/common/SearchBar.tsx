@@ -105,7 +105,7 @@ export default function SearchBar() {
                   {results.applications.map((app: any) => (
                     <Link
                       key={app.id}
-                      href={`/applications/${app.id}`}
+                      href={`/applications/${app.public_id || app.id}`}
                       onClick={() => setIsOpen(false)}
                       className="block px-3 py-2 hover:bg-gray-50 rounded transition-colors"
                     >

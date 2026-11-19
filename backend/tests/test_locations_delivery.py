@@ -99,6 +99,9 @@ def test_delivery_migration_preserves_delivered_quantities_and_existing_requests
         db.session.execute(text('ALTER TABLE application DROP COLUMN address'))
         db.session.execute(text('ALTER TABLE application DROP COLUMN delivery_details'))
         db.session.execute(text('ALTER TABLE resources DROP COLUMN address'))
+        db.session.execute(text('ALTER TABLE "user" DROP COLUMN capability_onboarding_seen'))
+        db.session.execute(text('ALTER TABLE rating DROP COLUMN is_hidden'))
+        db.session.execute(text('ALTER TABLE application DROP COLUMN public_id'))
         params = dict(a=test_application.id, r=test_response[0].id)
         nid = db.session.execute(text("INSERT INTO application_needs (application_id,resource_name,unit,quantity_needed) VALUES (:a,'Вода','л',10) RETURNING id"), params).scalar()
         db.session.execute(text("INSERT INTO contributions (application_id,need_id,response_id,quantity_promised,quantity_delivered,status,created_at,updated_at) VALUES (:a,:n,:r,5,2,'promised',now(),now())"), {**params, 'n': nid})
@@ -113,6 +116,7 @@ def test_delivery_migration_preserves_delivered_quantities_and_existing_requests
             assert row.quantity_delivered == 2 and row.status == 'delivered'
             assert db.session.get(Application, test_application.id).description == test_application.description
             assert db.session.get(Application, test_application.id).delivery_details is None
+            assert db.session.get(Application, test_application.id).public_id.version == 4
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))

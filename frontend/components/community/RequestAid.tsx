@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Aid, Capability, communityApi } from "@/lib/community-api";
-import { ApplicationResponse } from "@/lib/api";
+import { ApplicationRef, ApplicationResponse } from "@/lib/api";
+import { StarRating } from '@/components/ui/StarRating';
+import { Textarea } from '@/components/ui/Input';
+import { useStore } from '@/lib/store';
+import { useTranslation } from '@/lib/i18n';
 
 export default function RequestAid({
   applicationId,
@@ -9,7 +13,7 @@ export default function RequestAid({
   isAuthor,
   onChange,
 }: {
-  applicationId: number;
+  applicationId: ApplicationRef;
   responses: ApplicationResponse[];
   isAuthor: boolean;
   onChange: () => void;
@@ -22,6 +26,8 @@ export default function RequestAid({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [scores, setScores] = useState<Record<number, number>>({});
+  const [comments, setComments] = useState<Record<number, string>>({});
+  const t = useTranslation(useStore(state => state.language));
   useEffect(() => {
     Promise.all([communityApi.aid(applicationId), communityApi.capabilities()])
       .then(([a, c]) => {
@@ -55,7 +61,10 @@ export default function RequestAid({
   const canContribute =
     aid?.response_id &&
     responses.some((r) => r.id === aid.response_id && r.status === "accepted");
+  const unrated = isAuthor && aid ? responses.filter(response =>
+    response.status === 'completed' && !aid.rated_response_ids.includes(response.id)) : [];
   return (
+    <>
     <section className="card my-6 space-y-4">
       <h2 className="text-xl font-semibold">Ресурсы и помощь</h2>
       <p>
@@ -138,49 +147,27 @@ export default function RequestAid({
               </button>
             </div>
           ))}
-      {isAuthor &&
-        responses
-          .filter((r) => r.status === "completed")
-          .map((r) => (
-            <div className="flex flex-wrap gap-3 items-center" key={r.id}>
-              <span>
-                Оценка помощи:{" "}
-                {r.responder?.first_name || `Волонтёр #${r.responder_id}`}
-              </span>
-              <select
-                aria-label="Оценка помощи"
-                className="form-select w-28"
-                value={scores[r.id] || 5}
-                onChange={(e) =>
-                  setScores({ ...scores, [r.id]: Number(e.target.value) })
-                }
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}/5
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn btn-primary"
-                disabled={busy || aid?.rated_response_ids.includes(r.id)}
-                onClick={() =>
-                  perform(() =>
-                    communityApi.rateResponse(r.id, scores[r.id] || 5),
-                  )
-                }
-              >
-                {aid?.rated_response_ids.includes(r.id)
-                  ? "Оценка сохранена"
-                  : "Оценить помощь"}
-              </button>
-            </div>
-          ))}
+    </section>
+    {unrated.length > 0 && <section className="card my-6 space-y-4">
+      <h2 className="text-xl font-semibold">{t('review.title')}</h2>
+      {unrated.map(response => <div key={response.id} className="space-y-3 border-t pt-4">
+        <p className="font-medium">{response.responder?.first_name || t('review.helper')}</p>
+        <StarRating value={scores[response.id] ?? 5} label={t('ui.rating')}
+          onChange={value => setScores(current => ({ ...current, [response.id]: value }))} />
+        <Textarea id={`review-${response.id}`} label={t('review.comment')} maxLength={1000} rows={3}
+          value={comments[response.id] ?? ''} onChange={event => setComments({ ...comments, [response.id]: event.target.value })} />
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() =>
+          perform(async () => {
+            await communityApi.rateResponse(response.id, scores[response.id] ?? 5, comments[response.id]?.trim());
+            setAid(current => current && ({ ...current, rated_response_ids: [...current.rated_response_ids, response.id] }));
+          })}>{t('review.submit')}</button>
+      </div>)}
+    </section>}
       {message && (
         <p role="alert" className="text-red-700">
           {message}
         </p>
       )}
-    </section>
+    </>
   );
 }

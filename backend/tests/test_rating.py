@@ -162,6 +162,8 @@ class TestRating:
                 rating_value=5
             )
             db.session.add(rating)
+            db.session.add(ApplicationResponse(application_id=application.id, responder_id=helper.id,
+                status=ResponseStatus.COMPLETED))
             db.session.commit()
             
             # Сохраняем ID для использования вне контекста
@@ -211,8 +213,11 @@ class TestRating:
                 is_resolved=True
             )
             db.session.add(application)
+            db.session.flush()
+            db.session.add(ApplicationResponse(application_id=application.id, responder_id=helper.id,
+                status=ResponseStatus.COMPLETED))
             db.session.commit()
-            
+
             # Сохраняем ID для использования вне контекста
             helper_id = helper.id
             application_id = application.id
@@ -266,8 +271,11 @@ class TestRating:
                 is_resolved=True
             )
             db.session.add(application)
+            db.session.flush()
+            db.session.add(ApplicationResponse(application_id=application.id, responder_id=helper.id,
+                status=ResponseStatus.COMPLETED))
             db.session.commit()
-            
+
             # Сохраняем ID для использования вне контекста
             helper_id = helper.id
             application_id = application.id

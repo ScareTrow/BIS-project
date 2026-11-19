@@ -212,7 +212,7 @@
                       <span class="ml-1"><strong>{{ rating.rating_value }}/5</strong></span>
                     </span>
                   </div>
-                  {% if rating.comment %}
+                  {% if rating.comment and not rating.is_hidden %}
                   <p class="mb-1"><em>"{{ rating.comment }}"</em></p>
                   {% endif %}
                   <small class="text-muted">

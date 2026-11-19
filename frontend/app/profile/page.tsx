@@ -1,12 +1,17 @@
 'use client';
 import TelegramLink from '@/components/community/TelegramLink';
 import VolunteerSettings from '@/components/community/VolunteerSettings';
+import VolunteerLocation from '@/components/community/VolunteerLocation';
+import { Badge } from '@/components/ui/Badge';
+import { communityApi } from '@/lib/community-api';
+import { useTranslation } from '@/lib/i18n';
+import { useStore } from '@/lib/store';
 
 import { apiClient, Application, User } from '@/lib/api';
 import { Award, CheckCircle, Clock, Edit, Heart, HelpCircle, MapPin, Star, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const categoryLabels: Record<string, string> = {
   food: 'Еда',
@@ -30,16 +35,28 @@ const responseStatusLabels: Record<string, string> = {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const t = useTranslation(useStore(state => state.language));
+  const onboarding = useRef<HTMLDialogElement>(null);
+  const claimingOnboarding = useRef(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [userApplications, setUserApplications] = useState<Application[]>([]);
   const [userResponses, setUserResponses] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(true);
+  const [activity, setActivity] = useState<'requests' | 'responses'>('requests');
 
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (loading || user?.capability_onboarding_seen !== false || claimingOnboarding.current) return;
+    claimingOnboarding.current = true;
+    communityApi.claimCapabilityOnboarding().then(({ show }) => {
+      if (show) onboarding.current?.showModal();
+    }).catch(() => { claimingOnboarding.current = false; });
+  }, [loading, user?.capability_onboarding_seen]);
 
   const loadProfile = async () => {
     try {
@@ -92,9 +109,11 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-        <VolunteerSettings />
+      <dialog ref={onboarding} aria-label={t('capability.title')} className="w-[calc(100%-2rem)] max-w-lg rounded-xl border p-5 backdrop:bg-gray-900/40">
+        {user.capability_onboarding_seen === false && <VolunteerSettings onDone={() => onboarding.current?.close()} />}
+      </dialog>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Мой профиль</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t('profile.title')}</h1>
         <Link
           href="/profile/edit"
           className="btn btn-primary flex items-center space-x-2"
@@ -125,7 +144,7 @@ export default function ProfilePage() {
             </h2>
             <p className="text-gray-600 mb-4">{user.email}</p>
             {user.city && (
-              <p className="text-gray-600 mb-4">📍 {user.city}</p>
+              <Badge tone="info" className="mb-4"><MapPin aria-hidden="true" className="h-4 w-4" />{user.city}</Badge>
             )}
 
             {user.social_links && (() => {
@@ -213,6 +232,7 @@ export default function ProfilePage() {
             <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm font-medium text-blue-800 mb-3">Telegram-оповещения</p>
               <TelegramLink telegramId={user.telegram_id} onLinked={() => loadProfile()} />
+              <VolunteerLocation />
             </div>
           </div>
         </div>
@@ -241,8 +261,14 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="text-xl font-semibold mb-4">Мои последние заявки</h3>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={activity === 'requests'} className={`btn ${activity === 'requests' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActivity('requests')}>{t('profile.requests')}</button>
+            <button type="button" aria-pressed={activity === 'responses'} className={`btn ${activity === 'responses' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActivity('responses')}>{t('profile.responses')}</button>
+          </div>
+          <div className="card" hidden={activity !== 'requests'}>
+            <h3 className="text-xl font-semibold mb-4">{t('profile.requests')}</h3>
             {loadingApplications ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -252,7 +278,7 @@ export default function ProfilePage() {
                 {userApplications.map((app: any) => (
                   <Link
                     key={app.id}
-                    href={`/applications/${app.id}`}
+                    href={`/applications/${app.public_id || app.id}`}
                     className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -302,8 +328,8 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="card">
-            <h3 className="text-xl font-semibold mb-4">Заявки, на которые я откликнулся</h3>
+          <div className="card" hidden={activity !== 'responses'}>
+            <h3 className="text-xl font-semibold mb-4">{t('profile.responses')}</h3>
             {loadingApplications ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -313,7 +339,7 @@ export default function ProfilePage() {
                 {userResponses.map((app: any) => (
                   <Link
                     key={app.id}
-                    href={`/applications/${app.id}`}
+                    href={`/applications/${app.public_id || app.id}`}
                     className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -452,7 +478,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     {rating.comment && (
-                      <p className="text-sm text-gray-700 mt-2 pl-13 italic">"{rating.comment}"</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-700">{rating.comment}</p>
                     )}
                   </div>
                 ))}

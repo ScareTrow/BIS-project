@@ -11,7 +11,11 @@ test('category dropdown filters resource cards and replaces city search', async 
   render(<ResourcesPage />);
   await waitFor(() => expect(communityApi.resources).toHaveBeenCalledWith(''));
   expect(screen.queryByLabelText('Фильтр по городу')).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Тип ресурса'), { target: { value: 'medicine' } });
-  await waitFor(() => expect(communityApi.resources).toHaveBeenCalledWith('medicine'));
+  const filter = screen.getByRole('button', { name: /^Тип ресурса/ });
+  fireEvent.click(filter);
   expect(screen.getByRole('option', { name: 'Убежища' })).toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'ArrowDown' });
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Enter' });
+  await waitFor(() => expect(communityApi.resources).toHaveBeenCalledWith('medicine'));
+  expect(filter).toHaveFocus();
 });

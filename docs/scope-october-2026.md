@@ -35,9 +35,10 @@ implementation status must be recorded with the implementation.
 
 ## User journeys
 
-- A resident describes a problem, selects city/category/location and optionally
-  adds photos, required capabilities and quantified needs. Pending requests are
-  moderated before public publication, including SOS.
+- A resident describes a problem, selects a category and location, and adds
+  photos. Ordinary requests are moderated before public publication. SOS is
+  published immediately and reviewed afterward under TSIS 6–7 (US-10).
+  Capability and quantified-need fields are extensions to the charter scope.
 - An available volunteer finds suitable requests and offers help. The author
   accepts several helpers if necessary. Each accepted helper can promise and
   deliver part of a need; finishing one response does not finish every response.

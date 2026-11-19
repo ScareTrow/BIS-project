@@ -212,8 +212,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ]
       }
@@ -453,8 +462,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -489,8 +507,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -525,8 +552,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -561,8 +597,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -597,8 +642,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -633,8 +687,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -669,8 +732,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -705,8 +777,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           },
           {
             "name": "response_id",
@@ -749,8 +830,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           },
           {
             "name": "response_id",
@@ -793,8 +883,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -829,8 +928,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ],
         "security": [
@@ -974,9 +1082,6 @@
         "summary": "api create application",
         "description": "Route inventory from Flask source. General response schema unless specified below.",
         "responses": {
-          "200": {
-            "description": "Successful response; see route implementation for envelope"
-          },
           "400": {
             "description": "Invalid input"
           },
@@ -985,6 +1090,15 @@
           },
           "403": {
             "description": "Insufficient permission"
+          },
+          "201": {
+            "description": "Created; public_id is the request UUID"
+          },
+          "413": {
+            "description": "File too large"
+          },
+          "415": {
+            "description": "Unsupported image format"
           }
         },
         "security": [
@@ -995,115 +1109,15 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "latitude",
-                  "longitude",
-                  "category",
-                  "description"
-                ],
-                "properties": {
-                  "latitude": {
-                    "type": "number",
-                    "minimum": -90,
-                    "maximum": 90
-                  },
-                  "longitude": {
-                    "type": "number",
-                    "minimum": -180,
-                    "maximum": 180
-                  },
-                  "category": {
-                    "type": "string",
-                    "enum": [
-                      "food",
-                      "medicine",
-                      "shelter",
-                      "emergency",
-                      "clothing",
-                      "household",
-                      "delivery",
-                      "volunteering",
-                      "social_project"
-                    ]
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "expires_days": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 365,
-                    "default": 7
-                  },
-                  "city": {
-                    "type": "string",
-                    "maxLength": 200
-                  },
-                  "needed_help": {
-                    "type": "string",
-                    "maxLength": 5000
-                  },
-                  "priority": {
-                    "type": "string",
-                    "enum": [
-                      "normal",
-                      "sos"
-                    ],
-                    "default": "normal"
-                  },
-                  "capability_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "integer"
-                    },
-                    "uniqueItems": true,
-                    "maxItems": 30
-                  },
-                  "needs": {
-                    "type": "array",
-                    "maxItems": 30,
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "resource_name",
-                        "unit",
-                        "quantity_needed"
-                      ],
-                      "properties": {
-                        "resource_name": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 160
-                        },
-                        "unit": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 32
-                        },
-                        "quantity_needed": {
-                          "type": "number",
-                          "exclusiveMinimum": true,
-                          "minimum": 0,
-                          "multipleOf": 0.001
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            },
             "multipart/form-data": {
               "schema": {
                 "type": "object",
                 "required": [
                   "latitude",
                   "longitude",
-                  "category",
+                  "media_files",
                   "description",
-                  "media_files"
+                  "category"
                 ],
                 "properties": {
                   "latitude": {
@@ -1116,63 +1130,43 @@
                     "minimum": -180,
                     "maximum": 180
                   },
-                  "category": {
-                    "type": "string",
-                    "enum": [
-                      "food",
-                      "medicine",
-                      "shelter",
-                      "emergency",
-                      "clothing",
-                      "household",
-                      "delivery",
-                      "volunteering",
-                      "social_project"
-                    ]
+                  "media_files": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "JPEG or PNG, at most 10 MiB per file"
+                  },
+                  "address": {
+                    "type": "string"
                   },
                   "description": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 1000
+                  },
+                  "category": {
                     "type": "string"
                   },
                   "expires_days": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 365,
-                    "default": 7
-                  },
-                  "media_files": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "binary"
-                    }
-                  },
-                  "verification_document": {
-                    "type": "string",
-                    "format": "binary"
-                  },
-                  "city": {
-                    "type": "string",
-                    "maxLength": 200
-                  },
-                  "needed_help": {
-                    "type": "string",
-                    "maxLength": 5000
-                  },
-                  "priority": {
-                    "type": "string",
-                    "enum": [
-                      "normal",
-                      "sos"
-                    ],
-                    "default": "normal"
+                    "maximum": 365
                   },
                   "capability_ids": {
                     "type": "string",
-                    "description": "JSON encoded integer array"
+                    "description": "JSON array of capability IDs"
                   },
                   "needs": {
                     "type": "string",
-                    "description": "JSON encoded need array"
+                    "description": "JSON array of optional resource needs"
+                  },
+                  "delivery_details": {
+                    "type": "string",
+                    "description": "JSON pickup and drop-off locations"
                   }
                 }
               }
@@ -1187,9 +1181,6 @@
         "summary": "create sos",
         "description": "Route inventory from Flask source. General response schema unless specified below.",
         "responses": {
-          "200": {
-            "description": "Successful response; see route implementation for envelope"
-          },
           "400": {
             "description": "Invalid input"
           },
@@ -1198,6 +1189,18 @@
           },
           "403": {
             "description": "Insufficient permission"
+          },
+          "201": {
+            "description": "Created; public_id is the request UUID"
+          },
+          "413": {
+            "description": "File too large"
+          },
+          "415": {
+            "description": "Unsupported image format"
+          },
+          "429": {
+            "description": "SOS limit reached"
           }
         },
         "security": [
@@ -1208,12 +1211,13 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
                 "type": "object",
                 "required": [
                   "latitude",
-                  "longitude"
+                  "longitude",
+                  "media_files"
                 ],
                 "properties": {
                   "latitude": {
@@ -1225,6 +1229,19 @@
                     "type": "number",
                     "minimum": -180,
                     "maximum": 180
+                  },
+                  "media_files": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "JPEG or PNG, at most 10 MiB per file"
+                  },
+                  "address": {
+                    "type": "string"
                   }
                 }
               }
@@ -1712,9 +1729,17 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Public request UUID or legacy numeric ID"
           }
         ]
       }
@@ -2164,6 +2189,102 @@
         "security": [
           {
             "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/locations/reverse": {
+      "post": {
+        "operationId": "reverse_location",
+        "summary": "Resolve a point to an address",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolve a point to an address"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude"
+                ],
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/capabilities/onboarding": {
+      "post": {
+        "operationId": "claim_capability_onboarding",
+        "summary": "Claim the one-time capability prompt",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim the one-time capability prompt"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/api/admin/reviews/{rating_id}/hide": {
+      "post": {
+        "operationId": "hide_review",
+        "summary": "Hide the review text",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hide the review text"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Administrator required"
+          }
+        },
+        "parameters": [
+          {
+            "name": "rating_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
           }
         ]
       }

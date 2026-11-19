@@ -1,7 +1,8 @@
 "use client";
 
 import { mapTiles } from '@/lib/mapTiles';
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { TileLayer, CircleMarker, Popup } from "react-leaflet";
+import MapContainer from '@/components/common/LeafletMap';
 import { Resource } from "@/lib/community-api";
 export default function ResourceMap({ resources }: { resources: Resource[] }) {
   return (

@@ -111,11 +111,18 @@ def parse_application_extras(data):
     for need in needs:
         if not isinstance(need, dict):
             raise ValueError("Некорректная потребность")
+        name = text(need.get("resource_name"), 160)
+        unit = text(need.get("unit"), 32)
+        amount = need.get("quantity_needed")
+        if not name and not unit and amount in (None, "", 1, "1"):
+            continue
+        if not name or not unit:
+            raise ValueError("Укажите название и единицу измерения ресурса")
         parsed.append(
             dict(
-                resource_name=text(need.get("resource_name"), 160, True),
-                unit=text(need.get("unit"), 32, True),
-                quantity_needed=quantity(need.get("quantity_needed"), True),
+                resource_name=name,
+                unit=unit,
+                quantity_needed=quantity(amount, True),
             )
         )
     priority = data.get("priority", "normal")
@@ -392,15 +399,21 @@ def volunteer_location():
                    longitude=pref.longitude if pref else None)
 
 
+@community.post('/api/user/capabilities/onboarding')
+@login_required
+def claim_capability_onboarding():
+    updated = User.query.filter_by(id=current_user.id, capability_onboarding_seen=False).update(
+        {User.capability_onboarding_seen: True})
+    db.session.commit()
+    return jsonify(show=bool(updated))
+
+
 @community.get("/api/applications/matching")
 @login_required
 def matching():
+    from .application_service import visible_requests
     applications = (
-        Application.query.filter_by(
-            moderation_status=ModerationStatus.APPROVED,
-            is_resolved=False,
-            is_false_call=False,
-        )
+        visible_requests(current_user).filter(Application.moderation_status == ModerationStatus.APPROVED)
         .order_by(Application.priority.desc(), Application.date.desc())
         .all()
     )
@@ -418,7 +431,7 @@ def matching():
     )
 
 
-@community.get("/api/applications/<int:app_id>/aid")
+@community.get("/api/applications/<appref:app_id>/aid")
 def application_aid(app_id):
     a = Application.query.get_or_404(app_id)
     owner = current_user.is_authenticated and (
@@ -545,7 +558,7 @@ def complete_response(response_id):
 @community.post("/api/responses/<int:response_id>/rating")
 @login_required
 def rate_response(response_id):
-    response = ApplicationResponse.query.get_or_404(response_id)
+    response = ApplicationResponse.query.filter_by(id=response_id).with_for_update().first_or_404()
     if response.application.user_id != current_user.id:
         return jsonify(error="Оценку оставляет автор заявки"), 403
     if response.status != ResponseStatus.COMPLETED:
@@ -579,6 +592,17 @@ def rate_response(response_id):
         notification_type="rating_received", related_application_id=response.application_id)
     db.session.commit()
     return jsonify(success=True, id=rating.id), 201
+
+
+@community.post('/api/admin/reviews/<int:rating_id>/hide')
+@login_required
+def hide_review(rating_id):
+    if not current_user.isAdmin:
+        return jsonify(error='Доступ запрещён'), 403
+    rating = Rating.query.get_or_404(rating_id)
+    rating.is_hidden = True
+    db.session.commit()
+    return jsonify(success=True)
 
 
 @community.route("/api/resources", methods=["GET", "POST"])

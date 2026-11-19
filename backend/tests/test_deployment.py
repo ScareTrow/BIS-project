@@ -168,7 +168,7 @@ def test_prepare_deploy_bootstraps_empty_database_and_can_run_again(app, test_us
             assert result.exit_code == 0, result.output
         with app.app_context():
             assert set(db.metadata.tables).issubset(inspect(db.engine).get_table_names())
-            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261117_delivery_locations'
+            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261119_application_uuid'
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
@@ -184,13 +184,18 @@ def test_prepare_deploy_migrates_existing_records_without_replacing_them(app, te
         TelegramUpdateReceipt.__table__.drop(db.engine)
         TelegramConversation.__table__.drop(db.engine)
         db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password TYPE VARCHAR(150)'))
+        db.session.execute(text('ALTER TABLE "user" DROP COLUMN capability_onboarding_seen'))
+        db.session.execute(text('ALTER TABLE rating DROP COLUMN is_hidden'))
+        db.session.execute(text('ALTER TABLE application DROP COLUMN public_id'))
         db.session.commit()
         stamp(revision='20261117_volunteer_location')
     try:
         result = app.test_cli_runner().invoke(args=['prepare-deploy'])
         assert result.exit_code == 0, result.output
         with app.app_context():
-            assert db.session.get(User, user_id).email == 'test@example.com'
+            user = db.session.get(User, user_id)
+            assert user.email == 'test@example.com'
+            assert user.capability_onboarding_seen is True
             column = next(c for c in inspect(db.engine).get_columns('user') if c['name'] == 'password')
             assert column['type'].length == 255
             assert inspect(db.engine).has_table('telegram_conversation')

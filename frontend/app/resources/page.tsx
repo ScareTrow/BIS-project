@@ -7,6 +7,9 @@ import { communityApi, Resource, Confirmation } from "@/lib/community-api";
 import { useStore } from "@/lib/store";
 import { useTranslation } from "@/lib/i18n";
 import CategoryBadge from "@/components/common/CategoryBadge";
+import { Select } from "@/components/ui/Select";
+import { PageHeader } from "@/components/ui/PageHeader";
+const categories = ['medicine', 'shelter', 'food', 'clothing', 'household', 'delivery', 'volunteering', 'social_project', 'emergency'] as const;
 const ResourceMap = dynamic(
   () => import("@/components/community/ResourceMap"),
   { ssr: false },
@@ -60,19 +63,11 @@ export default function ResourcesPage() {
   };
   return (
     <main className="container mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <h1 className="text-3xl font-bold">Ресурсы рядом</h1>
-      <p>
-        Здесь предлагают ресурсы и показывают точки помощи. Просьбы о помощи
-        находятся в заявках.
-      </p>
-      <label className="form-field max-w-sm">Тип ресурса
-        <select className="form-select" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}>
-          <option value="">Все типы ресурсов</option>
-          {['medicine', 'shelter', 'food', 'clothing', 'household', 'delivery', 'volunteering', 'social_project', 'emergency'].map(category => <option key={category} value={category}>
-            {category === 'medicine' ? 'Аптеки и медицина' : category === 'shelter' ? 'Убежища' : category === 'food' ? 'Продукты' : t(`categories.${category}`)}
-          </option>)}
-        </select>
-      </label>
+      <PageHeader title={t('resources.title')} description={t('resources.description')} />
+      <div className="max-w-sm"><Select label={t('resources.type')} value={categoryFilter} onChange={setCategoryFilter}
+        options={[{ value: '', label: t('resources.allTypes') }, ...categories.map(value => ({
+          value, label: t(value === 'medicine' ? 'resources.medicine' : value === 'shelter' ? 'resources.shelters' : `category.${value}`),
+        }))]} /></div>
       <ResourceMap resources={resources} />
       {message && <p role="status">{message}</p>}
       {!resources.length && <p>Ресурсов выбранного типа пока нет.</p>}
@@ -187,35 +182,9 @@ export default function ResourcesPage() {
               onChange={(e) => setForm({ ...form, city: e.target.value })}
             />
           </label>
-          <label className="form-field">
-            Категория
-            <select
-              className="form-select"
-              value={form.category}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  category: e.target.value as Resource["category"],
-                })
-              }
-            >
-              {[
-                "food",
-                "clothing",
-                "household",
-                "delivery",
-                "volunteering",
-                "social_project",
-                "medicine",
-                "shelter",
-                "emergency",
-              ].map((c) => (
-                <option key={c} value={c}>
-                  {t(`categories.${c}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select label={t('application.form.category')} value={form.category}
+            onChange={category => setForm({ ...form, category })}
+            options={categories.map(value => ({ value, label: t(`category.${value}`) }))} />
           <AddressPicker title="Где находится ресурс" city={form.city} value={location} onChange={setLocation} />
           <button disabled={busy} className="btn btn-primary">
             Добавить ресурс

@@ -1,6 +1,7 @@
 'use client';
 
 import TelegramLink from '@/components/community/TelegramLink';
+import VolunteerSettings from '@/components/community/VolunteerSettings';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -382,6 +383,7 @@ export default function EditProfilePage() {
             </Link>
           </div>
         </form>
+        <div className="mt-6"><VolunteerSettings /></div>
       </div>
     </div>
   );

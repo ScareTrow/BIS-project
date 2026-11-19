@@ -5,12 +5,17 @@ import { Award, Star, User as UserIcon, Clock, Heart, MapPin, HelpCircle, CheckC
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useTranslation, getLanguage } from '@/lib/i18n';
+import { useTranslation } from '@/lib/i18n';
+import { useStore } from '@/lib/store';
+import { StarRating } from '@/components/ui/StarRating';
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
+import { communityApi } from '@/lib/community-api';
 
 export default function UserProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const t = useTranslation(getLanguage());
+  const { language, user: viewer } = useStore();
+  const t = useTranslation(language);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -200,7 +205,7 @@ export default function UserProfilePage() {
           {/* Отзывы */}
           {user.received_ratings && user.received_ratings.length > 0 && (
             <div className="card">
-              <h2 className="text-xl font-semibold mb-4">Последние отзывы</h2>
+              <h2 className="text-xl font-semibold mb-4">{t('review.recent')}</h2>
               <div className="space-y-3">
                 {user.received_ratings.map((rating: any) => (
                   <div key={rating.id} className="border-b pb-3 last:border-0">
@@ -210,22 +215,18 @@ export default function UserProfilePage() {
                           <p className="font-medium">
                             {rating.rater?.first_name} {rating.rater?.last_name || ''}
                           </p>
-                          <div className="flex items-center space-x-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < rating.rating_value
-                                    ? 'text-yellow-400 fill-yellow-400'
-                                    : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
+                          <StarRating value={rating.rating_value} label={`${t('ui.rating')}: ${rating.rating_value}/5`} />
                         </div>
+                        {rating.application_id && <Link href={`/applications/${rating.application_id}`} className="text-sm text-primary underline">
+                          {t('review.request', { id: rating.application_id })}
+                        </Link>}
                         {rating.comment && (
-                          <p className="text-sm text-gray-700 mt-1">{rating.comment}</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700">{rating.comment}</p>
                         )}
+                        {viewer?.isAdmin && rating.comment && <InlineConfirm prompt={t('review.hidePrompt')} onConfirm={async () => {
+                          await communityApi.hideReview(rating.id);
+                          await loadUser();
+                        }}>{t('review.hide')}</InlineConfirm>}
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(rating.created_at).toLocaleDateString('ru-RU', {
                             day: 'numeric',

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import colors from "tailwindcss/colors";
 
 const config: Config = {
   content: [
@@ -10,29 +11,29 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#ef4444",
-          dark: "#dc2626",
-          light: "#f87171",
+          DEFAULT: colors.blue[600],
+          dark: colors.blue[700],
+          light: colors.blue[50],
         },
         success: {
-          DEFAULT: "#10b981",
-          dark: "#059669",
-          light: "#34d399",
+          DEFAULT: colors.green[700],
+          dark: colors.green[800],
+          light: colors.green[50],
         },
         danger: {
-          DEFAULT: "#ef4444",
-          dark: "#dc2626",
-          light: "#f87171",
+          DEFAULT: colors.red[600],
+          dark: colors.red[700],
+          light: colors.red[50],
         },
         warning: {
-          DEFAULT: "#f59e0b",
-          dark: "#d97706",
-          light: "#fbbf24",
+          DEFAULT: colors.amber[700],
+          dark: colors.amber[800],
+          light: colors.amber[50],
         },
         info: {
-          DEFAULT: "#3b82f6",
-          dark: "#2563eb",
-          light: "#60a5fa",
+          DEFAULT: colors.blue[700],
+          dark: colors.blue[800],
+          light: colors.blue[50],
         },
         emergency: {
           DEFAULT: "#dc2626",

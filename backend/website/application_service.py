@@ -71,7 +71,7 @@ def notify_nearby(application):
         if distance > 10 or notification_exists(user.id, application.id):
             continue
         category = CATEGORY_NAMES[application.category.value]
-        link = f'{Config.WEB_APP_URL.rstrip("/")}/applications/{application.id}'
+        link = f'{Config.WEB_APP_URL.rstrip("/")}/applications/{application.public_id}'
         create_notification(user.id, 'SOS: рядом нужна помощь' if application.is_sos else 'Рядом нужна помощь',
             f'{category} · {distance:.1f} км\n{application.description[:150]}\n{link}',
             'new_request', application.id)
@@ -120,6 +120,8 @@ def visible_requests(user, status='active'):
         ApplicationResponse.status.in_([ResponseStatus.ACCEPTED, ResponseStatus.COMPLETED]),
     ).exists()
     state = Application.is_resolved.is_(True) if status == 'completed' else Application.is_resolved.is_(False)
+    if status != 'completed':
+        state = and_(state, unexpired_request())
     if status == 'open':
         state = and_(state, ~active_response)
     elif status == 'in_progress':
@@ -128,5 +130,9 @@ def visible_requests(user, status='active'):
     if user.is_authenticated:
         public = or_(public, and_(Application.user_id == user.id,
             Application.moderation_status == ModerationStatus.PENDING,
-            Application.is_resolved.is_(False)))
+            Application.is_resolved.is_(False), unexpired_request()))
     return Application.query.filter(public, Application.is_false_call.is_(False))
+
+
+def unexpired_request():
+    return or_(Application.expires_at.is_(None), Application.expires_at > datetime.now(timezone.utc))
