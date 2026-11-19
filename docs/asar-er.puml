@@ -46,6 +46,7 @@ entity "categories" as categories {
 }
 entity "applications" as applications {
   * id : BIGINT <<PK>>
+  * public_id : UUID <<UK>>
   --
   * author_id : BIGINT <<FK>>
   * category_id : BIGINT <<FK>>
@@ -138,6 +139,7 @@ entity "ratings" as ratings {
   * rater_id : BIGINT <<FK>>
   * score : SMALLINT
   comment : TEXT
+  * is_hidden : BOOLEAN
   * created_at : TIMESTAMPTZ
 }
 entity "badges" as badges {

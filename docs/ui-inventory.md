@@ -11,11 +11,11 @@ Additional materials: [Google Drive folder](https://drive.google.com/drive/folde
 
 | Area | Existing implementation |
 |---|---|
-| Home | Map/list switch, city filter, SOS, statistics |
-| Request creation | Category, coordinates/address, description, duration, media |
-| Request detail | Location, media, responses, completion and rating |
-| Authentication/profile | Registration, login, profile editing, Telegram link guidance |
-| Administration | Request moderation, user management, news editor |
+| Home | Request and resource map, city badge, request-status and capability filters, SOS |
+| Request creation | Description, category, point by address or map, JPEG/PNG photos, optional needs and capabilities |
+| Request detail | Status progression, responses, restricted contact, completion, star rating and optional review |
+| Authentication/profile | Registration, profile editing, capability onboarding, Telegram linking and opt-in location updates |
+| Administration | Dashboard with moderation queue, inline actions, user management, news editor |
 | News/search | Public news list/detail and global search |
 | Shared components | Header, footer, category badges, notifications, Leaflet helpers |
 
