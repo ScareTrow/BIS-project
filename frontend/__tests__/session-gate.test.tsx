@@ -9,7 +9,7 @@ jest.mock('next/dynamic', () => () => function EmptyMap() { return null; });
 
 test.each([
   ['new request', NewApplicationPage, '/login'],
-  ['admin news', AdminNewsPage, '/'],
+  ['admin news', AdminNewsPage, '/login'],
 ] as const)('%s waits for session restoration before redirecting', (_name, Page, destination) => {
   mockPush.mockClear();
   useStore.setState({ user: null, authLoading: true });

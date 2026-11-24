@@ -1,339 +1,218 @@
 'use client';
 
+import {
+  EmptyState, NEWS_TYPES, NoticeBar, PageHeader, Pill, Spinner, Tabs, useNotice, useRequireAdmin,
+} from '@/components/admin/shared';
 import { apiClient } from '@/lib/api';
-import { useStore } from '@/lib/store';
 import { Edit, Eye, EyeOff, Newspaper, Plus, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 interface NewsItem {
-    id: number;
-    title: string;
-    content: string;
-    news_type: string;
-    is_published: boolean;
-    created_at: string;
-    updated_at: string;
-    author: {
-        first_name: string;
-        last_name?: string | null;
-    };
+  id: number;
+  title: string;
+  content: string;
+  news_type: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+  author: { first_name: string; last_name?: string | null };
 }
+
+const EMPTY_FORM = { title: '', content: '', news_type: 'general', is_published: true };
+type Filter = 'all' | 'published' | 'draft';
 
 export default function AdminNewsPage() {
-    const router = useRouter();
-    const { user, authLoading } = useStore();
-    const [loading, setLoading] = useState(true);
-    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-    const [showForm, setShowForm] = useState(false);
-    const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
-    const [formData, setFormData] = useState({
-        title: '',
-        content: '',
-        news_type: 'general',
-        is_published: true,
-    });
+  const ready = useRequireAdmin();
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<NewsItem[]>([]);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [editing, setEditing] = useState<NewsItem | 'new' | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useNotice();
 
-    useEffect(() => {
-        if (authLoading) return;
-        if (!user?.isAdmin) {
-            router.push('/');
-            return;
-        }
-        loadNews();
-    }, [user, authLoading, router]);
-
-    const loadNews = async () => {
-        try {
-            setLoading(true);
-            const data = await apiClient.getAdminNews();
-            setNewsItems(data.news || []);
-        } catch (error) {
-            console.error('Error loading news:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            if (editingNews) {
-                await apiClient.updateNews(editingNews.id, formData);
-            } else {
-                await apiClient.createNews(formData);
-            }
-            setShowForm(false);
-            setEditingNews(null);
-            setFormData({ title: '', content: '', news_type: 'general', is_published: true });
-            loadNews();
-        } catch (error) {
-            console.error('Error saving news:', error);
-            alert('Ошибка при сохранении новости');
-        }
-    };
-
-    const handleEdit = (news: NewsItem) => {
-        setEditingNews(news);
-        setFormData({
-            title: news.title,
-            content: news.content,
-            news_type: news.news_type,
-            is_published: news.is_published,
-        });
-        setShowForm(true);
-    };
-
-    const handleDelete = async (id: number) => {
-        if (!confirm('Вы уверены, что хотите удалить эту новость?')) {
-            return;
-        }
-        try {
-            await apiClient.deleteNews(id);
-            loadNews();
-        } catch (error) {
-            console.error('Error deleting news:', error);
-            alert('Ошибка при удалении новости');
-        }
-    };
-
-    const handleTogglePublish = async (news: NewsItem) => {
-        try {
-            await apiClient.updateNews(news.id, { is_published: !news.is_published });
-            loadNews();
-        } catch (error) {
-            console.error('Error updating news:', error);
-            alert('Ошибка при обновлении новости');
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
-
-    if (!user?.isAdmin) {
-        return null;
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiClient.getAdminNews();
+      setItems(data.news || []);
+    } catch {
+      setNotice({ kind: 'error', text: 'Не удалось загрузить новости.' });
+    } finally {
+      setLoading(false);
     }
+  }, [setNotice]);
 
-    if (loading) {
-        return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="flex justify-center items-center h-96">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                </div>
+  useEffect(() => {
+    if (ready) load();
+  }, [ready, load]);
+
+  const visible = useMemo(
+    () => items.filter((n) => (filter === 'published' ? n.is_published : filter === 'draft' ? !n.is_published : true)),
+    [items, filter],
+  );
+
+  const openNew = () => {
+    setEditing('new');
+    setForm(EMPTY_FORM);
+  };
+
+  const openEdit = (n: NewsItem) => {
+    setEditing(n);
+    setForm({ title: n.title, content: n.content, news_type: n.news_type, is_published: n.is_published });
+  };
+
+  const close = () => {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editing && editing !== 'new') await apiClient.updateNews(editing.id, form);
+      else await apiClient.createNews(form);
+      setNotice({ kind: 'success', text: form.is_published ? 'Новость опубликована.' : 'Черновик сохранён.' });
+      close();
+      await load();
+    } catch {
+      setNotice({ kind: 'error', text: 'Не удалось сохранить новость.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (n: NewsItem) => {
+    if (!confirm(`Удалить новость «${n.title}»? Это нельзя отменить.`)) return;
+    try {
+      await apiClient.deleteNews(n.id);
+      setNotice({ kind: 'success', text: 'Новость удалена.' });
+      await load();
+    } catch {
+      setNotice({ kind: 'error', text: 'Не удалось удалить новость.' });
+    }
+  };
+
+  const togglePublish = async (n: NewsItem) => {
+    try {
+      await apiClient.updateNews(n.id, { is_published: !n.is_published });
+      setNotice({ kind: 'success', text: n.is_published ? 'Новость скрыта — теперь это черновик.' : 'Новость опубликована.' });
+      await load();
+    } catch {
+      setNotice({ kind: 'error', text: 'Не удалось изменить статус новости.' });
+    }
+  };
+
+  if (!ready) return <Spinner />;
+
+  return (
+    <>
+      <PageHeader
+        title="Новости"
+        description="Объявления, которые видят все пользователи на странице «Новости». Черновики видны только администраторам."
+        action={
+          !editing && (
+            <button onClick={openNew} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
+              <Plus className="w-5 h-5" />Написать новость
+            </button>
+          )
+        }
+      />
+      <NoticeBar notice={notice} onClose={() => setNotice(null)} />
+
+      {editing && (
+        <form onSubmit={submit} className="bg-white rounded-xl border border-blue-200 p-6 mb-6 space-y-4">
+          <h2 className="text-lg font-semibold">{editing === 'new' ? 'Новая новость' : 'Редактирование'}</h2>
+          <div>
+            <label htmlFor="news-title" className="block text-sm font-medium text-gray-700 mb-1">Заголовок</label>
+            <input
+              id="news-title" type="text" required maxLength={200} value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="news-content" className="block text-sm font-medium text-gray-700 mb-1">Текст</label>
+            <textarea
+              id="news-content" rows={6} required value={form.content}
+              onChange={(e) => setForm({ ...form, content: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="sm:w-64">
+              <label htmlFor="news-type" className="block text-sm font-medium text-gray-700 mb-1">Рубрика</label>
+              <select
+                id="news-type" value={form.news_type}
+                onChange={(e) => setForm({ ...form, news_type: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              >
+                {Object.entries(NEWS_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
             </div>
-        );
-    }
+            <label className="flex items-center gap-2 text-sm text-gray-700 sm:mt-6">
+              <input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} />
+              Сразу показать пользователям (иначе — черновик)
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+              {form.is_published ? 'Опубликовать' : 'Сохранить черновик'}
+            </button>
+            <button type="button" onClick={close} className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100">Отмена</button>
+          </div>
+        </form>
+      )}
 
-    return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
-                        <Newspaper className="w-8 h-8 mr-3 text-blue-600" />
-                        Управление новостями
-                    </h1>
-                    <p className="text-gray-600">Создавайте и редактируйте новости платформы</p>
+      <div className="mb-4">
+        <Tabs
+          value={filter}
+          onChange={setFilter}
+          items={[
+            { value: 'all', label: 'Все', count: items.length },
+            { value: 'published', label: 'Опубликованные', count: items.filter((n) => n.is_published).length },
+            { value: 'draft', label: 'Черновики', count: items.filter((n) => !n.is_published).length },
+          ]}
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : visible.length === 0 ? (
+        <EmptyState icon={<Newspaper className="w-12 h-12" />} title="Новостей нет" hint="Нажмите «Написать новость», чтобы создать первую." />
+      ) : (
+        <ul className="space-y-3">
+          {visible.map((n) => (
+            <li key={n.id} className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col md:flex-row gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  {n.is_published
+                    ? <Pill className="bg-green-100 text-green-800 border-green-300">Опубликовано</Pill>
+                    : <Pill className="bg-gray-100 text-gray-700 border-gray-300">Черновик</Pill>}
+                  <Pill className="bg-blue-50 text-blue-800 border-blue-200">{NEWS_TYPES[n.news_type] || n.news_type}</Pill>
                 </div>
-                <button
-                    onClick={() => {
-                        setShowForm(true);
-                        setEditingNews(null);
-                        setFormData({ title: '', content: '', news_type: 'general', is_published: true });
-                    }}
-                    className="btn btn-primary flex items-center space-x-2"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span>Создать новость</span>
+                <h3 className="font-semibold text-gray-900">{n.title}</h3>
+                <p className="text-sm text-gray-600 line-clamp-2">{n.content}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {n.author.first_name} {n.author.last_name || ''} · {new Date(n.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}
+                </p>
+              </div>
+              <div className="flex md:flex-col gap-2 shrink-0">
+                <button onClick={() => togglePublish(n)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                  {n.is_published ? <><EyeOff className="w-4 h-4" />Скрыть</> : <><Eye className="w-4 h-4" />Опубликовать</>}
                 </button>
-            </div>
-
-            {showForm && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-                    <h2 className="text-xl font-semibold mb-4">
-                        {editingNews ? 'Редактировать новость' : 'Создать новость'}
-                    </h2>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Заголовок *
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                required
-                                maxLength={200}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Содержание *
-                            </label>
-                            <textarea
-                                value={formData.content}
-                                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                rows={6}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Тип новости
-                            </label>
-                            <select
-                                value={formData.news_type}
-                                onChange={(e) => setFormData({ ...formData, news_type: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="general">Общее</option>
-                                <option value="stats">Статистика</option>
-                                <option value="location">Местоположение</option>
-                                <option value="safety">Безопасность</option>
-                                <option value="volunteers">Волонтеры</option>
-                            </select>
-                        </div>
-                        <div className="flex items-center">
-                            <input
-                                type="checkbox"
-                                id="is_published"
-                                checked={formData.is_published}
-                                onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                                className="mr-2"
-                            />
-                            <label htmlFor="is_published" className="text-sm text-gray-700">
-                                Опубликовать сразу
-                            </label>
-                        </div>
-                        <div className="flex space-x-3">
-                            <button type="submit" className="btn btn-primary">
-                                {editingNews ? 'Сохранить' : 'Создать'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowForm(false);
-                                    setEditingNews(null);
-                                    setFormData({ title: '', content: '', news_type: 'general', is_published: true });
-                                }}
-                                className="btn btn-secondary"
-                            >
-                                Отмена
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            )}
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Заголовок
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Тип
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Автор
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Дата
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Статус
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Действия
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {newsItems.length > 0 ? (
-                                newsItems.map((item) => (
-                                    <tr key={item.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{item.title}</div>
-                                            <div className="text-sm text-gray-500 line-clamp-2 max-w-md">
-                                                {item.content.substring(0, 100)}...
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                {item.news_type}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {item.author.first_name} {item.author.last_name || ''}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {formatDate(item.created_at)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {item.is_published ? (
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                                    Опубликовано
-                                                </span>
-                                            ) : (
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                                    Черновик
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex justify-end space-x-2">
-                                                <button
-                                                    onClick={() => handleTogglePublish(item)}
-                                                    className="text-blue-600 hover:text-blue-900"
-                                                    title={item.is_published ? 'Снять с публикации' : 'Опубликовать'}
-                                                >
-                                                    {item.is_published ? (
-                                                        <EyeOff className="w-5 h-5" />
-                                                    ) : (
-                                                        <Eye className="w-5 h-5" />
-                                                    )}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleEdit(item)}
-                                                    className="text-indigo-600 hover:text-indigo-900"
-                                                    title="Редактировать"
-                                                >
-                                                    <Edit className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(item.id)}
-                                                    className="text-red-600 hover:text-red-900"
-                                                    title="Удалить"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                                        Новостей пока нет. Создайте первую новость!
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
+                <button onClick={() => openEdit(n)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                  <Edit className="w-4 h-4" />Изменить
+                </button>
+                <button onClick={() => remove(n)} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
+                  <Trash2 className="w-4 h-4" />Удалить
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
 }
-
