@@ -20,11 +20,15 @@ function Meta({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">{children}</div>;
 }
 
-/** Карточка моей заявки */
 export function MyApplicationCard({ app }: { app: any }) {
   const href = `/applications/${app.public_id || app.id}`;
   return (
-    <Link href={href} className={cardLink}>
+        <Link
+      href={href}
+      className={`${cardLink} border-l-4 ${
+        app.is_sos ? 'border-red-500' : app.is_resolved ? 'border-emerald-500' : 'border-amber-400'
+      }`}
+    >
       <Header app={app}>
         {app.is_resolved ? (
           <span className="flex items-center gap-1 text-xs text-success">
@@ -61,11 +65,19 @@ const responseBadge: Record<string, string> = {
   cancelled: 'badge-danger',
 };
 
-/** Карточка заявки, на которую я откликнулся */
+
 export function MyResponseCard({ app }: { app: any }) {
   const href = `/applications/${app.public_id || app.id}`;
   return (
-    <Link href={href} className={cardLink}>
+        <Link
+      href={href}
+      className={`${cardLink} border-l-4 ${
+        app.response_status === 'accepted' ? 'border-emerald-500'
+        : app.response_status === 'completed' ? 'border-blue-500'
+        : app.response_status === 'cancelled' ? 'border-red-400'
+        : 'border-amber-400'
+      }`}
+    >
       <Header app={app}>
         <span className={`badge text-xs ${responseBadge[app.response_status] || 'badge-warning'}`}>
           {responseStatusLabels[app.response_status] || app.response_status}
@@ -99,6 +111,13 @@ export function Spinner() {
   );
 }
 
-export function EmptyState({ text }: { text: string }) {
-  return <p className="py-8 text-center text-gray-500">{text}</p>;
+export function EmptyState({ text, href, actionLabel }: { text: string; href?: string; actionLabel?: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-8 text-center">
+      <p className="max-w-sm text-gray-600">{text}</p>
+      {href && actionLabel && (
+        <Link href={href} className="btn btn-primary">{actionLabel}</Link>
+      )}
+    </div>
+  );
 }
