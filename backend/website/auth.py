@@ -1,3 +1,5 @@
+import re
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from .models import User
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -51,7 +53,6 @@ def logout():
 
 
 def _validate_signup(user, email, first_name, password1, password2):
-    import re
     
     if user:
         return "Пользователь с такой почтой уже существует!"
@@ -218,7 +219,6 @@ def api_signup():
         return jsonify({'success': False, 'message': 'Номер телефона обязателен'}), 400
     
     # Простая валидация формата телефона
-    import re
     if not valid_phone(phone):
         return jsonify({'success': False, 'message': 'Некорректный формат номера телефона'}), 400
 
