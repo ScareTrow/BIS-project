@@ -188,12 +188,11 @@ def api_login():
     return jsonify({'success': False, 'message': result}), 401
 
 
-@auth.route('/api/auth/logout', methods=['POST'])
-
 def valid_phone(phone):
     phone_pattern = re.compile(r'^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$')
     return bool(phone_pattern.match(phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')))
 
+@auth.route('/api/auth/logout', methods=['POST'])
 @login_required
 def api_logout():
     from flask import jsonify

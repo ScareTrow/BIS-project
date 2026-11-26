@@ -22,6 +22,8 @@ export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutFailed, setLogoutFailed] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const mobileRef = useRef<HTMLElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
@@ -142,9 +144,17 @@ export default function Header() {
   }
 
   async function logout() {
+    setLoggingOut(true);
+    setLogoutFailed(false);
     try { await apiClient.logout(); setUser(null); setMenuOpen(false); setShowMore(false); router.push('/'); }
-    catch (error) { console.error('Error logging out:', error); }
+    catch { setLogoutFailed(true); }
+    finally { setLoggingOut(false); }
   }
+
+  const logoutButton = user?.is_authenticated && <button type="button" onClick={logout} disabled={loggingOut}
+    className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50 disabled:opacity-50">
+    <LogOut aria-hidden="true" className="h-4 w-4 shrink-0" />{t('nav.logout')}
+  </button>;
 
   return (
     <header className="relative z-50 border-b border-gray-200 bg-white shadow-sm">
@@ -157,6 +167,7 @@ export default function Header() {
           </Link>
           <div className="hidden items-center gap-1 lg:flex">
             {primary.map(navLink)}
+            {logoutButton}
             <div className="relative" ref={moreRef}>
               <button type="button" aria-expanded={showMore} onClick={() => {
                 setShowMore(!showMore);
@@ -168,10 +179,6 @@ export default function Header() {
               </button>
               {showMore && <div className="absolute right-0 mt-2 min-w-40 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
                 {secondary.map(navLink)}
-                {user?.is_authenticated && <button type="button" onClick={logout}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50">
-                  <LogOut aria-hidden="true" className="h-4 w-4" />{t('nav.logout')}
-                </button>}
               </div>}
             </div>
           </div>
@@ -209,10 +216,12 @@ export default function Header() {
         </div>
         {menuOpen && <div id="mobile-navigation" className="space-y-3 border-t border-gray-100 py-4 lg:hidden">
           <div className="grid gap-1 sm:grid-cols-2">
-            {[...primary, ...secondary].map(navLink)}
-            {user?.is_authenticated && <button type="button" onClick={logout} className="flex items-center gap-3 rounded-md px-3 py-3 text-left text-gray-700 hover:bg-blue-50"><LogOut className="h-5 w-5" />{t('nav.logout')}</button>}
+            {primary.map(navLink)}
+            {logoutButton}
+            {secondary.map(navLink)}
           </div>
         </div>}
+        {logoutFailed && <p role="alert" className="pb-3 text-sm text-red-700">{t('nav.logoutError')}</p>}
       </nav>
     </header>
   );

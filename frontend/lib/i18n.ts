@@ -188,6 +188,7 @@ export const translations: Record<string, readonly [string, string, string]> = {
   'profile.telegramAlerts': ['Telegram-оповещения', 'Telegram хабарландырулары', 'Telegram alerts'],
   'nav.admin': ['Админ-панель', 'Әкімші панелі', 'Admin panel'],
   'nav.more': ['Ещё', 'Тағы', 'More'],
+  'nav.logoutError': ['Не удалось выйти из аккаунта. Попробуйте ещё раз.', 'Аккаунттан шығу мүмкін болмады. Қайталап көріңіз.', 'Could not sign out. Please try again.'],
   'resources.noneInCity': ['В этом городе пока нет пунктов помощи', 'Бұл қалада көмек пункттері әлі жоқ', 'No help points in this city yet'],
   'resources.offerAction': ['Предложить пункт помощи', 'Көмек пунктін ұсыну', 'Suggest a help point'],
   'resources.points': ['Пункты помощи', 'Көмек пункттері', 'Help points'],
