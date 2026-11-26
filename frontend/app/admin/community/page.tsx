@@ -5,6 +5,7 @@ import {
   useCategoryLabel, useNotice, useRequireAdmin,
 } from "@/components/admin/shared";
 import { Analytics, communityApi, TriageRule } from "@/lib/community-api";
+import { InlineConfirm } from "@/components/ui/ActionFeedback";
 import { MapPin, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
@@ -34,12 +35,9 @@ export default function CommunityAdmin() {
 
   if (!ready) return <Spinner />;
 
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.category && !form.keyword.trim() &&
-        !confirm("Без категории и ключевого слова правило сработает на ВСЕ новые заявки. Продолжить?")) {
-      return;
-    }
+  const appliesToAll = !form.category && !form.keyword.trim();
+
+  async function add() {
     setBusy(true);
     try {
       setRules(await communityApi.addRule({ ...form, category: form.category || null, keyword: form.keyword.trim() || null }));
@@ -105,7 +103,10 @@ export default function CommunityAdmin() {
           </div>
         )}
 
-        <form onSubmit={add} className="rounded-lg bg-gray-50 border border-gray-200 p-4">
+        <form onSubmit={(event) => {
+          event.preventDefault();
+          if (!appliesToAll && !busy) void add();
+        }} className="rounded-lg bg-gray-50 border border-gray-200 p-4">
           <h3 className="font-medium text-gray-900 mb-3">Новое правило</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <label className="text-sm text-gray-700">
@@ -136,9 +137,17 @@ export default function CommunityAdmin() {
               <span className="text-xs text-gray-500">меньше — проверяется раньше</span>
             </label>
           </div>
-          <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50" disabled={busy}>
-            Добавить правило
-          </button>
+          {appliesToAll ? (
+            <div className="mt-4">
+              <InlineConfirm disabled={busy} prompt="Без категории и ключевого слова правило сработает на все новые заявки. Продолжить?" onConfirm={add}>
+                Добавить правило
+              </InlineConfirm>
+            </div>
+          ) : (
+            <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50" disabled={busy}>
+              Добавить правило
+            </button>
+          )}
         </form>
       </section>
 

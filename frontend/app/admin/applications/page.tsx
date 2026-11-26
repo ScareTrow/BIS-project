@@ -1,5 +1,7 @@
 'use client';
 
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
+
 import {
   EmptyState, NoticeBar, PageHeader, Pill, PRIORITY_LEVELS, refreshAdminCounts, SearchInput,
   Spinner, StatusBadge, Tabs, useCategoryLabel, useNotice, useRequireAdmin,
@@ -102,8 +104,7 @@ function AdminApplicationsPageContent() {
   };
 
   const markFalse = (id: number) => {
-    if (!confirm(`Пометить заявку #${id} как ложную? Это снизит доверие к автору.`)) return;
-    run(id, () => apiClient.markFalseApplication(id), `Заявка #${id} помечена как ложная.`, 'Не удалось пометить заявку.');
+    return run(id, () => apiClient.markFalseApplication(id), `Заявка #${id} помечена как ложная.`, 'Не удалось пометить заявку.');
   };
 
   const setPriority = (id: number, priority: number) =>
@@ -185,9 +186,9 @@ function AdminApplicationsPageContent() {
                       </>
                     )}
                     {app.moderation_status === 'approved' && !app.is_false_call && (
-                      <button disabled={busy} onClick={() => markFalse(app.id)} className="inline-flex items-center gap-1 rounded-lg border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50 disabled:opacity-50">
+                      <InlineConfirm disabled={busy} danger prompt={`Пометить заявку #${app.id} как ложную? Это снизит доверие к автору.`} onConfirm={() => markFalse(app.id)}>
                         <AlertTriangle className="w-4 h-4" />Это ложная заявка
-                      </button>
+                      </InlineConfirm>
                     )}
                   </div>
 

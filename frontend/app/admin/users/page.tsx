@@ -1,5 +1,7 @@
 'use client';
 
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
+
 import {
   Avatar, EmptyState, NoticeBar, PageHeader, Pill, SearchInput, Spinner, Tabs,
   USER_BADGES, useNotice, useRequireAdmin,
@@ -61,7 +63,6 @@ export default function AdminUsersPage() {
   }, [users, filter, query]);
 
   const makeAdmin = async (u: AdminUser) => {
-    if (!confirm(`Назначить ${u.first_name} администратором? Он получит доступ к этой панели.`)) return;
     try {
       await apiClient.makeAdmin(u.id);
       setNotice({ kind: 'success', text: `${u.first_name} теперь администратор.` });
@@ -138,9 +139,9 @@ export default function AdminUsersPage() {
 
               <div className="flex items-center gap-2 sm:justify-end">
                 {!u.isAdmin && user?.is_super_admin && (
-                  <button onClick={() => makeAdmin(u)} className="rounded-lg border border-purple-300 px-3 py-1.5 text-sm text-purple-700 hover:bg-purple-50">
+                  <InlineConfirm prompt={`Назначить ${u.first_name} администратором? Он получит доступ к этой панели.`} onConfirm={() => makeAdmin(u)}>
                     Сделать админом
-                  </button>
+                  </InlineConfirm>
                 )}
                 <Link href={`/admin/users/${u.id}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white">
                   Подробнее<ChevronRight className="w-4 h-4" />

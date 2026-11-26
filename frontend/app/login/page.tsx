@@ -70,7 +70,7 @@ export default function LoginPage() {
                     <div className="text-sm text-red-800">{errors.submit}</div>
                   </div>
                 )}
-                
+
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">

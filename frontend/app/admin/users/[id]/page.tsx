@@ -1,5 +1,7 @@
 'use client';
 
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
+
 import {
   Avatar, EmptyState, NoticeBar, Pill, Spinner, StatusBadge, USER_BADGES,
   useCategoryLabel, useNotice, useRequireAdmin,
@@ -40,6 +42,7 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [blockDays, setBlockDays] = useState(7);
   const [blockReason, setBlockReason] = useState('');
+  const [deleteEmail, setDeleteEmail] = useState('');
   const [notice, setNotice] = useNotice();
 
   const load = useCallback(async () => {
@@ -97,8 +100,7 @@ export default function AdminUserDetailPage() {
   const fullName = `${detail.first_name} ${detail.last_name || ''}`.trim();
 
   const block = () => {
-    if (!confirm(`Заблокировать ${fullName} на ${blockDays} дн.?`)) return;
-    act(() => apiClient.blockUser(detail.id, blockDays, blockReason.trim()), `${fullName} заблокирован на ${blockDays} дн.`, 'Не удалось заблокировать пользователя.')
+    return act(() => apiClient.blockUser(detail.id, blockDays, blockReason.trim()), `${fullName} заблокирован на ${blockDays} дн.`, 'Не удалось заблокировать пользователя.')
       .then(() => setBlockReason(''));
   };
 
@@ -106,9 +108,7 @@ export default function AdminUserDetailPage() {
     act(() => apiClient.unblockUser(detail.id), `${fullName} разблокирован.`, 'Не удалось разблокировать пользователя.');
 
   const remove = async () => {
-    const typed = prompt(`Удаление необратимо: будут удалены все данные пользователя.\nЧтобы подтвердить, введите его email: ${detail.email}`);
-    if (typed === null) return;
-    if (typed.trim().toLowerCase() !== detail.email.toLowerCase()) {
+    if (deleteEmail.trim().toLowerCase() !== detail.email.toLowerCase()) {
       setNotice({ kind: 'error', text: 'Email не совпал — пользователь не удалён.' });
       return;
     }
@@ -266,9 +266,9 @@ export default function AdminUserDetailPage() {
                       placeholder="Например: повторные ложные заявки"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
                     />
-                    <button onClick={block} className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 font-semibold text-white hover:bg-yellow-700">
+                    <InlineConfirm danger prompt={`Заблокировать ${fullName} на ${blockDays} дн.?`} onConfirm={block}>
                       <Ban className="w-4 h-4" />Заблокировать на {blockDays} дн.
-                    </button>
+                    </InlineConfirm>
                   </>
                 )}
               </section>
@@ -276,7 +276,11 @@ export default function AdminUserDetailPage() {
               <section className="rounded-xl border border-red-300 bg-red-50/40 p-6">
                 <h2 className="text-lg font-semibold text-red-800 mb-1">Опасная зона</h2>
                 <p className="text-sm text-gray-700 mb-4">Удаление стирает аккаунт и все данные пользователя без возможности восстановления. Обычно достаточно блокировки.</p>
-                <button onClick={remove} className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-red-600 px-4 py-2 font-semibold text-red-700 hover:bg-red-600 hover:text-white">
+                <label className="block text-sm text-red-800">
+                  Для удаления введите email {detail.email}
+                  <input type="email" value={deleteEmail} onChange={event => setDeleteEmail(event.target.value)} className="mt-1 mb-2 w-full rounded-lg border border-gray-300 px-3 py-2" />
+                </label>
+                <button disabled={deleteEmail.trim().toLowerCase() !== detail.email.toLowerCase()} onClick={remove} className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-red-600 px-4 py-2 font-semibold text-red-700 hover:bg-red-600 hover:text-white">
                   <Trash2 className="w-4 h-4" />Удалить пользователя
                 </button>
               </section>

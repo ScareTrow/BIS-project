@@ -1,5 +1,7 @@
 'use client';
 
+import { InlineConfirm } from '@/components/ui/ActionFeedback';
+
 import {
   EmptyState, NEWS_TYPES, NoticeBar, PageHeader, Pill, Spinner, Tabs, useNotice, useRequireAdmin,
 } from '@/components/admin/shared';
@@ -84,7 +86,6 @@ export default function AdminNewsPage() {
   };
 
   const remove = async (n: NewsItem) => {
-    if (!confirm(`Удалить новость «${n.title}»? Это нельзя отменить.`)) return;
     try {
       await apiClient.deleteNews(n.id);
       setNotice({ kind: 'success', text: 'Новость удалена.' });
@@ -205,9 +206,9 @@ export default function AdminNewsPage() {
                 <button onClick={() => openEdit(n)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
                   <Edit className="w-4 h-4" />Изменить
                 </button>
-                <button onClick={() => remove(n)} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
+                <InlineConfirm danger prompt={`Удалить новость «${n.title}»? Это нельзя отменить.`} onConfirm={() => remove(n)}>
                   <Trash2 className="w-4 h-4" />Удалить
-                </button>
+                </InlineConfirm>
               </div>
             </li>
           ))}
