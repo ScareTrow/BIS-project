@@ -7,8 +7,8 @@ import { apiClient } from '../lib/api';
 import { useStore } from '../lib/store';
 
 const mockPush = jest.fn();
-const mockRouter = { push: mockPush };
-jest.mock('next/navigation', () => ({ useRouter: () => mockRouter, usePathname: () => '/' }));
+const mockRouter = { push: mockPush, replace: jest.fn() };
+jest.mock('next/navigation', () => ({ useRouter: () => mockRouter, usePathname: () => '/', useSearchParams: () => new URLSearchParams() }));
 jest.mock('next/dynamic', () => () => function Map({ onLocationSelect }: { onLocationSelect?: (latitude: number, longitude: number) => void }) {
   return <button type="button" onClick={() => onLocationSelect?.(0, 0)}>Выбрать точку</button>;
 });
@@ -149,8 +149,8 @@ test('delivery requires two locations and submits both entrances', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('куда доставить');
   expect(apiClient.createApplication).not.toHaveBeenCalled();
   fireEvent.click(within(to).getByRole('button', { name: 'Выбрать точку' }));
-  fireEvent.change(screen.getByLabelText('Подъезд / вход для получения'), { target: { value: 'Со двора' } });
-  fireEvent.change(screen.getByLabelText('Подъезд / вход для доставки'), { target: { value: 'Подъезд 2' } });
+  fireEvent.change(screen.getByLabelText('Вход для получения'), { target: { value: 'Со двора' } });
+  fireEvent.change(screen.getByLabelText('Вход для доставки'), { target: { value: 'Подъезд 2' } });
   fireEvent.change(screen.getByLabelText(/Фото:/), { target: { files: [new File(['png'], 'proof.png', { type: 'image/png' })] } });
   jest.mocked(apiClient.createApplication).mockResolvedValueOnce({ success: true, id: 81 });
   submitRequest();
@@ -166,7 +166,7 @@ test('delivery requires two locations and submits both entrances', async () => {
 test('applications route loads approved requests for the profile region',async()=>{
   render(<ApplicationsPage/>);
   expect(screen.getByRole('heading',{name:'Заявки на помощь'})).toBeInTheDocument();
-  await waitFor(()=>expect(apiClient.getApplicationsList).toHaveBeenCalledWith(true,'Алматы','active'));
+  await waitFor(()=>expect(apiClient.getApplicationsList).toHaveBeenCalledWith(expect.objectContaining({ city: 'Алматы', status: 'active', offset: 0 })));
   expect(screen.getByText('Алматы')).toBeInTheDocument();
 });
 

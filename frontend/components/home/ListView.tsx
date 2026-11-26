@@ -1,95 +1,51 @@
 'use client';
 
 import CategoryBadge from '@/components/common/CategoryBadge';
-import { Application } from '@/lib/api';
-import { MapPin, AlertCircle, Clock, Calendar } from 'lucide-react';
-import { StarRating } from '@/components/ui/StarRating';
+import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import Link from 'next/link';
+import type { Application } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
+import { MapPin } from 'lucide-react';
+import Link from 'next/link';
 
-interface ListViewProps {
-  applications: Application[];
+function relativeTime(date: string, language: string, now: number) {
+  const minutes = Math.floor((now - Date.parse(date)) / 60_000);
+  if (!Number.isFinite(minutes)) return;
+  const formatter = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
+  if (minutes >= 1440) return formatter.format(-Math.floor(minutes / 1440), 'day');
+  if (minutes >= 60) return formatter.format(-Math.floor(minutes / 60), 'hour');
+  return formatter.format(-Math.max(0, minutes), 'minute');
 }
 
-export default function ListView({ applications }: ListViewProps) {
-  const { language } = useStore();
+export default function ListView({ applications }: { applications: Application[] }) {
+  const language = useStore(state => state.language);
   const t = useTranslation(language);
+  const now = Date.now();
 
-  if (applications.length === 0) {
-    return (
-      <div className="card text-center py-16">
-        <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-500 text-xl font-medium">{t('home.noApplications')}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {applications.map((app) => (
-        <div
-          key={app.id}
-          className={`card ${
-            app.is_sos ? 'card-emergency' : ''
-          }`}
-        >
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center space-x-2 flex-wrap gap-2">
-              <span className="badge bg-gray-200 text-gray-700 font-bold">
-                #{app.number || app.id}
-              </span>
-              <CategoryBadge category={app.category} />
-              {app.is_sos && (
-                <span className="badge-emergency animate-pulse-emergency">
-                  <AlertCircle className="inline w-4 h-4 mr-1" />
-                  SOS
-                </span>
-              )}
-              <StatusBadge status={app.status} />
-            </div>
+  return <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+    {applications.map(app => {
+      const location = app.address || app.city || app.region || app.location;
+      const expiresIn = app.expires_at ? Date.parse(app.expires_at) - now : Infinity;
+      return <li key={app.id} className="min-w-0">
+        <Link href={'/applications/' + (app.public_id || app.id)}
+          className="card flex h-full flex-col gap-3 transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary">
+          <div className="flex flex-wrap items-center gap-2">
+            <CategoryBadge category={app.category} />
+            {app.is_sos && <Badge tone="danger">SOS</Badge>}
+            <StatusBadge status={app.status} />
           </div>
-
-          <p className="text-gray-700 mb-4 line-clamp-3 text-base leading-relaxed">
-            {app.description}
-          </p>
-
-          <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
-            <div className="flex items-center text-sm text-gray-600">
-              <MapPin className="w-4 h-4 mr-2 text-blue-600" />
-              <span className="font-semibold">{t('application.location')}:</span>
-              <span className="ml-2">{app.location || `${app.city || t('common.notSpecified')}, ${app.region || ''}`}</span>
-            </div>
-            {app.date && (
-              <div className="flex items-center text-sm text-gray-600">
-                <Calendar className="w-4 h-4 mr-2 text-blue-600" />
-                <span className="font-semibold">Создано:</span>
-                <span className="ml-2">{new Date(app.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-            )}
-            {app.expires_at && (
-              <div className="flex items-center text-sm text-gray-600">
-                <Clock className="w-4 h-4 mr-2 text-orange-600" />
-                <span className="font-semibold">Действует до:</span>
-                <span className="ml-2">{new Date(app.expires_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-              </div>
-            )}
-            {app.priority > 0 && (
-              <div className="flex items-center text-sm text-gray-600">
-                <StarRating value={app.priority} label={t('ui.priority', { value: app.priority })} />
-              </div>
-            )}
+          <p className="line-clamp-3 flex-1 break-words text-gray-900">{app.description}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+            {location && <span className="inline-flex min-w-0 items-center gap-1 break-words">
+              <MapPin aria-hidden="true" className="h-4 w-4 shrink-0" />{location}
+            </span>}
+            {app.date && <time dateTime={app.date}>{relativeTime(app.date, language, now)}</time>}
+            {!app.is_resolved && expiresIn > 0 && expiresIn <= 86_400_000 &&
+              <span className="font-medium text-orange-800">{t('applications.expiring')}</span>}
           </div>
-
-          <Link
-            href={`/applications/${app.public_id || app.id}`}
-            className="block w-full text-center btn btn-primary"
-          >
-            {t('common.more')}
-          </Link>
-        </div>
-      ))}
-    </div>
-  );
+        </Link>
+      </li>;
+    })}
+  </ul>;
 }

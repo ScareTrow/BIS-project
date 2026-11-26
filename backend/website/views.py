@@ -8,16 +8,16 @@ from werkzeug.utils import secure_filename
 from urllib.parse import unquote
 import os
 import json
-import html
 import re
 from .validation import coordinates, validate_upload, validate_photos, UploadValidationError
-from .community import parse_application_extras, attach_application_extras, record_moderation, need_data
-from .application_service import check_requester, save_photos, save_media_file, publish_sos, notify_nearby, visible_requests, lifecycle, pending_review, unexpired_request
+from .community import parse_application_extras, attach_application_extras, record_moderation
+from .application_service import check_requester, save_photos, save_media_file, publish_sos, notify_nearby, visible_requests, lifecycle, pending_review, unexpired_request, close_with_ratings, validate_rating, decide_response, open_application_button, CATEGORY_NAMES
 from .notifications import create_notification
 from .storage import save_upload, serve_upload
 from uuid import uuid4
 from pathlib import Path
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, selectinload
 from .regions import canonical_city, selected_city, filter_city
 from werkzeug.exceptions import HTTPException
 
@@ -31,10 +31,10 @@ def conflicting_write(error):
 
 MAX_DESCRIPTION_LENGTH = 1000
 
-def validate_description(description):
+def validate_description(description, *, minimum=10):
     if not description or len(description.strip()) == 0:
         return False, "Описание не может быть пустым"
-    if len(description.strip()) < 10:
+    if len(description.strip()) < minimum:
         return False, "Описание должно содержать минимум 10 символов"
     
     if len(description) > MAX_DESCRIPTION_LENGTH:
@@ -56,10 +56,6 @@ def validate_description(description):
             return False, "Описание содержит недопустимые элементы"
     
     return True, None
-
-def sanitize_description(description):
-    description = html.escape(description)
-    return description
 
 def contact_phone(user):
     if not user or not user.social_links:
@@ -89,21 +85,41 @@ def get_full_address(latitude, longitude):
 
 
 
-@views.route('/api/user/current')
+def session_user():
+    return {
+        'id': current_user.id,
+        'email': current_user.email,
+        'first_name': current_user.first_name,
+        'last_name': current_user.last_name,
+        'capability_onboarding_seen': current_user.capability_onboarding_seen,
+        'telegram_id': current_user.telegram_id,
+        'avatar': current_user.avatar,
+        'city': current_user.city,
+        'social_links': current_user.social_links,
+        'rating_sum': current_user.rating_sum,
+        'rating_count': current_user.rating_count,
+        'badge': current_user.badge,
+        'isAdmin': current_user.isAdmin,
+        'is_super_admin': current_user.is_super_admin if hasattr(current_user, 'is_super_admin') else False,
+        'is_authenticated': True
+    }
+
+
+@views.route('/api/auth/session')
+@login_required
+def get_session():
+    return jsonify(user=session_user())
+
+
+@views.route('/api/user/current', methods=['GET'])
 @login_required
 def get_current_user():
-    resolved_applications = Application.query.filter_by(
-        user_id=current_user.id,
-        is_resolved=True
-    ).order_by(Application.resolved_at.desc()).limit(10).all()
-    
     total_applications = Application.query.filter_by(user_id=current_user.id).count()
-    active_applications = Application.query.filter(
-        Application.user_id == current_user.id,
-        Application.is_resolved == False,
-        Application.is_false_call == False
-    ).count()
-    
+    active_applications = Application.query.filter_by(
+        user_id=current_user.id, moderation_status=ModerationStatus.APPROVED,
+        is_resolved=False, is_false_call=False,
+    ).filter(unexpired_request()).count()
+
     help_given = ApplicationResponse.query.filter_by(
         responder_id=current_user.id,
         status=ResponseStatus.COMPLETED
@@ -123,40 +139,11 @@ def get_current_user():
     name_changes_remaining = max(0, 3 - recent_changes)
     
     return jsonify({
-        'user': {
-            'id': current_user.id,
-            'email': current_user.email,
-            'first_name': current_user.first_name,
-            'last_name': current_user.last_name,
-            'capability_onboarding_seen': current_user.capability_onboarding_seen,
-            'telegram_id': current_user.telegram_id,
-            'avatar': current_user.avatar,
-            'city': current_user.city,
-            'social_links': current_user.social_links,
-            'rating_sum': current_user.rating_sum,
-            'rating_count': current_user.rating_count,
-            'badge': current_user.badge,
-            'isAdmin': current_user.isAdmin,
-            'is_super_admin': current_user.is_super_admin if hasattr(current_user, 'is_super_admin') else False,
-            'is_authenticated': True
-        },
+        'user': session_user(),
         'total_applications': total_applications,
         'active_applications': active_applications,
         'help_given': help_given,
         'name_changes_remaining': name_changes_remaining,
-        'resolved_applications': [{
-            'id': app.id,
-            'public_id': str(app.public_id),
-            'description': app.description,
-            'category': app.category.value if app.category else 'food',
-            'status': app.moderation_status.value if app.moderation_status else 'pending',
-            'is_resolved': app.is_resolved,
-            'is_false_call': app.is_false_call,
-            'city': app.city,
-            'region': app.region,
-            'date': app.date.isoformat() if app.date else None,
-            'resolved_at': app.resolved_at.isoformat() if app.resolved_at else None
-        } for app in resolved_applications],
         'received_ratings': [{
             'id': rating.id,
             'rating_value': rating.rating_value,
@@ -179,8 +166,11 @@ def get_user_applications():
     
     applications = Application.query.filter_by(
         user_id=current_user.id
-    ).order_by(Application.date.desc()).limit(limit).offset(offset).all()
+    ).options(selectinload(Application.responses)).order_by(Application.date.desc(), Application.id.desc()).limit(limit).offset(offset).all()
     
+    application_ids = [app.id for app in applications]
+    rated = set(db.session.query(Rating.application_id, Rating.rated_id).filter(
+        Rating.rater_id == current_user.id, Rating.application_id.in_(application_ids)).all())
     return jsonify({
         'applications': [{
             'id': app.id,
@@ -188,6 +178,12 @@ def get_user_applications():
             'description': app.description,
             'category': app.category.value if app.category else 'food',
             'status': app.moderation_status.value if app.moderation_status else 'pending',
+            'lifecycle': lifecycle(app),
+            'rating_pending': app.is_resolved and not app.is_false_call and any(
+                response.status == ResponseStatus.COMPLETED and (app.id, response.responder_id) not in rated
+                for response in app.responses
+            ),
+            'rejection_reason': application_rejection_reason(app),
             'is_resolved': app.is_resolved,
             'is_false_call': app.is_false_call,
             'is_sos': app.is_sos,
@@ -213,7 +209,9 @@ def get_user_responses():
     
     responses = ApplicationResponse.query.filter_by(
         responder_id=current_user.id
-    ).order_by(ApplicationResponse.created_at.desc()).limit(limit).offset(offset).all()
+    ).options(joinedload(ApplicationResponse.application).selectinload(Application.responses),
+        joinedload(ApplicationResponse.application).joinedload(Application.user)
+    ).order_by(ApplicationResponse.created_at.desc(), ApplicationResponse.id.desc()).limit(limit).offset(offset).all()
     
     applications_data = []
     for response in responses:
@@ -224,6 +222,7 @@ def get_user_responses():
             'description': app.description,
             'category': app.category.value if app.category else 'food',
             'status': app.moderation_status.value if app.moderation_status else 'pending',
+            'lifecycle': lifecycle(app),
             'is_resolved': app.is_resolved,
             'is_false_call': app.is_false_call,
             'is_sos': app.is_sos,
@@ -313,6 +312,20 @@ def admin():
                          category_stats=category_stats)
 
 
+@views.route('/api/admin/counts')
+@login_required
+def get_admin_counts():
+    from .models import Resource
+    if not current_user.isAdmin:
+        return jsonify(error='Доступ запрещён'), 403
+    pending = Application.query.filter(pending_review())
+    return jsonify(
+        pending_applications=pending.count(),
+        pending_sos=pending.filter(Application.is_sos.is_(True)).count(),
+        pending_resources=Resource.query.filter_by(moderation_status='pending').count(),
+    )
+
+
 @views.route('/api/admin/stats')
 @login_required
 def get_admin_stats():
@@ -333,15 +346,10 @@ def get_admin_stats():
     ).distinct().count()
     false_calls_count = Application.query.filter_by(is_false_call=True).count()
     
-    all_apps = Application.query.all()
-    category_counts = {}
-    for app in all_apps:
-        if app.category:
-            cat_value = app.category.value if hasattr(app.category, 'value') else str(app.category)
-            category_counts[cat_value] = category_counts.get(cat_value, 0) + 1
-    
-    category_stats = [{'category': cat, 'count': count} for cat, count in category_counts.items()]
-    
+    category_stats = [{'category': category.value, 'count': count} for category, count in
+        db.session.query(Application.category, func.count(Application.id)).group_by(Application.category)
+        if category is not None]
+
     total_users = User.query.count()
     
     return jsonify({
@@ -486,6 +494,11 @@ def show_task():
 def api_edit_profile():
     from .models import NameChangeHistory
     
+    from .auth import valid_phone
+    phone = request.form.get('phone', contact_phone(current_user) or '').strip()
+    if 'phone' in request.form and not valid_phone(phone):
+        return jsonify(error='Укажите корректный номер телефона'), 400
+
     try:
         if request.form.get('first_name') != current_user.first_name or \
            (request.form.get('last_name') or '') != (current_user.last_name or ''):
@@ -519,7 +532,6 @@ def api_edit_profile():
         if request.form.get('telegram_id') and request.form['telegram_id'].strip() != (current_user.telegram_id or ''):
             return jsonify(error='Используйте ссылку привязки Telegram в профиле'), 400
 
-        phone = contact_phone(current_user)
         social_links_data = {'phone': phone} if phone else {}
         if 'instagram' in request.form and request.form.get('instagram'):
             social_links_data['instagram'] = request.form.get('instagram').strip()
@@ -731,24 +743,27 @@ def application_detail(app_id):
                           response=user_response)
 
 
+def application_rejection_reason(application):
+    if application.moderation_status != ModerationStatus.REJECTED:
+        return None
+    from .models import ModerationAction
+    decision = ModerationAction.query.filter_by(application_id=application.id, action='reject').order_by(ModerationAction.id.desc()).first()
+    return decision.reason if decision else None
+
+
 @views.route('/api/applications/<appref:app_id>', methods=['GET'])
 def get_application(app_id):
-    application = Application.query.get_or_404(app_id)
+    application = Application.query.options(joinedload(Application.user), selectinload(Application.media_files),
+        selectinload(Application.responses).joinedload(ApplicationResponse.responder)).get_or_404(app_id)
     
     can_review = current_user.is_authenticated and (current_user.id == application.user_id or current_user.isAdmin)
     if application.moderation_status != ModerationStatus.APPROVED and not can_review:
         return jsonify({'error': 'Заявка недоступна'}), 404
 
-    responses = ApplicationResponse.query.filter_by(application_id=app_id).all()
-    user_response = None
-    if current_user.is_authenticated:
-        user_response = ApplicationResponse.query.filter_by(
-            application_id=app_id,
-            responder_id=current_user.id
-        ).first()
-    
-    media_files = ApplicationMedia.query.filter_by(application_id=app_id).all()
-    
+    responses = application.responses
+    user_response = next((response for response in responses
+                          if current_user.is_authenticated and response.responder_id == current_user.id), None)
+
     creator = application.user
     can_contact = application.moderation_status == ModerationStatus.APPROVED and not application.is_false_call and (
         current_user.is_authenticated and (
@@ -772,35 +787,6 @@ def get_application(app_id):
         duration = application.expires_at - application.date
         duration_days = duration.days
     
-    accepted_or_completed_responses = ApplicationResponse.query.filter(
-        ApplicationResponse.application_id == app_id,
-        ApplicationResponse.status.in_([ResponseStatus.ACCEPTED, ResponseStatus.COMPLETED])
-    ).all()
-    
-    accepted_volunteers = []
-    if current_user.is_authenticated and application.user_id == current_user.id:
-        for resp in accepted_or_completed_responses:
-            existing_rating = Rating.query.filter_by(
-                rater_id=current_user.id,
-                rated_id=resp.responder_id,
-                application_id=app_id
-            ).first()
-            
-            accepted_volunteers.append({
-                'response_id': resp.id,
-                'responder_id': resp.responder_id,
-                'status': resp.status.value if resp.status else 'accepted',
-                'responder': {
-                    'id': resp.responder.id,
-                    'first_name': resp.responder.first_name,
-                    'last_name': resp.responder.last_name,
-                    'avatar': resp.responder.avatar,
-                    'average_rating': resp.responder.average_rating
-                } if resp.responder else None,
-                'is_rated': existing_rating is not None,
-                'rating_value': existing_rating.rating_value if existing_rating else None
-            })
-    
     app_data = {
         'id': application.id,
         'public_id': str(application.public_id),
@@ -816,16 +802,15 @@ def get_application(app_id):
         'duration_days': duration_days,
         'status': lifecycle(application),
         'moderation_status': application.moderation_status.value,
-        'rejection_reason': None,
+        'rejection_reason': application_rejection_reason(application) if can_review else None,
+        'moderated_at': application.moderated_at.isoformat() if application.moderated_at else None,
         'is_sos': application.is_sos,
         'is_resolved': application.is_resolved,
         'is_false_call': application.is_false_call,
         'user_id': application.user_id,
         'creator': creator_info,
         'priority': application.priority or 0,
-        'priority_source': application.priority_source,
         'needed_help': application.needed_help,
-        'created_via': application.created_via,
         'city': application.city,
         'region': application.region,
         'location': f"{application.city or 'Не указан'}, {application.region or 'Не указан'}" if application.city or application.region else 'Не указано',
@@ -833,7 +818,7 @@ def get_application(app_id):
             'id': media.id,
             'file_path': media.file_path,
             'file_type': media.file_type
-        } for media in media_files if can_review or media.file_type != 'application/pdf'],
+        } for media in application.media_files if can_review or media.file_type != 'application/pdf'],
         'responses': [{
             'id': resp.id,
             'responder_id': resp.responder_id,
@@ -845,25 +830,18 @@ def get_application(app_id):
                 'last_name': resp.responder.last_name,
                 'avatar': resp.responder.avatar
             } if resp.responder else None
-        } for resp in responses],
+        } for resp in responses if can_review or resp == user_response],
         'user_response': {
             'id': user_response.id,
             'status': user_response.status.value if user_response.status else 'pending',
             'created_at': user_response.created_at.isoformat() if user_response.created_at else None
         } if user_response else None,
         'is_author': current_user.is_authenticated and application.user_id == current_user.id,
-        'accepted_volunteers': accepted_volunteers if current_user.is_authenticated and application.user_id == current_user.id else []
     }
+    if current_user.is_authenticated and current_user.isAdmin:
+        app_data.update(priority_source=application.priority_source, created_via=application.created_via)
     if can_contact:
         app_data['author_contact'] = {'phone': contact_phone(creator)}
-    if not can_review:
-        app_data['responses'] = [response for response in app_data['responses']
-                                 if user_response and response['id'] == user_response.id]
-    if can_review and application.moderation_status == ModerationStatus.REJECTED:
-        from .models import ModerationAction
-        decision = ModerationAction.query.filter_by(application_id=app_id, action='reject').order_by(ModerationAction.id.desc()).first()
-        app_data['rejection_reason'] = decision.reason if decision else None
-    
     return jsonify(app_data)
 
 
@@ -871,7 +849,7 @@ def get_application(app_id):
 @login_required
 def link_telegram():
     from backend.telegram_bot.config import Config
-    return redirect(Config.WEB_APP_URL.rstrip('/') + '/profile/edit')
+    return redirect(Config.WEB_APP_URL.rstrip('/') + '/profile')
 
 
 @views.route('/admin/applications')
@@ -906,29 +884,41 @@ def get_admin_applications():
         return jsonify({'error': 'Доступ запрещен'}), 403
     
     status = request.args.get('status', 'all')
-    
+    query = Application.query.options(joinedload(Application.user),
+        selectinload(Application.responses), selectinload(Application.media_files))
     if status == 'pending':
-        applications = Application.query.filter(pending_review()).order_by(Application.date.desc()).all()
-    elif status == 'approved':
-        applications = Application.query.filter_by(
-            moderation_status=ModerationStatus.APPROVED
-        ).order_by(Application.date.desc()).all()
-    elif status == 'rejected':
-        applications = Application.query.filter_by(
-            moderation_status=ModerationStatus.REJECTED
-        ).order_by(Application.date.desc()).all()
-    else:
-        applications = Application.query.order_by(Application.date.desc()).all()
-    
-    from .models import User
+        query = query.filter(pending_review()).order_by(Application.is_sos.desc(), Application.moderated_at.isnot(None))
+    elif status in ('approved', 'rejected'):
+        query = query.filter_by(moderation_status=ModerationStatus(status))
+    user_id = request.args.get('user_id', type=int)
+    if user_id is not None:
+        query = query.filter_by(user_id=user_id)
+    term = request.args.get('q', '').strip()[:1000]
+    if term:
+        from .models import User
+        query = query.filter(or_(
+            Application.description.icontains(term, autoescape=True),
+            Application.city.icontains(term, autoescape=True),
+            cast(Application.id, String).icontains(term.removeprefix('#'), autoescape=True) if term.removeprefix('#').isdigit() else False,
+            Application.user.has(or_(User.first_name.icontains(term, autoescape=True),
+                User.last_name.icontains(term, autoescape=True), User.email.icontains(term, autoescape=True))),
+        ))
+    query = query.order_by(Application.date.desc(), Application.id.desc())
+    limit = request.args.get('limit', type=int)
+    if limit is not None:
+        query = query.limit(max(1, min(limit, 100)))
+    applications = query.offset(max(request.args.get('offset', 0, type=int), 0)).all()
+
     applications_data = []
     for app in applications:
-        user = User.query.get(app.user_id)
+        user = app.user
         applications_data.append({
             'id': app.id,
             'public_id': str(app.public_id),
             'description': app.description[:200] + '...' if len(app.description) > 200 else app.description,
-            'full_description': app.description,
+            'address': app.address,
+            'media_files': [{'id': media.id, 'file_path': media.file_path, 'file_type': media.file_type}
+                            for media in app.media_files if media.file_type.startswith('image/')],
             'category': app.category.value if app.category else 'food',
             'latitude': app.latitude,
             'longitude': app.longitude,
@@ -1568,50 +1558,22 @@ def resolve_application(app_id):
     if application.moderation_status != ModerationStatus.APPROVED or application.is_false_call:
         return jsonify({'error': 'Заявка не доступна для завершения'}), 409
     if application.is_resolved:
-        return jsonify(success=True, message='Заявка завершена')
-    from .models import ApplicationNeed
-    if any(need_data(n)['still_needed'] > 0 for n in ApplicationNeed.query.filter_by(application_id=app_id)):
-        return jsonify({'error': 'Сначала закройте количественные потребности'}), 409
+        return jsonify(error='Заявка уже завершена'), 409
+    data = request.get_json(silent=True) if request.is_json else {}
+    if not isinstance(data, dict) or not isinstance(data.get('ratings', []), list):
+        return jsonify(error='Оценки должны быть списком'), 400
+    accepted = {response.id: response for response in application.responses if response.status == ResponseStatus.ACCEPTED}
+    ratings = []
+    rated_ids = set()
+    for item in data.get('ratings', []):
+        score, comment = validate_rating(item)
+        response_id = item.get('response_id')
+        if type(response_id) is not int or response_id not in accepted or response_id in rated_ids:
+            return jsonify(error='Оценка должна относиться к одному из принятых откликов'), 400
+        ratings.append((accepted[response_id], score, comment))
+        rated_ids.add(response_id)
+    completed = close_with_ratings(application, ratings)
 
-    accepted_responses = ApplicationResponse.query.filter_by(
-        application_id=app_id,
-        status=ResponseStatus.ACCEPTED
-    ).all()
-    
-    application.is_resolved = True
-    application.status = 'completed'
-    application.resolved_at = datetime.now(timezone.utc)
-    
-    if is_owner and accepted_responses:
-        unrated_count = 0
-        for response in accepted_responses:
-            existing_rating = Rating.query.filter_by(
-                rater_id=current_user.id,
-                rated_id=response.responder_id,
-                application_id=app_id
-            ).first()
-            if not existing_rating:
-                unrated_count += 1
-        
-        if unrated_count > 0:
-            create_notification(
-                user_id=current_user.id,
-                title='Оцените волонтеров',
-                message=f'Заявка #{application.id} завершена. Пожалуйста, оцените {unrated_count} волонтер(ов), которые помогли',
-                notification_type='rate_volunteers',
-                related_application_id=application.id
-            )
-    
-    for response in accepted_responses:
-        response.status = ResponseStatus.COMPLETED
-        create_notification(
-            user_id=response.responder_id,
-            title='Заявка решена',
-            message=f'Заявка #{application.id}, на которую вы откликнулись, была отмечена как решенная',
-            notification_type='application_resolved',
-            related_application_id=application.id
-        )
-    
     db.session.commit()
     return jsonify({
         'success': True,
@@ -1621,7 +1583,7 @@ def resolve_application(app_id):
             'public_id': str(application.public_id),
             'is_resolved': application.is_resolved,
             'resolved_at': application.resolved_at.isoformat() if application.resolved_at else None,
-            'responses_completed': len(accepted_responses)
+            'responses_completed': completed
         }
     })
 
@@ -1680,15 +1642,27 @@ def respond_to_application(app_id):
         status=ResponseStatus.PENDING
     )
     db.session.add(new_response)
-    db.session.commit()
-    
+    db.session.flush()
+    category = CATEGORY_NAMES[application.category.value]
+    name = ' '.join(filter(None, (current_user.first_name, current_user.last_name)))
+    caption = f'SOS · {category}' if application.is_sos else category
+    buttons = [[
+        {'text': '✅ Принять', 'callback_data': f'resp:accept:{new_response.id}'},
+        {'text': '❌ Отклонить', 'callback_data': f'resp:reject:{new_response.id}'},
+    ]]
+    link_button = open_application_button(application)
+    if link_button:
+        buttons.append(link_button)
+    rating = f' · ⭐ {current_user.average_rating:.1f} (оценок: {current_user.rating_count})' if current_user.rating_count else ''
     create_notification(
         user_id=application.user_id,
         title='Новый отклик',
-        message=f'{current_user.first_name} откликнулся на вашу заявку #{application.id}',
+        message=f'{name} откликнулся на вашу заявку #{application.id}',
         notification_type='new_response',
         related_application_id=application.id,
-        related_user_id=current_user.id
+        related_user_id=current_user.id,
+        telegram_buttons=buttons,
+        telegram_message=f'На заявку «{caption}»\n{name}{rating}',
     )
     db.session.commit()
     
@@ -1698,52 +1672,9 @@ def respond_to_application(app_id):
 @views.route('/api/applications/<appref:app_id>/responses/<int:response_id>/accept', methods=['POST'])
 @login_required
 def accept_response(app_id, response_id):
-    application = Application.query.get_or_404(app_id)
+    application = Application.query.filter_by(id=app_id).with_for_update().first_or_404()
     response = ApplicationResponse.query.get_or_404(response_id)
-    if application.moderation_status != ModerationStatus.APPROVED or application.is_resolved or application.is_false_call or response.status != ResponseStatus.PENDING:
-        return jsonify({'error': 'Отклик недоступен для этого перехода'}), 409
-    
-    if application.user_id != current_user.id:
-        return jsonify({'error': 'Вы можете принимать отклики только на свои заявки'}), 403
-    
-    if response.application_id != app_id:
-        return jsonify({'error': 'Отклик не относится к этой заявке'}), 400
-    
-    accepted_responses = ApplicationResponse.query.filter_by(
-        application_id=app_id,
-        status=ResponseStatus.ACCEPTED
-    ).all()
-    
-    for acc_resp in accepted_responses:
-        acc_resp.status = ResponseStatus.CANCELLED
-        create_notification(
-            user_id=acc_resp.responder_id,
-            title='Отклик отклонен',
-            message=f'Ваш отклик на заявку #{application.id} был отклонен',
-            notification_type='response_rejected',
-            related_application_id=application.id
-        )
-    
-    response.status = ResponseStatus.ACCEPTED
-    db.session.commit()
-    
-    create_notification(
-        user_id=response.responder_id,
-        title='Отклик принят',
-        message=f'Ваш отклик на заявку #{application.id} был принят',
-        notification_type='response_accepted',
-        related_application_id=application.id
-    )
-    
-    create_notification(
-        user_id=application.user_id,
-        title='Оцените волонтера',
-        message=f'После завершения помощи обязательно оцените волонтера по заявке #{application.id}',
-        notification_type='rate_volunteer_reminder',
-        related_application_id=application.id,
-        related_user_id=response.responder_id,
-        send_telegram=True
-    )
+    decide_response(application, response, current_user.id, accept=True)
     db.session.commit()
     
     from .models import User
@@ -1767,27 +1698,9 @@ def accept_response(app_id, response_id):
 @views.route('/api/applications/<appref:app_id>/responses/<int:response_id>/reject', methods=['POST'])
 @login_required
 def reject_response(app_id, response_id):
-    application = Application.query.get_or_404(app_id)
+    application = Application.query.filter_by(id=app_id).with_for_update().first_or_404()
     response = ApplicationResponse.query.get_or_404(response_id)
-    if application.moderation_status != ModerationStatus.APPROVED or application.is_resolved or application.is_false_call or response.status != ResponseStatus.PENDING:
-        return jsonify({'error': 'Отклик недоступен для этого перехода'}), 409
-    
-    if application.user_id != current_user.id:
-        return jsonify({'error': 'Вы можете отклонять отклики только на свои заявки'}), 403
-    
-    if response.application_id != app_id:
-        return jsonify({'error': 'Отклик не относится к этой заявке'}), 400
-    
-    response.status = ResponseStatus.CANCELLED
-    db.session.commit()
-    
-    create_notification(
-        user_id=response.responder_id,
-        title='Отклик отклонен',
-        message=f'Ваш отклик на заявку #{application.id} был отклонен',
-        notification_type='response_rejected',
-        related_application_id=application.id
-    )
+    decide_response(application, response, current_user.id, accept=False)
     db.session.commit()
     
     return jsonify({
@@ -2072,7 +1985,7 @@ def get_map_points():
 
     query = filter_city(query, Application.city, city, Application.user_id)
 
-    applications = query.all()
+    applications = query.options(selectinload(Application.responses)).all()
     
     points = []
     for app in applications:
@@ -2089,7 +2002,7 @@ def get_map_points():
             'latitude': app.latitude,
             'longitude': app.longitude,
             'category': app.category.value if app.category else 'food',
-            'description': app.description,
+            'description': app.description[:200] + '…' if len(app.description) > 200 else app.description,
             'is_sos': app.is_sos,
             'sos_count': app.sos_count if hasattr(app, 'sos_count') else 0,
             'expires_at': app.expires_at.isoformat() if app.expires_at else None,
@@ -2111,16 +2024,29 @@ def get_map_points():
 
 @views.route('/api/applications/list', methods=['GET'])
 def get_applications_list_data():
-    from sqlalchemy import or_, and_, func
-    from flask_login import current_user
-    
     city = selected_city()
     
     query = visible_requests(current_user, request.args.get('status', 'active'))
 
     query = filter_city(query, Application.city, city, Application.user_id)
 
-    applications = query.order_by(Application.priority.desc(), Application.date.desc()).all()
+    category = request.args.get('category')
+    if category and category != 'all':
+        try:
+            query = query.filter_by(category=ApplicationCategory(category))
+        except ValueError:
+            return jsonify(error='Неизвестная категория заявки'), 400
+    term = request.args.get('q', '').strip()[:1000]
+    if term:
+        query = query.filter(Application.description.icontains(term, autoescape=True))
+
+    applications = query.options(selectinload(Application.responses)).order_by(
+        Application.priority.desc(), Application.date.desc(), Application.id.desc())
+    limit = request.args.get('limit', type=int)
+    offset = request.args.get('offset', 0, type=int)
+    if limit is not None:
+        applications = applications.limit(max(1, min(limit, 100)))
+    applications = applications.offset(max(offset, 0)).all()
     
     apps_data = []
     for app in applications:
@@ -2138,9 +2064,9 @@ def get_applications_list_data():
             'number': app.id,
             'category': app.category.value if app.category else 'food',
             'description': description_preview,
-            'city': app.city or 'Не указан',
-            'region': app.region or 'Не указан',
-            'location': f"{app.city or 'Не указан'}, {app.region or 'Не указан'}" if app.city or app.region else f"{app.latitude:.4f}, {app.longitude:.4f}",
+            'city': app.city,
+            'region': app.region,
+            'location': ', '.join(filter(None, (app.city, app.region))) or f"{app.latitude:.4f}, {app.longitude:.4f}",
             'priority': app.priority,
             'date': app.date.isoformat() if app.date else None,
             'created_at': app.date.isoformat() if app.date else None,
@@ -2235,11 +2161,14 @@ def api_create_application():
     if data is None:
         return jsonify(error='Неверный формат данных'), 400
     try:
-        description = data.get('description', 'SOS — Экстренная ситуация' if request.path == '/api/sos' else '')
+        is_sos = request.path == '/api/sos'
+        description = data.get('description', '')
         if not isinstance(description, str):
             raise ValueError('Описание должно быть текстом')
         description = description.strip()
-        valid, error = validate_description(description)
+        if is_sos and not description:
+            description = 'SOS — Экстренная ситуация'
+        valid, error = validate_description(description, minimum=1 if is_sos else 10)
         if not valid:
             raise ValueError(error)
         category = ApplicationCategory('emergency' if request.path == '/api/sos' else data.get('category', 'food'))
@@ -2279,7 +2208,7 @@ def api_create_application():
         detected_city, region = get_location_info(latitude, longitude)
     user = check_requester(current_user.id, sos=extras['priority'] == 'sos')
     city = canonical_city(detected_city or supplied_city or user.city)
-    application = Application(description=sanitize_description(description), latitude=latitude,
+    application = Application(description=description, latitude=latitude,
         longitude=longitude, category=category, user_id=user.id,
         moderation_status=ModerationStatus.PENDING, status='pending',
         expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days), city=city, region=region,
@@ -2464,84 +2393,6 @@ def search():
             'total': pagination.total,
             'pages': pagination.pages
         }
-    
-    if search_type in ['all', 'users']:
-        from .models import User
-        search_query = query.lstrip('@')
-        users_query = User.query.filter(
-            or_(
-                User.first_name.ilike(f'%{search_query}%'),
-                User.email.ilike(f'%{search_query}%'),
-                func.coalesce(User.last_name, '').ilike(f'%{search_query}%'),
-                func.coalesce(User.city, '').ilike(f'%{search_query}%'),
-                func.coalesce(User.telegram_username, '').ilike(f'%{search_query}%')
-            ),
-            User.is_blocked == False
-        )
-        
-        users_query = users_query.order_by(
-            (User.rating_sum / func.nullif(User.rating_count, 0)).desc(),
-            User.rating_count.desc()
-        )
-        
-        users = users_query.limit(20).all()
-        
-        results['users'] = [{
-            'id': user.id,
-            'first_name': user.first_name,
-            'last_name': user.last_name or '',
-            'email': user.email,
-            'city': user.city or '',
-            'avatar': user.avatar or '',
-            'rating_count': user.rating_count or 0,
-            'average_rating': round((user.rating_sum / user.rating_count), 2) if user.rating_count and user.rating_count > 0 else 0,
-            'type': 'user'  # Для редиректа
-        } for user in users]
-    
-    if search_type in ['all', 'cities']:
-        kazakhstan_cities = [
-            'Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе', 'Тараз', 'Павлодар',
-            'Усть-Каменогорск', 'Семей', 'Атырау', 'Костанай', 'Кызылорда', 'Уральск',
-            'Петропавловск', 'Актау', 'Темиртау', 'Туркестан', 'Кокшетау', 'Талдыкорган',
-            'Экибастуз', 'Рудный', 'Жанаозен', 'Жезказган', 'Балхаш', 'Сарань', 'Каскелен',
-            'Кентау', 'Арал', 'Аксу', 'Лисаковск', 'Риддер', 'Степногорск', 'Щучинск'
-        ]
-        
-        matching_cities = [city for city in kazakhstan_cities if query.lower() in city.lower()]
-        results['cities'] = matching_cities[:10]
-        
-        if search_type in ['all', 'applications'] and matching_cities:
-            for city in matching_cities:
-                if query.lower() in city.lower() or city.lower().startswith(query.lower()):
-                    city_apps = Application.query.filter(
-                        and_(
-                            Application.moderation_status == ModerationStatus.APPROVED,
-                            Application.is_resolved == False,
-                            Application.is_false_call == False,
-                            func.coalesce(Application.city, '').ilike(f'%{city}%')
-                        )
-                    ).limit(10).all()
-                    
-                    existing_app_ids = {app.get('id') for app in results['applications']}
-                    for app in city_apps:
-                        if app.id not in existing_app_ids:
-                            results['applications'].append({
-                                'id': app.id,
-                                'public_id': str(app.public_id),
-                                'description': app.description[:100] + '...' if len(app.description) > 100 else app.description,
-                                'full_description': app.description,
-                                'category': app.category.value if app.category else 'food',
-                                'latitude': app.latitude,
-                                'longitude': app.longitude,
-                                'is_sos': app.is_sos,
-                                'priority': app.priority,
-                                'city': app.city,
-                                'region': app.region,
-                                'created_at': app.date.isoformat() if app.date else None,
-                                'expires_at': app.expires_at.isoformat() if app.expires_at else None,
-                                'type': 'application'
-                            })
-                    break
     
     return jsonify(results)
 

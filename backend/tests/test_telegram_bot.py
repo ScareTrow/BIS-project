@@ -25,6 +25,7 @@ class TestTelegramBot:
         message.from_user.last_name = "User"
         message.chat = MagicMock(spec=Chat)
         message.chat.id = 123456789
+        message.chat.type = "private"
         message.answer = AsyncMock()
         message.text = None
         return message
@@ -60,14 +61,15 @@ class TestTelegramBot:
         with patch('backend.telegram_bot.handlers.start.get_user_by_telegram_id') as mock_get_user:
             mock_get_user.return_value = user
             
-            await start.cmd_start(mock_message)
+            with app.app_context():
+                await start.cmd_start(mock_message)
             
             # Проверяем, что ответ был отправлен
             assert mock_message.answer.called
             call_args = mock_message.answer.call_args
             # Проверяем, что в ответе есть приветствие (может быть на русском или английском)
             answer_text = call_args[0][0] if call_args[0] else str(call_args)
-            assert 'Привет' in answer_text or 'Прив' in answer_text or 'Рад видеть' in answer_text or 'greeting' in answer_text.lower()
+            assert 'Привет, Telegram Test!' in answer_text
     
     @pytest.mark.asyncio
     async def test_start_command_unauthorized(self, app, mock_message, mock_state):
@@ -109,6 +111,9 @@ class TestTelegramBot:
             mock_auth.return_value = user
             
             await create.cmd_create(mock_message, mock_state)
+            rows = mock_message.answer.call_args.kwargs['reply_markup'].inline_keyboard
+            assert [len(row) for row in rows] == [2, 2, 2, 2, 1]
+            assert all(button.callback_data != 'cat:emergency' for row in rows for button in row)
             
             # Проверяем, что состояние установлено
             assert mock_state.set_state.called
@@ -170,3 +175,36 @@ class TestTelegramBot:
             assert result is None
             assert mock_message.answer.called
 
+
+
+@pytest.mark.asyncio
+async def test_response_callback_checks_ownership(app, test_user, admin_user, test_application):
+    from types import SimpleNamespace
+    from backend.telegram_bot.handlers.rating import handle_request_action
+    from backend.website.models import Application, ApplicationResponse, ModerationStatus, ResponseStatus
+
+    with app.app_context():
+        request = db.session.get(Application, test_application.id)
+        request.moderation_status = ModerationStatus.APPROVED
+        request.user.telegram_id = "100001"
+        db.session.get(User, admin_user.id).telegram_id = "100002"
+        response = ApplicationResponse(application_id=request.id, responder_id=admin_user.id, status=ResponseStatus.PENDING)
+        db.session.add(response)
+        db.session.commit()
+        response_id = response.id
+
+        message = MagicMock(spec=Message)
+        message.chat = SimpleNamespace(type="private")
+        message.edit_text = AsyncMock()
+        callback = SimpleNamespace(message=message, from_user=SimpleNamespace(id=100002),
+            answer=AsyncMock(), data=f"resp:accept:{response_id}")
+        await handle_request_action(callback, AsyncMock())
+        assert callback.answer.call_args.kwargs.get("show_alert")
+        assert db.session.get(ApplicationResponse, response_id).status == ResponseStatus.PENDING
+        message.edit_text.assert_not_awaited()
+
+        callback.from_user.id = 100001
+        await handle_request_action(callback, AsyncMock())
+        db.session.expire_all()
+        assert db.session.get(ApplicationResponse, response_id).status == ResponseStatus.ACCEPTED
+        assert "Отклик принят" in message.edit_text.call_args.args[0]

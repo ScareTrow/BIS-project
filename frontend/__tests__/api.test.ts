@@ -20,6 +20,7 @@ jest.mock('axios', () => {
   const mockAxios = Object.assign(jest.fn(() => mockAxiosInstance), {
     create: jest.fn(() => mockAxiosInstance),
     post: jest.fn(),
+    isAxiosError: (error: { isAxiosError?: boolean }) => error?.isAxiosError === true,
   })
   
   return {
@@ -48,6 +49,23 @@ describe('API Client', () => {
     jest.clearAllMocks()
     mocks = getMocks()
   })
+
+  it('falls back to the legacy session route during an API rollout', async () => {
+    const user = { id: 1, first_name: 'Test' };
+    mocks.mockGet.mockRejectedValueOnce({ isAxiosError: true, response: { status: 404 } });
+    mocks.mockGet.mockResolvedValueOnce({ data: { user } });
+
+    await expect(apiClient.getSession()).resolves.toEqual({ user });
+    expect(mocks.mockGet.mock.calls.map(([path]: [string]) => path)).toEqual(['/auth/session', '/user/current']);
+  });
+
+  it('does not retry when the session is unauthenticated', async () => {
+    const error = { isAxiosError: true, response: { status: 401 } };
+    mocks.mockGet.mockRejectedValueOnce(error);
+
+    await expect(apiClient.getSession()).rejects.toBe(error);
+    expect(mocks.mockGet).toHaveBeenCalledTimes(1);
+  });
 
   describe('getApplications', () => {
     it('reads GeoJSON longitude/latitude into map coordinates', async () => {

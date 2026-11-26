@@ -1,17 +1,3 @@
-export const categoryLabels: Record<string, string> = {
-  food: 'Еда',
-  medicine: 'Медицина',
-  shelter: 'Убежище',
-  emergency: 'Экстренная',
-};
-
-export const responseStatusLabels: Record<string, string> = {
-  pending: 'Ожидает',
-  accepted: 'Принят',
-  completed: 'Завершен',
-  cancelled: 'Отменен',
-};
-
 /** Русское склонение: pluralRu(1, ['оценка','оценки','оценок']) -> 'оценка' */
 export function pluralRu(n: number, forms: [string, string, string]): string {
   const abs = Math.abs(n) % 100;

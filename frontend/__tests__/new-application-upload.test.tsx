@@ -12,14 +12,18 @@ import { validateRequestPhotos } from '@/lib/requestValidation';
 
 const MIB = 1024 * 1024;
 
-jest.mock('next/dynamic', () => () => () => null);
+jest.mock('next/dynamic', () => () => ({ selected, onLocationSelect }: {
+  selected: boolean; onLocationSelect: (lat: number, lng: number) => void;
+}) => <div>
+  <button type="button" aria-pressed={selected} onClick={() => onLocationSelect(43.222, 76.8512)}>Выбрать точку</button>
+  <button type="button" onClick={() => onLocationSelect(0, 0)}>Точка 0,0</button>
+</div>);
 jest.mock('next/navigation', () => {
   // Stable router: the page lists `router` in an effect's dependencies.
   const router = { push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn() };
   return { useRouter: () => router, usePathname: () => '/applications/new' };
 });
 
-jest.mock('@/lib/i18n', () => ({ useTranslation: () => (key: string) => key }));
 jest.mock('@/lib/store', () => {
   // Stable object: the page re-runs an effect whenever `user` changes identity.
   const state = {
@@ -28,13 +32,13 @@ jest.mock('@/lib/store', () => {
     language: 'ru',
     setShouldRefreshApplications: jest.fn(),
   };
-  return { useStore: () => state };
+  return { useStore: (selector?: (value: typeof state) => unknown) => selector ? selector(state) : state };
 });
 jest.mock('@/lib/community-api', () => ({
   communityApi: { capabilities: jest.fn().mockResolvedValue([]) },
 }));
 jest.mock('@/lib/api', () => ({
-  apiClient: { createApplication: jest.fn().mockResolvedValue({ id: 1 }) },
+  apiClient: { reverseLocation: jest.fn().mockResolvedValue({ address: '' }), createApplication: jest.fn().mockResolvedValue({ id: 1 }) },
 }));
 
 const createApplication = apiClient.createApplication as jest.Mock;
@@ -47,9 +51,10 @@ function fakeFile(name: string, size: number, type = 'image/jpeg') {
 
 function fillAndSubmit(files: File[], description = 'Нужна помощь продуктами', coords = ['43.222', '76.8512']) {
   const { container } = render(<NewApplicationPage />);
-  fireEvent.change(screen.getByLabelText('Опишите ситуацию'), { target: { value: description } });
-  fireEvent.change(screen.getByRole('spinbutton', { name: 'Широта' }), { target: { value: coords[0] } });
-  fireEvent.change(screen.getByRole('spinbutton', { name: 'Долгота' }), { target: { value: coords[1] } });
+  fireEvent.change(screen.getByLabelText('Опишите ситуацию и какая помощь нужна'), { target: { value: description } });
+  if (coords.every(Boolean)) {
+    fireEvent.click(screen.getByRole('button', { name: coords[0] === '0' ? 'Точка 0,0' : 'Выбрать точку' }));
+  }
   fireEvent.change(container.querySelector('input[type=file]')!, { target: { files } });
   fireEvent.submit(container.querySelector('form')!);
 }
@@ -139,15 +144,14 @@ describe('Photo validation helper (shared with the SOS dialog)', () => {
 });
 
 describe('New request form: coordinates', () => {
-  it('does not send latitude 0 when the field is cleared', async () => {
+  it('does not send a request when no point is selected', async () => {
     fillAndSubmit([fakeFile('p.jpg', 1024)], 'Нужна помощь продуктами', ['', '76.8512']);
-    await expectRejected('Выберите точку на карте или укажите координаты');
+    await expectRejected('Найдите адрес или выберите точку на карте');
   });
 
   it('starts without preset coordinates', () => {
     render(<NewApplicationPage />);
-    expect(screen.getByRole('spinbutton', { name: 'Широта' })).toHaveValue(null);
-    expect(screen.getByRole('spinbutton', { name: 'Долгота' })).toHaveValue(null);
+    expect(screen.getByRole('button', { name: 'Выбрать точку' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('sends 0,0 when chosen explicitly', async () => {
@@ -166,7 +170,7 @@ describe('New request form: description', () => {
 
   it('limits the description field to 1000 characters', () => {
     render(<NewApplicationPage />);
-    expect(screen.getByLabelText('Опишите ситуацию')).toHaveAttribute('maxLength', '1000');
+    expect(screen.getByLabelText('Опишите ситуацию и какая помощь нужна')).toHaveAttribute('maxLength', '1000');
   });
 
   it('rejects a description shorter than 10 characters', async () => {

@@ -8,23 +8,23 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const { setUser, setAuthLoading } = useStore();
 
   useEffect(() => {
-    // Загружаем текущего пользователя при монтировании
+    let active = true;
     const loadUser = async () => {
       try {
-        const data = await apiClient.getCurrentUser();
-        if (data.user) {
+        const data = await apiClient.getSession();
+        if (active && data.user) {
           setUser({ ...data.user, is_authenticated: true });
         }
-      } catch (error) {
-        // Пользователь не авторизован - это нормально
-        setUser(null);
+      } catch {
+        if (active) setUser(null);
       } finally {
-        setAuthLoading(false);
+        if (active) setAuthLoading(false);
       }
     };
 
-    loadUser();
-  }, []);
+    void loadUser();
+    return () => { active = false; };
+  }, [setUser, setAuthLoading]);
 
   return <>{children}</>;
 }

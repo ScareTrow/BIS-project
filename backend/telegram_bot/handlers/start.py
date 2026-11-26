@@ -1,8 +1,6 @@
 import logging
-from aiogram import F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import Command
-from backend.telegram_bot.utils.database import get_user_by_telegram_id
+from backend.telegram_bot.utils.database import get_app, get_user_by_telegram_id
 from backend.telegram_bot.config import Config
 
 logger = logging.getLogger(__name__)
@@ -17,7 +15,6 @@ async def cmd_start(message: Message):
         if message.chat.type != 'private':
             await message.answer('Для привязки откройте личный чат с ботом по ссылке из профиля ASAR.')
             return
-        from backend.telegram_bot.utils.database import get_app
         from backend.website.telegram_link import consume_link
         try:
             with get_app().app_context():
@@ -31,10 +28,9 @@ async def cmd_start(message: Message):
         user = get_user_by_telegram_id(telegram_id)
         
         if user:
-            greeting = f"👋 Привет, {user.first_name}!"
-            if user.last_name:
-                greeting += f" {user.last_name}"
-            
+            name = ' '.join(filter(None, (user.first_name, user.last_name)))
+            greeting = f'👋 Привет, {name}!'
+
             welcome_text = (
                 f"{greeting}\n\n"
                 "Рад видеть тебя снова! 😊\n\n"
@@ -45,13 +41,23 @@ async def cmd_start(message: Message):
                 keyboard=[
                     [KeyboardButton(text="📝 Создать заявку")],
                     [KeyboardButton(text="🚨 SOS - Экстренная помощь")],
-                    [KeyboardButton(text="ℹ️ Помощь")]
+                    [KeyboardButton(text="📋 Мои заявки"), KeyboardButton(text="ℹ️ Помощь")]
                 ],
                 resize_keyboard=True,
                 one_time_keyboard=False
             )
             
             await message.answer(welcome_text, reply_markup=keyboard)
+            if message.chat.type == 'private':
+                from backend.website import db
+                from backend.website.application_service import remind_about_legacy_ratings
+
+                try:
+                    with get_app().app_context():
+                        remind_about_legacy_ratings(user.id)
+                        db.session.commit()
+                except Exception:
+                    logger.exception('Could not queue legacy rating reminders')
         else:
             help_text = (
                 "Для использования бота необходимо связать ваш Telegram аккаунт с аккаунтом на сайте.\n\n"

@@ -189,6 +189,11 @@ def api_login():
 
 
 @auth.route('/api/auth/logout', methods=['POST'])
+
+def valid_phone(phone):
+    phone_pattern = re.compile(r'^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$')
+    return bool(phone_pattern.match(phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')))
+
 @login_required
 def api_logout():
     from flask import jsonify
@@ -215,8 +220,7 @@ def api_signup():
     
     # Простая валидация формата телефона
     import re
-    phone_pattern = re.compile(r'^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$')
-    if not phone_pattern.match(phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')):
+    if not valid_phone(phone):
         return jsonify({'success': False, 'message': 'Некорректный формат номера телефона'}), 400
 
     # Валидация города (обязательное поле)

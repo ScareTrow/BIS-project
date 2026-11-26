@@ -14,7 +14,7 @@ const HeatMap = dynamic(() => import("@/components/community/HeatMap"), { ssr: f
 
 const EMPTY_RULE = { category: "", keyword: "", priority: "high", rule_order: 0, is_active: true };
 
-export default function CommunityAdmin() {
+function CommunityAdmin() {
   const ready = useRequireAdmin();
   const categoryLabel = useCategoryLabel();
   const [rules, setRules] = useState<TriageRule[] | null>(null);
@@ -190,4 +190,10 @@ export default function CommunityAdmin() {
       </section>
     </>
   );
+}
+
+
+export default function AdminCommunityRoute() {
+  if (process.env.NEXT_PUBLIC_FEATURE_TRIAGE !== 'true') return <p role="status">Раздел отключён.</p>;
+  return <CommunityAdmin />;
 }

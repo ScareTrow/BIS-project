@@ -6,11 +6,12 @@ import { CurrentLocationControl, useCurrentLocation } from '../components/common
 import { communityApi } from '../lib/community-api';
 import { useStore } from '../lib/store';
 
+jest.mock('../components/home/ResourceMap', () => () => null);
 jest.mock('../components/common/AddressPicker', () => ({ onChange }: {
   onChange: (point: { address: string; latitude: number; longitude: number }) => void;
 }) => <button type="button" onClick={() => onChange({ address: 'Абая 10', latitude: 43, longitude: 76 })}>Выбрать точку</button>);
 jest.mock('../lib/community-api', () => ({ communityApi: {
-  myResources: jest.fn().mockResolvedValue([]), confirmations: jest.fn().mockResolvedValue([]), createResource: jest.fn(),
+  resources: jest.fn().mockResolvedValue([]), myResources: jest.fn().mockResolvedValue([]), confirmations: jest.fn().mockResolvedValue([]), createResource: jest.fn(),
 } }));
 
 const user = { id: 1, email: 'test@example.com', first_name: 'Test', city: 'Алматы',
@@ -27,6 +28,7 @@ test('guests can go to the home map and sign in to offer a resource', () => {
   expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login?next=%2Fresources');
   expect(screen.queryByRole('button', { name: 'Тип ресурса' })).not.toBeInTheDocument();
   expect(communityApi.myResources).not.toHaveBeenCalled();
+  expect(communityApi.resources).toHaveBeenCalledWith(undefined, 'Алматы', expect.anything());
 });
 
 test('offers submit selected coordinates and a photo and show moderation status', async () => {
@@ -36,6 +38,7 @@ test('offers submit selected coordinates and a photo and show moderation status'
     category: 'food', availability: 'available', last_confirmed_at: null, moderation_status: 'pending',
   });
   render(<ResourcesPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Предложить пункт помощи' }));
   fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Питьевая вода' } });
   fireEvent.click(screen.getByRole('button', { name: 'Выбрать точку' }));
   const proof = new File(['test'], 'proof.png', { type: 'image/png' });

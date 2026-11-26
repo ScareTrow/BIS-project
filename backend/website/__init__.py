@@ -23,7 +23,8 @@ def create_app(test_config=None):
 
     production = os.getenv('ASAR_ENV') == 'production'
     app.config.update(
-        AUTO_CREATE_DATABASE=not production,
+        AUTO_CREATE_DATABASE=os.getenv('AUTO_CREATE_DATABASE', str(not production)).lower() == 'true',
+        FEATURE_TRIAGE=os.getenv('NEXT_PUBLIC_FEATURE_TRIAGE', '').lower() == 'true',
         SESSION_COOKIE_SECURE=production,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',

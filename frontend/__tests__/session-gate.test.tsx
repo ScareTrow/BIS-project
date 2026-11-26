@@ -8,7 +8,7 @@ jest.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('next/dynamic', () => () => function EmptyMap() { return null; });
 
 test.each([
-  ['new request', NewApplicationPage, '/login'],
+  ['new request', NewApplicationPage, '/login?next=%2Fapplications%2Fnew'],
   ['admin news', AdminNewsPage, '/login'],
 ] as const)('%s waits for session restoration before redirecting', (_name, Page, destination) => {
   mockPush.mockClear();

@@ -1,6 +1,10 @@
-import { CheckCircle, Clock, MapPin, User as UserIcon } from 'lucide-react';
+import { MapPin, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { categoryLabels, formatDate, pluralRu, responseStatusLabels } from './format';
+import CategoryBadge from '@/components/common/CategoryBadge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useTranslation } from '@/lib/i18n';
+import { useStore } from '@/lib/store';
+import { formatDate, pluralRu } from './format';
 
 const cardLink =
   'block rounded-lg bg-gray-50 p-4 transition-colors hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600';
@@ -9,7 +13,7 @@ function Header({ app, children }: { app: any; children?: React.ReactNode }) {
   return (
     <div className="mb-1 flex flex-wrap items-center gap-2">
       <span className="font-semibold text-primary">#{app.id}</span>
-      <span className="badge badge-primary text-xs">{categoryLabels[app.category] || app.category}</span>
+      <CategoryBadge category={app.category} />
       {app.is_sos && <span className="badge badge-danger text-xs">SOS</span>}
       {children}
     </div>
@@ -21,6 +25,7 @@ function Meta({ children }: { children: React.ReactNode }) {
 }
 
 export function MyApplicationCard({ app }: { app: any }) {
+  const t = useTranslation(useStore(state => state.language));
   const href = `/applications/${app.public_id || app.id}`;
   return (
         <Link
@@ -30,17 +35,13 @@ export function MyApplicationCard({ app }: { app: any }) {
       }`}
     >
       <Header app={app}>
-        {app.is_resolved ? (
-          <span className="flex items-center gap-1 text-xs text-success">
-            <CheckCircle className="h-4 w-4" aria-hidden="true" /> Выполнена
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs text-warning">
-            <Clock className="h-4 w-4" aria-hidden="true" /> Ждёт помощи
-          </span>
-        )}
+        <StatusBadge status={app.is_false_call ? 'false_call' : app.lifecycle || app.status} />
+        {app.rating_pending && <span className="badge badge-warning text-xs">{t('review.title')}</span>}
       </Header>
       <p className="mb-2 line-clamp-2 text-sm text-gray-700">{app.description}</p>
+      {app.rejection_reason && <p className="mb-2 break-words text-sm text-danger-dark">
+        {t('request.rejectedBecause', { reason: app.rejection_reason })}
+      </p>}
       <Meta>
         {app.city && (
           <span className="flex items-center gap-1">
@@ -67,6 +68,7 @@ const responseBadge: Record<string, string> = {
 
 
 export function MyResponseCard({ app }: { app: any }) {
+  const t = useTranslation(useStore(state => state.language));
   const href = `/applications/${app.public_id || app.id}`;
   return (
         <Link
@@ -79,8 +81,9 @@ export function MyResponseCard({ app }: { app: any }) {
       }`}
     >
       <Header app={app}>
+        <StatusBadge status={app.is_false_call ? 'false_call' : app.lifecycle || app.status} />
         <span className={`badge text-xs ${responseBadge[app.response_status] || 'badge-warning'}`}>
-          {responseStatusLabels[app.response_status] || app.response_status}
+          {t(`response.status.${app.response_status}`)}
         </span>
       </Header>
       <p className="mb-2 line-clamp-2 text-sm text-gray-700">{app.description}</p>

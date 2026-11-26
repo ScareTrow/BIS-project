@@ -43,10 +43,11 @@ test('quick SOS with GPS attaches proof without manual map interaction',async()=
  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:jest.fn(success=>success({coords:{latitude:51.16,longitude:71.43}}))}});
  jest.mocked(apiClient.createSOS).mockResolvedValue({success:true,id:51});
  const created=jest.fn();render(<SOSDialog onClose={jest.fn()} onCreated={created}/>);
- expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+ fireEvent.change(screen.getByRole('textbox', { name: /Что случилось/ }), { target: { value: 'пожар' } });
  fireEvent.change(screen.getByLabelText(/Фото:/), { target: { files: [new File(['png'], 'proof.png', { type: 'image/png' })] } });
  fireEvent.click(screen.getByRole('button',{name:'Подтвердить и отправить SOS'}));
  await waitFor(()=>expect(created).toHaveBeenCalledWith(51,[51.16,71.43]));
+ expect(jest.mocked(apiClient.createSOS).mock.calls[0][0].get('description')).toBe('пожар');
 });
 
 

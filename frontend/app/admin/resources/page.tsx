@@ -1,13 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import CategoryBadge from '@/components/common/CategoryBadge';
 import { InlineConfirm, ActionFeedback } from '@/components/ui/ActionFeedback';
 import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Input';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { PageHeader, refreshAdminCounts, useRequireAdmin } from '@/components/admin/shared';
 import { communityApi, type Resource } from '@/lib/community-api';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
@@ -56,26 +54,28 @@ function ReviewCard({ resource, onReviewed }: { resource: Resource; onReviewed: 
 }
 
 export default function AdminResourcesPage() {
-  const { user, language, authLoading } = useStore();
+  const { language } = useStore();
+  const ready = useRequireAdmin();
   const t = useTranslation(language);
   const [queue, setQueue] = useState<Resource[] | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
-    if (!user?.isAdmin) return;
+    if (!ready) return;
     let active = true;
     communityApi.resourceReviewQueue().then(rows => { if (active) setQueue(rows); })
       .catch(() => { if (active) setError(true); });
     return () => { active = false; };
-  }, [user?.isAdmin]);
-  if (authLoading) return <p role="status">{t('ui.loading')}</p>;
-  if (!user?.isAdmin) return null;
-  return <PageContainer width="content">
-    <Link href="/admin" className="text-primary underline">{t('admin.title')}</Link>
+  }, [ready]);
+  if (!ready) return null;
+  return <div className="space-y-4">
     <PageHeader title={t('resources.moderation')} />
     {error ? <ActionFeedback message={t('resources.loadError')} error /> : queue === null
       ? <p role="status">{t('ui.loading')}</p>
       : queue.length === 0 ? <Card><p>{t('resources.emptyQueue')}</p></Card>
       : queue.map(resource => <ReviewCard key={resource.id} resource={resource}
-        onReviewed={() => setQueue(rows => rows?.filter(item => item.id !== resource.id) ?? [])} />)}
-  </PageContainer>;
+        onReviewed={() => {
+          refreshAdminCounts();
+          setQueue(rows => rows?.filter(item => item.id !== resource.id) ?? []);
+        }} />)}
+  </div>;
 }

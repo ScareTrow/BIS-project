@@ -39,6 +39,8 @@ def create_dispatcher(storage=None):
     dp.message.register(create.cmd_create, Command("create"))
     dp.message.register(sos.cmd_sos, Command("sos"))
     dp.message.register(rating.cmd_rate, Command("rate"))
+    dp.message.register(rating.cmd_my_requests, Command("requests"))
+    dp.message.register(rating.cmd_my_requests, F.text == "📋 Мои заявки")
     dp.message.register(help.cmd_help, Command("help"))
     dp.message.register(resources.cmd_resources, Command("resources"))
 
@@ -56,6 +58,9 @@ def create_dispatcher(storage=None):
     dp.message.register(sos.cmd_sos, F.text == "🚨 SOS - Экстренная помощь")
     dp.message.register(help.cmd_help, F.text == "ℹ️ Помощь")
     dp.message.register(rating.handle_rating_comment, rating.RatingStates.waiting_comment)
+
+    dp.message.register(create.prompt_category, ApplicationStates.waiting_category)
+    dp.callback_query.register(create.select_category, F.data.startswith('cat:'))
 
     dp.message.register(
         common.process_description,
@@ -75,8 +80,7 @@ def create_dispatcher(storage=None):
         F.location
     )
 
-    dp.callback_query.register(rating.handle_rate_callback, F.data.startswith("rate_"))
-    dp.callback_query.register(rating.handle_rating_callback, F.data.startswith("rating_"))
+    dp.callback_query.register(rating.handle_request_action, F.data.regexp(r"^(resp|done|close|rate|review):"))
     dp.callback_query.register(resources.confirm_resource_callback, F.data.startswith("resource_confirm_"))
 
 

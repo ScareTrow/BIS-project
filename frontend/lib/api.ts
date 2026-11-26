@@ -15,6 +15,7 @@ export interface ApplicationResponse {
   id: number; responder_id: number; status: string; created_at: string;
   responder?: Pick<User, 'id' | 'first_name' | 'last_name' | 'avatar'> | null;
 }
+export interface ResponseRating { response_id: number; score: number; comment?: string }
 export type ApplicationStatus = 'active' | 'open' | 'in_progress' | 'completed';
 export type ApplicationRef = string | number;
 export interface LocationPoint { address: string; latitude: number; longitude: number }
@@ -25,6 +26,7 @@ export interface DeliveryRoute {
 export interface Application {
   id: number; number?: number; description: string; category: ApplicationCategory;
   latitude: number; longitude: number; date: string; status: string;
+  lifecycle?: string; rating_pending?: boolean; moderated_at?: string | null; user_response?: ApplicationResponse | null;
   moderation_status?: string; rejection_reason?: string | null; is_sos: boolean; is_resolved: boolean; is_false_call: boolean;
   user_id: number; priority: number; city?: string | null; region?: string | null;
   location?: string; address?: string; expires_at?: string | null; duration_days?: number;
@@ -41,12 +43,6 @@ export interface Notification {
   is_read: boolean; created_at: string; related_application_id?: number | null;
   related_application_public_id?: string | null;
   related_application_category?: ApplicationCategory | null;
-}
-export interface SearchResult {
-  applications: Application[];
-  users: (User & { name: string })[];
-  cities: string[];
-  total: number;
 }
 interface AuthResult { success: boolean; user: User; message?: string }
 interface MapFeatures {
@@ -80,7 +76,8 @@ export const apiClient = {
     return data.features.map(feature => ({ ...feature.properties, id: feature.id,
       latitude: feature.geometry.coordinates[1], longitude: feature.geometry.coordinates[0] }));
   },
-  getApplicationsList: (_forceRefresh = false, city?: string, status: ApplicationStatus = 'active') => get<Application[]>('/applications/list', { city, status }),
+  getApplicationsList: (params: { city?: string; status: ApplicationStatus; category?: ApplicationCategory; q?: string; limit: number; offset: number }) =>
+    get<Application[]>('/applications/list', params),
   getApplication: (id: ApplicationRef) => get<Application>('/applications/' + id),
   createApplication: (data: FormData | { latitude: number; longitude: number; category: string; description: string; expires_days?: number }) => post('/applications', data),
   createSOS: (data: FormData) => post('/sos', data),
@@ -90,6 +87,15 @@ export const apiClient = {
   login: (email: string, password: string) => post<AuthResult>('/auth/login', { email, password }),
   signup: (data: { email: string; firstName: string; lastName?: string; password1: string; password2: string; phone: string; city: string; cityHidden?: boolean; telegram_id?: string }) => post<AuthResult>('/auth/signup', data),
   logout: () => post('/auth/logout'),
+  getSession: async () => {
+    try {
+      return await get<{ user: User }>('/auth/session');
+    } catch (error) {
+      // The frontend and API deploy independently.
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) throw error;
+      return get<{ user: User }>('/user/current');
+    }
+  },
   getCurrentUser: () => get<{ user: User; name_changes_remaining: number; total_applications: number; active_applications: number; help_given: number }>('/user/current'),
   getUser: (id: number) => get<User & { is_super_admin: boolean; is_blocked: boolean; average_rating: number; total_applications: number; active_applications: number; resolved_applications: number; false_calls_count: number; help_given: number; help_total: number; received_ratings: { id: number; rating_value: number; comment: string; created_at: string; rater: { first_name: string; last_name?: string } }[] }>('/users/' + id),
   getUserApplications: (limit = 10, offset = 0) => get<{ applications: Application[]; total: number }>('/user/applications', { limit, offset }),
@@ -99,12 +105,13 @@ export const apiClient = {
   markNotificationRead: (id: number) => post('/notifications/' + id + '/read'),
   markAllNotificationsRead: () => post('/notifications/read-all'),
   getRegionalStats: (city?: string) => get<{ total: number; active: number; emergency: number; city: string }>('/stats/regional', { city }),
-  search: (q: string) => get<SearchResult>('/search', { q }),
   getTelegramBotInfo: () => get<{ bot_url?: string; bot_username?: string }>('/telegram-bot-info'),
   createTelegramLink: () => post<{ bot_url: string; expires_in: number }>('/telegram/link'),
+  getAdminCounts: () => get<{ pending_applications: number; pending_sos: number; pending_resources: number }>('/admin/counts'),
   getAdminStats: () => get<{ total_applications: number; pending_applications: number; approved_applications: number; rejected_applications: number; total_responses: number; volunteers_count: number; false_calls_count: number; category_stats: { category: string; count: number }[] }>('/admin/stats'),
   getAdminUsers: () => get<(User & { total_applications: number; resolved_applications: number; false_calls_count: number; help_given: number; average_rating: number; is_super_admin: boolean; is_blocked: boolean })[]>('/admin/users'),
-  getAdminApplications: (status = 'all') => get<Application[]>('/admin/applications', { status }),
+  getAdminApplications: (status = 'all', params?: { user_id?: number; limit?: number; offset?: number; q?: string }) =>
+    get<Application[]>('/admin/applications', { status, ...params }),
   approveApplication: (id: ApplicationRef) => post('/admin/applications/' + id + '/approve'),
   rejectApplication: (id: ApplicationRef, reason: string) => post('/admin/applications/' + id + '/reject', { reason }),
   markFalseApplication: (id: ApplicationRef) => post('/admin/applications/' + id + '/mark-false'),
@@ -116,7 +123,8 @@ export const apiClient = {
   respondToApplication: (id: ApplicationRef) => post('/applications/' + id + '/respond'),
   acceptResponse: (id: ApplicationRef, responseId: number) => post('/applications/' + id + '/responses/' + responseId + '/accept'),
   rejectResponse: (id: ApplicationRef, responseId: number) => post('/applications/' + id + '/responses/' + responseId + '/reject'),
-  resolveApplication: (id: ApplicationRef) => post('/applications/' + id + '/resolve'),
+  resolveApplication: (id: ApplicationRef, ratings?: ResponseRating[]) =>
+    post('/applications/' + id + '/resolve', ratings ? { ratings } : undefined),
   rateVolunteer: (id: ApplicationRef, helper_id: number, is_positive: boolean) => post('/applications/' + id + '/rate-volunteer-simple', { helper_id, is_positive }),
   getNews: (limit = 20, offset = 0) => get<{ news: NewsItem[]; total: number }>('/news', { limit, offset }),
   getSingleNews: (id: number) => get<NewsItem>('/news/' + id),

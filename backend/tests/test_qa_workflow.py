@@ -18,6 +18,7 @@ reject, and nearby volunteers (10 km, linked Telegram) are notified.
 """
 
 import io
+import re
 import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -279,8 +280,29 @@ class TestLifecycle:
     def test_resolve_moves_accepted_responses_to_completed(self, app, people, approved):
         response_id = respond(people["vol1"], approved).get_json()["response_id"]
         accept(people["author"], approved, response_id)
-        people["author"].post(f"/api/applications/{approved}/resolve")
+        result = people["author"].post(f"/api/applications/{approved}/resolve", json={
+            "ratings": [{"response_id": response_id, "score": 5, "comment": "Спасибо"}],
+        })
+        assert result.status_code == 200
         assert status(app, ApplicationResponse, response_id).status == ResponseStatus.COMPLETED
+        assert people["author"].get(f"/api/applications/{approved}/aid").get_json()["rated_response_ids"] == [response_id]
+
+    def test_resolve_keeps_completion_when_rating_write_fails(self, app, people, approved, monkeypatch):
+        from sqlalchemy.exc import SQLAlchemyError
+
+        def unavailable(*args):
+            raise SQLAlchemyError("rating write failed")
+
+        response_id = respond(people["vol1"], approved).get_json()["response_id"]
+        accept(people["author"], approved, response_id)
+        monkeypatch.setattr("backend.website.application_service.save_response_rating", unavailable)
+        result = people["author"].post(f"/api/applications/{approved}/resolve", json={
+            "ratings": [{"response_id": response_id, "score": 5}],
+        })
+        assert result.status_code == 200
+        assert status(app, Application, approved).is_resolved
+        assert people["author"].get(f"/api/applications/{approved}/aid").get_json()["rated_response_ids"] == []
+        assert any(row["notification_type"] == "rate_volunteers" for row in people["author"].get("/api/notifications").get_json()["notifications"])
 
     def test_reject_path(self, app, people):
         app_id = create(people["author"])
@@ -335,10 +357,14 @@ class TestLifecycle:
         app_id = create(people["author"])
         assert people["author"].post(f"/api/applications/{app_id}/resolve").status_code == 409
 
-    def test_resolve_with_undelivered_need_refused(self, app, people):
+    def test_resolve_with_undelivered_need_is_confirmed_by_author(self, people):
         app_id = create(people["author"], needs=[{"resource_name": "Вода", "unit": "л", "quantity_needed": 10}])
         approve(people["admin"], app_id)
-        assert people["author"].post(f"/api/applications/{app_id}/resolve").status_code == 409
+        assert people["author"].post(f"/api/applications/{app_id}/resolve").status_code == 200
+
+        need = people["author"].get(f"/api/applications/{app_id}/aid").get_json()["needs"][0]
+        assert need["confirmed_by_author"] and need["still_needed"] == 0
+        assert need["quantity_delivered"] == 0
 
     def test_false_call_closes_request(self, app, people, approved):
         r = people["admin"].post(f"/api/admin/applications/{approved}/mark-false", json={"reason": "фейк"})
@@ -422,6 +448,7 @@ class TestPriorityAndSpam:
         assert r.status_code == 400
 
     def test_triage_raises_priority_but_not_over_admin(self, app, people):
+        app.config["FEATURE_TRIAGE"] = True
         r = people["admin"].post("/api/admin/triage-rules", json={"keyword": "кровь", "priority": "high"})
         assert r.status_code in (200, 201), r.get_json()
         app_id = create(people["author"], "Нужна кровь для донорства")
@@ -615,7 +642,7 @@ def admin_rules(app):
             continue
         url = rule.rule
         for arg in rule.arguments:
-            url = url.replace(f"<int:{arg}>", "1").replace(f"<{arg}>", "1")
+            url = re.sub(rf"<(?:\w+:)?{re.escape(arg)}>", "1", url)
         for method in sorted(rule.methods - {"HEAD", "OPTIONS"}):
             rules.append((method, url))
     return sorted(set(rules))

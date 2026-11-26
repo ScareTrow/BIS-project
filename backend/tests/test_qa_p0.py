@@ -133,7 +133,6 @@ def test_app_refuses_to_start_without_secret_key(monkeypatch, tmp_path):
 # T-04 -----------------------------------------------------------------------
 
 @pytest.mark.security
-@pytest.mark.xfail(strict=True, reason="SEC-04: public profile exposes email, phone and hidden city")
 def test_public_profile_hides_personal_data(app, client):
     user = make_user(
         app, "private@example.com",
@@ -148,14 +147,11 @@ def test_public_profile_hides_personal_data(app, client):
 
 
 @pytest.mark.security
-@pytest.mark.xfail(strict=True, reason="SEC-04: anonymous user search returns email addresses")
-def test_anonymous_user_search_hides_email(app, client):
-    make_user(app, "findme@example.com", first_name="Findme")
+def test_anonymous_user_search_does_not_expose_users(app, client):
+    make_user(app, "findme@example.com", first_name="Findme", city_hidden=True)
 
-    users = client.get("/api/search?q=Findme&type=users").get_json()["users"]
-
-    assert users
-    assert all("email" not in u for u in users)
+    assert client.get("/api/search?q=Findme&type=users").get_json()["users"] == []
+    assert client.get("/api/search?q=findme%40example.com").get_json()["users"] == []
 
 
 # T-05 -----------------------------------------------------------------------
@@ -338,7 +334,6 @@ def test_resolved_application_rejects_new_responses(app, test_user):
     assert response.status_code in (400, 409)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-10: resolve can be repeated")
 def test_resolve_twice_is_rejected(app, test_user):
     application = make_application(app, test_user)
     author = login(app, test_user)

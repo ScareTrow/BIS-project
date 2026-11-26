@@ -168,7 +168,7 @@ def test_prepare_deploy_bootstraps_empty_database_and_can_run_again(app, test_us
             assert result.exit_code == 0, result.output
         with app.app_context():
             assert set(db.metadata.tables).issubset(inspect(db.engine).get_table_names())
-            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261119_resource_review'
+            assert db.session.execute(text('SELECT version_num FROM alembic_version')).scalar() == '20261126_application_cleanup'
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
@@ -201,6 +201,32 @@ def test_prepare_deploy_migrates_existing_records_without_replacing_them(app, te
             assert column['type'].length == 255
             assert inspect(db.engine).has_table('telegram_conversation')
             assert inspect(db.engine).has_table('telegram_link_token')
+    finally:
+        with app.app_context():
+            db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
+            db.session.commit()
+
+
+def test_cleanup_migrates_escaped_text_and_confirmed_help(app, test_application, admin_user):
+    from flask_migrate import stamp
+    from backend.website.models import ApplicationResponse, ResponseStatus
+
+    with app.app_context():
+        application = db.session.get(Application, test_application.id)
+        application.description = 'Нужны &quot;коробки&quot; &amp; табличка &lt;b&gt;'
+        application.moderation_status = ModerationStatus.APPROVED
+        db.session.add(ApplicationResponse(application_id=application.id, responder_id=admin_user.id,
+            status=ResponseStatus.COMPLETED))
+        db.session.commit()
+        stamp(revision='20261119_resource_review')
+    try:
+        result = app.test_cli_runner().invoke(args=['prepare-deploy'])
+        assert result.exit_code == 0, result.output
+        with app.app_context():
+            application = db.session.get(Application, test_application.id)
+            assert application.description == 'Нужны "коробки" & табличка <b>'
+            assert application.is_resolved and application.status == 'completed'
+            assert application.resolved_at is not None
     finally:
         with app.app_context():
             db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))

@@ -4,7 +4,9 @@ import CategoryBadge from '@/components/common/CategoryBadge';
 import { apiClient, Application } from '@/lib/api';
 import L from 'leaflet';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { CATEGORY_META } from '@/lib/categories';
 import { Marker, Popup } from 'react-leaflet';
 import { ActionFeedback } from '@/components/ui/ActionFeedback';
 import { Button } from '@/components/ui/Button';
@@ -12,19 +14,11 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
 
-const categoryColors: Record<string, string> = {
-  food: '#28a745',
-  medicine: '#dc3545',
-  shelter: '#007bff',
-  emergency: '#ffc107',
-};
-
 interface ApplicationMarkerProps {
   application: Application;
 }
 
 export default function ApplicationMarker({ application }: ApplicationMarkerProps) {
-  const [icon, setIcon] = useState<L.DivIcon | null>(null);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -32,36 +26,29 @@ export default function ApplicationMarker({ application }: ApplicationMarkerProp
   const t = useTranslation(language);
   const details = `/applications/${application.public_id || application.id}`;
 
-  useEffect(() => {
-    const color = application.is_sos ? '#dc2626' : categoryColors[application.category] || '#6c757d';
-    const customIcon = L.divIcon({
-      className: 'custom-marker',
-      html: `
-        <div style="
-          background-color: ${color};
-          width: 30px;
-          height: 30px;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          border: 3px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          ${application.is_sos ? 'animation: pulse 2s infinite;' : ''}
-        ">
-          ${application.is_sos ? '<span style="transform: rotate(45deg); display: block; text-align: center; line-height: 24px; font-weight: bold; color: white;">!</span>' : ''}
-        </div>
-      `,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30],
-    });
-    setIcon(customIcon);
-  }, [application.category, application.is_sos]);
-
-  if (!icon) return null;
+  const { category, is_sos } = application;
+  const pending = application.moderation_status === 'pending' && application.is_own;
+  const { Icon, color, labelKey } = CATEGORY_META[category] || CATEGORY_META.food;
+  const icon = useMemo(() => L.divIcon({
+    className: 'application-marker',
+    html: renderToStaticMarkup(
+      <div className={['application-pin', pending && 'application-pin-pending', is_sos && 'application-pin-sos'].filter(Boolean).join(' ')}
+        style={{ backgroundColor: color }}>
+        <Icon size={17} aria-hidden="true" />
+        {is_sos && <span aria-hidden="true">!</span>}
+      </div>
+    ),
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -34],
+  }), [Icon, color, is_sos, pending]);
 
   return (
     <Marker
       position={[application.latitude, application.longitude]}
       icon={icon}
+      title={[t(labelKey), is_sos && 'SOS', pending && t('status.pending')].filter(Boolean).join(' · ')}
+      zIndexOffset={is_sos ? 1000 : 0}
     >
       <Popup>
         <div className="p-2 min-w-[200px]">

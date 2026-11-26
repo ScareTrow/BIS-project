@@ -1,19 +1,21 @@
 'use client';
 
-import TelegramLink from '@/components/community/TelegramLink';
-import VolunteerSettings from '@/components/community/VolunteerSettings';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, User } from '@/lib/api';
-import { Edit, User as UserIcon, MapPin, Save, X, Instagram, MessageCircle, Search } from 'lucide-react';
+import { Edit, User as UserIcon, Save, X, Instagram, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
-import { searchKazakhstanCities } from '@/lib/kazakhstanCities';
-import { useTranslation, getLanguage } from '@/lib/i18n';
+import { getCityByName, kazakhstanCities } from '@/lib/kazakhstanCities';
+import { completePhone, nationalPhoneDigits } from '@/lib/phone';
+import { formatKzPhone } from '@/lib/phoneFormat';
+import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
+import { useTranslation } from '@/lib/i18n';
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const t = useTranslation(getLanguage());
+  const t = useTranslation(useStore(state => state.language));
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,42 +26,15 @@ export default function EditProfilePage() {
     avatar: null as File | null,
     telegram: '',
     instagram: '',
-    telegram_id: '',
+    phone: '',
   });
+  const [phoneChanged, setPhoneChanged] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<string | null>(null);
   const [nameChangesRemaining, setNameChangesRemaining] = useState<number | null>(null);
-  const [citySearch, setCitySearch] = useState('');
-  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
   }, []);
-
-  const searchCities = async (query: string) => {
-    const results = searchKazakhstanCities(query, true).map(city => city.name);
-    setCitySuggestions(results);
-    setShowCitySuggestions(query.length > 0 && results.length > 0);
-  };
-
-  const selectCity = (cityName: string) => {
-    setCitySearch(cityName);
-    setFormData(prev => ({ ...prev, city: cityName }));
-    setShowCitySuggestions(false);
-  };
-
-  useEffect(() => {
-    if (citySearch.trim()) {
-      const timeoutId = setTimeout(() => {
-        searchCities(citySearch.trim());
-      }, 150);
-      return () => clearTimeout(timeoutId);
-    } else {
-      setCitySuggestions([]);
-      setShowCitySuggestions(false);
-    }
-  }, [citySearch]);
 
   const loadProfile = async () => {
     try {
@@ -79,7 +54,7 @@ export default function EditProfilePage() {
         }
       }
       
-      const userCity = userData.city || '';
+      const userCity = getCityByName(userData.city || '')?.name || userData.city || '';
       setFormData({
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
@@ -87,9 +62,8 @@ export default function EditProfilePage() {
         avatar: null,
         telegram: socialLinks.telegram || '',
         instagram: socialLinks.instagram || '',
-        telegram_id: userData.telegram_id || '',
+        phone: nationalPhoneDigits(socialLinks.phone || ''),
       });
-      setCitySearch(userCity);
       if (userData.avatar) {
         setPreview(`/api/uploads/${userData.avatar}`);
       }
@@ -114,6 +88,11 @@ export default function EditProfilePage() {
       return;
     }
 
+    if (phoneChanged && formData.phone.length !== 10) {
+      setErrors({ phone: t('profile.phoneError') });
+      return;
+    }
+
     setSaving(true);
     try {
       const formDataToSend = new FormData();
@@ -124,6 +103,7 @@ export default function EditProfilePage() {
       if (formData.city) {
         formDataToSend.append('city', formData.city);
       }
+      if (phoneChanged) formDataToSend.append('phone', completePhone(formData.phone));
       if (formData.telegram) {
         formDataToSend.append('telegram', formData.telegram);
       }
@@ -136,7 +116,7 @@ export default function EditProfilePage() {
       }
 
       await apiClient.updateProfile(formDataToSend);
-      const refreshed = await apiClient.getCurrentUser();
+      const refreshed = await apiClient.getSession();
       useStore.getState().setUser({ ...refreshed.user, is_authenticated: true });
       router.push('/profile');
     } catch (error: any) {
@@ -179,14 +159,7 @@ export default function EditProfilePage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Редактировать профиль</h1>
-        <Link
-          href="/profile"
-          className="btn btn-outline flex items-center space-x-2"
-        >
-          <X className="w-4 h-4" />
-          <span>Отмена</span>
-        </Link>
+        <h1 className="text-3xl font-bold text-gray-900">{t('profile.editTitle')}</h1>
       </div>
 
       <div className="max-w-2xl mx-auto">
@@ -250,43 +223,21 @@ export default function EditProfilePage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="city" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <MapPin className="w-4 h-4 mr-2" />
-              Город
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="w-4 h-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                id="city"
-                value={citySearch}
-                onChange={(e) => {
-                  setCitySearch(e.target.value);
-                  setFormData({ ...formData, city: e.target.value });
-                }}
-                onFocus={() => citySuggestions.length > 0 && setShowCitySuggestions(true)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Введите название города для поиска..."
-              />
-              {showCitySuggestions && citySuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                  {citySuggestions.map((city, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => selectCity(city)}
-                      className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors"
-                    >
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <Select label={t('home.city')} value={formData.city} onChange={city => setFormData(current => ({ ...current, city }))}
+            options={[{ value: '', label: t('common.notSpecified') },
+              ...(formData.city && !getCityByName(formData.city) ? [{ value: formData.city, label: formData.city }] : []),
+              ...kazakhstanCities.map(city => ({ value: city.name, label: city.name }))]} />
+          <Input id="profile-phone" label={t('profile.phone')} error={errors.phone} type="tel"
+            autoComplete="tel-national" inputMode="numeric" placeholder="(700) 000-00-00" hint={t('signup.phoneHint')}
+            value={formatKzPhone(formData.phone)}
+            onChange={event => {
+              const typed = event.target.value;
+              const digits = nationalPhoneDigits(typed);
+              const phone = typed.length < formatKzPhone(formData.phone).length && digits === formData.phone
+                ? formData.phone.slice(0, -1) : digits;
+              setPhoneChanged(true);
+              setFormData(current => ({ ...current, phone }));
+            }} />
 
           {nameChangesRemaining !== null && (
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
@@ -314,22 +265,6 @@ export default function EditProfilePage() {
                   placeholder="@username или https://t.me/username"
                 />
                 <p className="mt-1 text-xs text-gray-500">Можно указать @username или полную ссылку</p>
-              </div>
-
-              <div>
-                <label htmlFor="telegram_id" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                  <MessageCircle className="w-4 h-4 mr-2 text-blue-500" />
-                  Telegram ID (для бота)
-                </label>
-                <input
-                  type="text"
-                  id="telegram_id"
-                  value={formData.telegram_id}
-                  readOnly
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Нажмите «Привязать Telegram» ниже"
-                />
-                <TelegramLink telegramId={formData.telegram_id} onLinked={(telegramId) => setFormData((f) => ({ ...f, telegram_id: telegramId }))} />
               </div>
 
               <div>
@@ -379,11 +314,10 @@ export default function EditProfilePage() {
               className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors flex items-center space-x-2"
             >
               <X className="w-5 h-5" />
-              <span>Отмена</span>
+              <span>{t('ui.cancel')}</span>
             </Link>
           </div>
         </form>
-        <div className="mt-6"><VolunteerSettings /></div>
       </div>
     </div>
   );

@@ -35,7 +35,9 @@ def selected_city(default=''):
 def filter_city(query, column, city, owner_column=None):
     if not city or city == 'all':
         return query
-    condition = func.lower(func.trim(column)).in_([n.lower() for n in city_names(city)])
+    names = city_names(city)
+    stored = func.trim(column)
+    condition = or_(stored.in_(names), func.lower(stored).in_([name.lower() for name in names]))
     if owner_column is not None and current_user.is_authenticated:
         # Preserve the author's legacy rows that predate mandatory city selection.
         condition = or_(condition, and_(owner_column == current_user.id,

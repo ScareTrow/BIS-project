@@ -10,25 +10,26 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 const NAV = [
   { href: '/admin', label: 'Обзор', icon: LayoutDashboard, exact: true },
-  { href: '/admin/applications', label: 'Проверка заявок', icon: ClipboardCheck, badge: 'pending' as const },
-  { href: '/admin/resources', label: 'Проверка пунктов помощи', icon: ClipboardCheck },
+  { href: '/admin/applications', label: 'Проверка заявок', icon: ClipboardCheck, badge: 'pending_applications' as const },
+  { href: '/admin/resources', label: 'Проверка пунктов помощи', icon: ClipboardCheck, badge: 'pending_resources' as const },
   { href: '/admin/users', label: 'Пользователи', icon: Users },
   { href: '/admin/news', label: 'Новости', icon: Newspaper },
-  { href: '/admin/community', label: 'Правила и аналитика', icon: SlidersHorizontal },
+  ...(process.env.NEXT_PUBLIC_FEATURE_TRIAGE === 'true' ? [{ href: '/admin/community', label: 'Правила и аналитика', icon: SlidersHorizontal }] : []),
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '';
   const { user } = useStore();
-  const [pending, setPending] = useState<number | null>(null);
+  const [counts, setCounts] = useState<Awaited<ReturnType<typeof apiClient.getAdminCounts>> | null>(null);
 
   useEffect(() => {
     if (!user?.isAdmin) return;
-    const load = () => apiClient.getAdminStats().then((s) => setPending(s.pending_applications)).catch(() => {});
+    let active = true;
+    const load = () => apiClient.getAdminCounts().then(data => { if (active) setCounts(data); }).catch(() => {});
     load();
     window.addEventListener(ADMIN_COUNTS_EVENT, load);
-    return () => window.removeEventListener(ADMIN_COUNTS_EVENT, load);
-  }, [user?.isAdmin, pathname]);
+    return () => { active = false; window.removeEventListener(ADMIN_COUNTS_EVENT, load); };
+  }, [user?.isAdmin]);
 
   // Не показываем меню, пока не ясно, что это администратор: сами страницы делают редирект.
   if (!user?.isAdmin) return <>{children}</>;
@@ -55,9 +56,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 >
                   <Icon className="w-4 h-4" />
                   {label}
-                  {badge === 'pending' && !!pending && (
-                    <span className="rounded-full bg-yellow-500 text-white text-xs font-bold px-2 py-0.5" title="Заявок ждут проверки">
-                      {pending}
+                  {badge && !!counts?.[badge] && (
+                    <span className="rounded-full bg-yellow-500 text-white text-xs font-bold px-2 py-0.5" title={label}>
+                      {counts[badge]}
                     </span>
                   )}
                 </Link>

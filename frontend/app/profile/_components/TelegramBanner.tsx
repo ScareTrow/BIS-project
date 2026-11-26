@@ -6,12 +6,10 @@ type Props = { connected: boolean; onOpen: () => void };
 export default function TelegramBanner({ connected, onOpen }: Props) {
   if (connected) {
     return (
-      <button type="button" onClick={onOpen}
-        className="flex w-full items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100">
+      <p className="flex w-full items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800">
         <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
         Telegram подключён
-        <span className="ml-auto text-xs font-normal underline">Настроить</span>
-      </button>
+      </p>
     );
   }
   return (

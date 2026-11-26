@@ -12,11 +12,15 @@ export default function RequestAid({
   responses,
   isAuthor,
   onChange,
+  revision = 0,
+  showRatings = false,
 }: {
   applicationId: ApplicationRef;
   responses: ApplicationResponse[];
   isAuthor: boolean;
-  onChange: () => void;
+  onChange: () => void | Promise<void>;
+  revision?: number;
+  showRatings?: boolean;
 }) {
   const [aid, setAid] = useState<Aid | null>(null);
   const [catalog, setCatalog] = useState<Capability[]>([]);
@@ -29,8 +33,10 @@ export default function RequestAid({
   const [comments, setComments] = useState<Record<number, string>>({});
   const t = useTranslation(useStore(state => state.language));
   useEffect(() => {
+    let active = true;
     Promise.all([communityApi.aid(applicationId), communityApi.capabilities()])
       .then(([a, c]) => {
+        if (!active) return;
         setAid(a);
         setCatalog(c);
         const next: typeof values = {};
@@ -44,47 +50,66 @@ export default function RequestAid({
         });
         setValues(next);
       })
-      .catch((e) => setMessage(e.message));
-  }, [applicationId, responses]);
+      .catch((e) => { if (active) setMessage(e.message); });
+    return () => { active = false; };
+  }, [applicationId, revision]);
+
   async function perform(action: () => Promise<unknown>) {
     setBusy(true);
-    setMessage("");
+    setMessage('');
     try {
       await action();
-      onChange();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Ошибка");
+      await onChange();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t('ui.action.error'));
     } finally {
       setBusy(false);
     }
   }
-  const canContribute =
-    aid?.response_id &&
-    responses.some((r) => r.id === aid.response_id && r.status === "accepted");
+
+  const canContribute = aid?.response_id &&
+    responses.some(response => response.id === aid.response_id && response.status === 'accepted');
   const unrated = isAuthor && aid ? responses.filter(response =>
     response.status === 'completed' && !aid.rated_response_ids.includes(response.id)) : [];
+  const accepted = responses.filter(response => response.status === 'accepted');
+  const capabilities = catalog.filter(item => aid?.capabilities.includes(item.id));
+  const showNeeds = aid && (aid.capabilities.length > 0 || aid.needs.length > 0 || (isAuthor && accepted.length > 1));
   return (
     <>
-    <section className="card my-6 space-y-4">
-      <h2 className="text-xl font-semibold">Ресурсы и помощь</h2>
-      <p>
-        {catalog
-          .filter((c) => aid?.capabilities.includes(c.id))
-          .map((c) => c.name)
-          .join(" · ") || "Специальные возможности не требуются"}
-      </p>
-      {!aid && !message && <p>Загрузка...</p>}
+    {showRatings && unrated.length > 0 && <section className="card my-6 space-y-4">
+      <h2 className="text-xl font-semibold">{t('review.title')}</h2>
+      {unrated.map(response => <div key={response.id} className="space-y-3 border-t pt-4">
+        <p className="font-medium">{response.responder?.first_name || t('review.helper')}</p>
+        <StarRating value={scores[response.id] ?? 0} label={t('ui.rating')}
+          onChange={value => setScores(current => ({ ...current, [response.id]: value }))} />
+        <Textarea id={`review-${response.id}`} label={t('review.comment')} maxLength={1000} rows={3}
+          value={comments[response.id] ?? ''} onChange={event => setComments({ ...comments, [response.id]: event.target.value })} />
+        <button type="button" className="btn btn-primary" disabled={busy || !scores[response.id]} onClick={() =>
+          perform(async () => {
+            await communityApi.rateResponse(response.id, scores[response.id] ?? 0, comments[response.id]?.trim());
+            setAid(current => current && ({ ...current, rated_response_ids: [...current.rated_response_ids, response.id] }));
+          })}>{t('review.submit')}</button>
+      </div>)}
+    </section>}
+    {showNeeds && <section className="card space-y-4">
+      {capabilities.length > 0 && <>
+        <h2 className="text-xl font-semibold">{t('request.helperRequirements')}</h2>
+        <ul className="flex flex-wrap gap-2">{capabilities.map(item => {
+          const key = 'capability.' + item.code;
+          const label = t(key);
+          return <li className="rounded-full bg-blue-50 px-3 py-1 text-sm" key={item.id}>{label === key ? item.name : label}</li>;
+        })}</ul>
+      </>}
       {aid?.needs.map((n) => (
         <div className="border-t pt-4 space-y-2" key={n.id}>
           <h3 className="font-semibold">
             {n.resource_name} ({n.unit})
           </h3>
           <p>
-            Нужно: {n.quantity_needed} ·
-            Доставлено: {n.quantity_delivered}
+            {t('request.quantityNeeded', { count: n.quantity_needed })} · {t('request.quantityDelivered', { count: n.quantity_delivered })}
           </p>
           <p>
-            Осталось доставить: {n.still_needed}
+            {n.confirmed_by_author ? t('request.quantityConfirmed') : t('request.quantityRemaining', { count: n.still_needed })}
           </p>
           {canContribute && values[n.id] && (
             <form
@@ -100,9 +125,9 @@ export default function RequestAid({
               }}
             >
               <label className="form-field">
-                Доставлено
+                {t('request.delivered')}
                 <input
-                  aria-label={`Доставлено ${n.resource_name}`}
+                  aria-label={t('request.delivered') + ' ' + n.resource_name}
                   className="form-input w-32"
                   type="number"
                   min={aid.contributions.find(c => c.need_id === n.id && c.response_id === aid.response_id)?.quantity_delivered || 0}
@@ -122,15 +147,14 @@ export default function RequestAid({
                 />
               </label>
               <button disabled={busy} className="btn btn-primary">
-                Сохранить доставленное количество
+                {t('request.saveDelivered')}
               </button>
             </form>
           )}
         </div>
       ))}
-      {isAuthor &&
-        responses
-          .filter((r) => r.status === "accepted")
+      {isAuthor && accepted.length > 1 &&
+        accepted
           .map((r) => (
             <div className="flex flex-wrap gap-3 items-center" key={r.id}>
               <span>
@@ -143,25 +167,10 @@ export default function RequestAid({
                   perform(() => communityApi.completeResponse(r.id))
                 }
               >
-                Подтвердить завершение помощи
+                {t('request.helperFinished')}
               </button>
             </div>
           ))}
-    </section>
-    {unrated.length > 0 && <section className="card my-6 space-y-4">
-      <h2 className="text-xl font-semibold">{t('review.title')}</h2>
-      {unrated.map(response => <div key={response.id} className="space-y-3 border-t pt-4">
-        <p className="font-medium">{response.responder?.first_name || t('review.helper')}</p>
-        <StarRating value={scores[response.id] ?? 5} label={t('ui.rating')}
-          onChange={value => setScores(current => ({ ...current, [response.id]: value }))} />
-        <Textarea id={`review-${response.id}`} label={t('review.comment')} maxLength={1000} rows={3}
-          value={comments[response.id] ?? ''} onChange={event => setComments({ ...comments, [response.id]: event.target.value })} />
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={() =>
-          perform(async () => {
-            await communityApi.rateResponse(response.id, scores[response.id] ?? 5, comments[response.id]?.trim());
-            setAid(current => current && ({ ...current, rated_response_ids: [...current.rated_response_ids, response.id] }));
-          })}>{t('review.submit')}</button>
-      </div>)}
     </section>}
       {message && (
         <p role="alert" className="text-red-700">

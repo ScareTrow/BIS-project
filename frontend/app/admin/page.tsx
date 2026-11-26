@@ -1,10 +1,10 @@
 'use client';
 
-import { PageHeader, Spinner, useCategoryLabel, useRequireAdmin } from '@/components/admin/shared';
+import { ADMIN_COUNTS_EVENT, PageHeader, Spinner, useCategoryLabel, useRequireAdmin } from '@/components/admin/shared';
 import { apiClient } from '@/lib/api';
 import {
-  AlertTriangle, ArrowRight, CheckCircle, ClipboardCheck, Newspaper,
-  SlidersHorizontal, TrendingUp, Users, XCircle,
+  AlertTriangle, ArrowRight, CheckCircle, ClipboardCheck,
+  TrendingUp, Users, XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -16,27 +16,37 @@ const percent = (part: number, total: number) => (total > 0 ? Math.round((part /
 export default function AdminPage() {
   const ready = useRequireAdmin();
   const categoryLabel = useCategoryLabel();
+  const [counts, setCounts] = useState<Awaited<ReturnType<typeof apiClient.getAdminCounts>> | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
-    apiClient.getAdminStats().then(setStats).catch(() => setError(true));
+    let active = true;
+    const load = () => apiClient.getAdminCounts().then(data => { if (active) setCounts(data); })
+      .catch(() => { if (active) setError(true); });
+    void load();
+    window.addEventListener(ADMIN_COUNTS_EVENT, load);
+    return () => { active = false; window.removeEventListener(ADMIN_COUNTS_EVENT, load); };
   }, [ready]);
 
   if (!ready) return <Spinner />;
   if (error) return <p className="text-red-700">Не удалось загрузить статистику. Обновите страницу.</p>;
-  if (!stats) return <Spinner />;
+  if (!counts) return <Spinner />;
 
-  const maxCategory = Math.max(1, ...stats.category_stats.map((c) => c.count));
-  const categories = [...stats.category_stats].sort((a, b) => b.count - a.count);
+  const maxCategory = Math.max(1, ...(stats?.category_stats || []).map((c) => c.count));
+  const categories = [...(stats?.category_stats || [])].sort((a, b) => b.count - a.count);
 
   return (
     <>
       <PageHeader title="Обзор" description="Главное на сегодня: что ждёт вашего решения и как работает платформа." />
 
-      {/* 1. Что требует действия */}
-      {stats.pending_applications > 0 ? (
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <StatCard label="SOS ждут проверки" value={counts.pending_sos} tone="red"
+          icon={<AlertTriangle className="h-5 w-5" />} href="/admin/applications?status=pending" />
+        <StatCard label="Пункты помощи ждут проверки" value={counts.pending_resources} tone="yellow" href="/admin/resources" />
+      </div>
+      {counts.pending_applications > 0 ? (
         <Link
           href="/admin/applications?status=pending"
           className="group mb-8 flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border-2 border-yellow-300 bg-yellow-50 p-5 hover:bg-yellow-100 transition-colors"
@@ -44,7 +54,7 @@ export default function AdminPage() {
           <ClipboardCheck className="w-10 h-10 text-yellow-600 shrink-0" />
           <div className="flex-1">
             <p className="text-lg font-bold text-gray-900">
-              {stats.pending_applications} {plural(stats.pending_applications, 'заявка ждёт', 'заявки ждут', 'заявок ждут')} проверки
+              {counts.pending_applications} {plural(counts.pending_applications, 'заявка ждёт', 'заявки ждут', 'заявок ждут')} проверки
             </p>
             <p className="text-gray-700 text-sm">Пока заявка не одобрена, волонтёры её не видят. Начните с них.</p>
           </div>
@@ -59,11 +69,15 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 2. Ключевые цифры */}
+      <details className="rounded-xl border border-gray-200 bg-white p-4" onToggle={event => {
+        if (event.currentTarget.open && !stats) void apiClient.getAdminStats().then(setStats).catch(() => setError(true));
+      }}>
+        <summary className="cursor-pointer font-semibold">Статистика заявок и активности</summary>
+        {stats && <div className="mt-4">
       <h2 className="text-lg font-semibold text-gray-900 mb-3">Заявки</h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard label="Всего" value={stats.total_applications} href="/admin/applications?status=all" />
-        <StatCard label="Ждут проверки" value={stats.pending_applications} tone="yellow" href="/admin/applications?status=pending" />
+        <StatCard label="Ждут проверки" value={counts.pending_applications} tone="yellow" href="/admin/applications?status=pending" />
         <StatCard
           label="Одобрено" value={stats.approved_applications} tone="green" href="/admin/applications?status=approved"
           hint={`${percent(stats.approved_applications, stats.total_applications)}% от всех`}
@@ -102,18 +116,8 @@ export default function AdminPage() {
         </section>
       )}
 
-      {/* 4. Подсказка по разделам */}
-      <h2 className="text-lg font-semibold text-gray-900 mb-3">Что где находится</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SectionLink href="/admin/applications" icon={<ClipboardCheck />} title="Проверка заявок"
-          text="Одобряйте или отклоняйте новые заявки, задавайте приоритет, отмечайте ложные." />
-        <SectionLink href="/admin/users" icon={<Users />} title="Пользователи"
-          text="Поиск людей, их рейтинг и история. Здесь же блокировка и назначение администраторов." />
-        <SectionLink href="/admin/news" icon={<Newspaper />} title="Новости"
-          text="Публикация объявлений для всех пользователей платформы." />
-        <SectionLink href="/admin/community" icon={<SlidersHorizontal />} title="Правила и аналитика"
-          text="Автоматическое повышение приоритета по ключевым словам и карта потребности по городам." />
-      </div>
+        </div>}
+      </details>
     </>
   );
 }
@@ -147,16 +151,4 @@ function StatCard({ label, value, hint, tone = 'gray', href, icon }: {
   );
   const cls = 'block bg-white rounded-xl border border-gray-200 p-4';
   return href ? <Link href={href} className={`${cls} hover:border-blue-300 hover:shadow-sm transition`}>{body}</Link> : <div className={cls}>{body}</div>;
-}
-
-function SectionLink({ href, icon, title, text }: { href: string; icon: ReactNode; title: string; text: string }) {
-  return (
-    <Link href={href} className="group flex gap-4 bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition">
-      <span className="text-blue-600 [&>svg]:w-6 [&>svg]:h-6">{icon}</span>
-      <div>
-        <p className="font-semibold text-gray-900 group-hover:text-blue-700">{title}</p>
-        <p className="text-sm text-gray-600 mt-1">{text}</p>
-      </div>
-    </Link>
-  );
 }

@@ -33,7 +33,7 @@ export default function LoginPage() {
       if (response.success) {
         setUser({ ...response.user, is_authenticated: true });
         const next = new URLSearchParams(window.location.search).get('next');
-        if (next && (next === '/resources' || /^\/applications\/(?:new|[0-9]+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i.test(next))) {
+        if (next && (next === '/resources' || next === '/?sos=1' || /^\/applications\/(?:new|[0-9]+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i.test(next))) {
           router.push(next);
         } else if (response.user.isAdmin) {
           router.push('/admin');

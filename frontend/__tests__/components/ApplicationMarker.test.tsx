@@ -41,9 +41,9 @@ describe('ApplicationMarker', () => {
     expect(Number(marker.dataset.lng)).toBe(76.889709);
   });
 
-  it('shows coordinates in the popup rounded to 4 decimals', () => {
+  it('shows the request description in the popup', () => {
     render(<ApplicationMarker application={base} />);
-    expect(screen.getByText('Координаты: 43.2389, 76.8897')).toBeInTheDocument();
+    expect(screen.getByText(base.description)).toBeInTheDocument();
   });
 
   it('links to the request details', () => {
@@ -52,27 +52,26 @@ describe('ApplicationMarker', () => {
   });
 
   it.each([
-    [90, 180, '90.0000, 180.0000'],
-    [-90, -180, '-90.0000, -180.0000'],
-    [0, 0, '0.0000, 0.0000'],
-  ])('renders boundary coordinates %p, %p', (latitude, longitude, text) => {
+    [90, 180], [-90, -180], [0, 0],
+  ])('renders boundary coordinates %p, %p', (latitude, longitude) => {
     render(<ApplicationMarker application={{ ...base, latitude, longitude }} />);
-    expect(screen.getByText(`Координаты: ${text}`)).toBeInTheDocument();
+    expect(screen.getByTestId('marker')).toHaveAttribute('data-lat', String(latitude));
+    expect(screen.getByTestId('marker')).toHaveAttribute('data-lng', String(longitude));
   });
 
   it('uses the category colour', () => {
     render(<ApplicationMarker application={{ ...base, category: 'medicine' } as Application} />);
-    expect(screen.getByTestId('marker').dataset.icon).toContain('#dc3545');
+    expect(screen.getByTestId('marker').dataset.icon).toContain('#0f766e');
   });
 
-  it('falls back to grey for categories without a colour', () => {
+  it('uses a distinct icon and colour for household requests', () => {
     render(<ApplicationMarker application={{ ...base, category: 'household' } as Application} />);
-    expect(screen.getByTestId('marker').dataset.icon).toContain('#6c757d');
+    expect(screen.getByTestId('marker').dataset.icon).toContain('lucide-wrench');
   });
 
   it('marks SOS requests with a badge and a pulsing icon', () => {
     render(<ApplicationMarker application={{ ...base, is_sos: true }} />);
     expect(screen.getByText('SOS')).toBeInTheDocument();
-    expect(screen.getByTestId('marker').dataset.icon).toContain('animation: pulse');
+    expect(screen.getByTestId('marker').dataset.icon).toContain('application-pin-sos');
   });
 });

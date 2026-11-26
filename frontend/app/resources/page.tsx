@@ -3,7 +3,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import AddressPicker from '@/components/common/AddressPicker';
-import { CurrentLocationControl, useCurrentLocation } from '@/components/common/CurrentLocationControl';
+import dynamic from 'next/dynamic';
+import { ALL_CATEGORIES, CATEGORY_META } from '@/lib/categories';
+import { getCityByName, kazakhstanCities } from '@/lib/kazakhstanCities';
+import CategoryBadge from '@/components/common/CategoryBadge';
 import { ActionFeedback } from '@/components/ui/ActionFeedback';
 import { Button, buttonClassName } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -19,7 +22,7 @@ import { useStore } from '@/lib/store';
 import { useTranslation } from '@/lib/i18n';
 import { validateRequestPhotos } from '@/lib/requestValidation';
 
-const categories = ['medicine', 'shelter', 'food', 'clothing', 'household', 'delivery', 'volunteering', 'social_project', 'emergency'] as const;
+const ResourceMap = dynamic(() => import('@/components/home/ResourceMap'), { ssr: false });
 
 export default function ResourcesPage() {
   const { user, language, authLoading } = useStore();
@@ -28,12 +31,28 @@ export default function ResourcesPage() {
   const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
   const [point, setPoint] = useState<LocationPoint | null>(null);
   const [category, setCategory] = useState<Resource['category']>('food');
-  const [city, setCity] = useState('');
+  const [city, setCity] = useState('Алматы');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; error?: boolean }>({ message: '' });
   const [loadError, setLoadError] = useState(false);
-  const currentLocation = useCurrentLocation();
+  const [publicResources, setPublicResources] = useState<Resource[] | null>(null);
+  const [publicError, setPublicError] = useState(false);
+  const [showOffer, setShowOffer] = useState(false);
+  const selectedCity = (user?.city && (getCityByName(user.city)?.name || user.city)) || city;
   const authenticated = !!user?.is_authenticated;
+
+  useEffect(() => {
+    if (authLoading) return;
+    const controller = new AbortController();
+    setPublicResources(null);
+    setPublicError(false);
+    communityApi.resources(undefined, selectedCity, controller.signal).then(items => {
+      if (!controller.signal.aborted) setPublicResources(items);
+    }).catch(() => {
+      if (!controller.signal.aborted) setPublicError(true);
+    });
+    return () => controller.abort();
+  }, [selectedCity, authLoading]);
 
   useEffect(() => {
     setOffers([]);
@@ -101,21 +120,43 @@ export default function ResourcesPage() {
     }
   }
 
-  return <PageContainer width="form">
-    <PageHeader title={t('resources.offerTitle')} description={t('resources.offerDescription')} />
+  return <PageContainer>
+    <PageHeader title={t('resources.points')} />
     <Link href="/#request-map" className="text-primary underline">{t('resources.onMap')}</Link>
-    {authLoading ? <p role="status">{t('ui.loading')}</p> : authenticated ? <>
-      <Card>
+    <section className="space-y-3">
+      {!user?.city && <div className="max-w-xs">
+        <Select label={t('home.city')} value={city} onChange={setCity}
+          options={kazakhstanCities.map(item => ({ value: item.name, label: item.name }))} />
+      </div>}
+      {publicError ? <ActionFeedback message={t('resources.loadError')} error /> : publicResources === null
+        ? <p role="status">{t('ui.loading')}</p>
+        : <>
+          <ResourceMap key={selectedCity} resources={publicResources} city={selectedCity} />
+          {publicResources.length === 0 && <p className="text-gray-600">{t('resources.noneInCity')}</p>}
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {publicResources.map(resource => <li key={resource.id} className="card space-y-2">
+              <h2 className="break-words font-semibold">{resource.name}</h2>
+              <CategoryBadge category={resource.category} />
+              <p className="break-words">{resource.address || resource.city}</p>
+              <p className="text-sm font-medium">{t(`resources.${resource.availability}`)}</p>
+            </li>)}
+          </ul>
+        </>}
+    </section>
+    {!authLoading && (authenticated ? <>
+      <div>
+        <Button aria-expanded={showOffer} aria-controls="resource-offer-form"
+          onClick={() => setShowOffer(value => !value)}>{t(showOffer ? 'ui.close' : 'resources.offerAction')}</Button>
+      </div>
+      <Card className="max-w-2xl" id="resource-offer-form" hidden={!showOffer}>
+        <p className="mb-4 text-sm text-gray-600">{t('resources.offerDescription')}</p>
         <form className="space-y-5" onSubmit={submit}>
           <Input id="resource-name" name="name" label={t('resources.name')} required maxLength={160} />
           <Textarea id="resource-description" name="description" label={t('resources.offerBody')} rows={3} maxLength={5000} />
-          <Input id="resource-city" name="city" label={t('home.city')} value={user?.city || city}
-            onChange={event => setCity(event.target.value)} readOnly={!!user?.city} required maxLength={200} />
+          <input type="hidden" name="city" value={selectedCity} />
           <Select label={t('application.form.category')} value={category} onChange={setCategory}
-            options={categories.map(value => ({ value, label: t(`category.${value}`) }))} />
-          <CurrentLocationControl {...currentLocation} />
-          <AddressPicker title={t('resources.where')} city={user?.city || city} value={point} onChange={setPoint}
-            userPosition={currentLocation.fix?.point} userCenter={currentLocation.fix?.initial} />
+            options={ALL_CATEGORIES.map(value => ({ value, label: t(CATEGORY_META[value].labelKey) }))} />
+          <AddressPicker title={t('resources.where')} city={selectedCity} value={point} onChange={setPoint} allowCurrentLocation />
           <label className="form-field">{t('resources.optionalPhotos')}
             <input type="file" name="media_files" className="form-file" multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png" />
           </label>
@@ -147,6 +188,6 @@ export default function ResourcesPage() {
     </> : <Card className="space-y-3">
       <p>{t('resources.signInHint')}</p>
       <Link href="/login?next=%2Fresources" className={buttonClassName()}>{t('nav.login')}</Link>
-    </Card>}
+    </Card>)}
   </PageContainer>;
 }

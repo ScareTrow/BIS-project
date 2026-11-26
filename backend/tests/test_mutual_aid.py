@@ -194,7 +194,8 @@ def test_contributions_are_scoped_and_cannot_exceed_delivered_need(
     totals = client.get(f"/api/applications/{test_application.id}/aid").json["needs"][0]
     assert (
         totals["quantity_delivered"] == 3
-        and totals["still_needed"] == 7
+        and totals["still_needed"] == 0
+        and totals["confirmed_by_author"]
     )
     assert (
         client.post(f"/api/applications/{test_application.id}/resolve").status_code
@@ -354,6 +355,7 @@ def test_resource_owner_confirmation_and_expiration(app, client, test_user, help
 
 
 def test_triage_keeps_user_sos_and_checks_admin(app, client, test_user, admin_user):
+    app.config["FEATURE_TRIAGE"] = True
     login(client, test_user)
     rule = {"category": "household", "keyword": "срочно", "priority": "high"}
     assert client.post("/api/admin/triage-rules", json=rule).status_code == 403
@@ -374,7 +376,7 @@ def test_triage_keeps_user_sos_and_checks_admin(app, client, test_user, admin_us
             },
         )
         assert made.status_code == 201
-        detail = client.get(f"/api/applications/{made.json['id']}").json
+        detail = admin.get(f"/api/applications/{made.json['id']}").json
         assert detail["priority"] == expected
         assert detail["priority_source"] == (
             "auto" if priority == "normal" else "user_sos"

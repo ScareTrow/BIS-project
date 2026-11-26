@@ -4,10 +4,9 @@ import VolunteerLocation from '@/components/community/VolunteerLocation';
 import VolunteerSettings from '@/components/community/VolunteerSettings';
 import { Badge } from '@/components/ui/Badge';
 import { apiClient, Application, User } from '@/lib/api';
-import { communityApi } from '@/lib/community-api';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
-import { Award, Clock, Edit, Heart, HelpCircle, Mail, MapPin, Star, User as UserIcon } from 'lucide-react';
+import { Award, Clock, Edit, Heart, HelpCircle, Mail, MapPin, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -23,28 +22,24 @@ type Tab = 'requests' | 'responses' | 'reviews' | 'notifications';
 export default function ProfilePage() {
   const router = useRouter();
   const t = useTranslation(useStore(state => state.language));
-  const onboarding = useRef<HTMLDialogElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
-  const claimingOnboarding = useRef(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [userApplications, setUserApplications] = useState<Application[]>([]);
   const [userResponses, setUserResponses] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(true);
+  const [loadingResponses, setLoadingResponses] = useState(true);
+  const [responsesError, setResponsesError] = useState(false);
   const [tab, setTab] = useState<Tab>('requests');
+  const [visited, setVisited] = useState<Tab[]>(['requests']);
+  const [totals, setTotals] = useState({ requests: 0, responses: 0 });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageError, setPageError] = useState(false);
 
   useEffect(() => {
     loadProfile();
   }, []);
-
-  useEffect(() => {
-    if (loading || user?.capability_onboarding_seen !== false || claimingOnboarding.current) return;
-    claimingOnboarding.current = true;
-    communityApi.claimCapabilityOnboarding().then(({ show }) => {
-      if (show) onboarding.current?.showModal();
-    }).catch(() => { claimingOnboarding.current = false; });
-  }, [loading, user?.capability_onboarding_seen]);
 
   const loadProfile = async () => {
     try {
@@ -64,12 +59,9 @@ export default function ProfilePage() {
   const loadUserApplications = async () => {
     try {
       setLoadingApplications(true);
-      const [appsData, responsesData] = await Promise.all([
-        apiClient.getUserApplications(10, 0),
-        apiClient.getUserResponses(10, 0),
-      ]);
+      const appsData = await apiClient.getUserApplications(10, 0);
       setUserApplications(appsData.applications || []);
-      setUserResponses(responsesData.applications || []);
+      setTotals(current => ({ ...current, requests: appsData.total }));
     } catch (error) {
       console.error('Error loading applications:', error);
     } finally {
@@ -78,8 +70,43 @@ export default function ProfilePage() {
   };
 
 
+  const hasVisitedResponses = visited.includes('responses');
+  useEffect(() => {
+    if (!hasVisitedResponses) return;
+    let active = true;
+    apiClient.getUserResponses(10, 0).then(data => {
+      if (!active) return;
+      setUserResponses(data.applications);
+      setTotals(current => ({ ...current, responses: data.total }));
+    }).catch(() => {
+      if (active) setResponsesError(true);
+    }).finally(() => {
+      if (active) setLoadingResponses(false);
+    });
+    return () => { active = false; };
+  }, [hasVisitedResponses]);
+
+
+  async function loadMore(kind: 'requests' | 'responses') {
+    setLoadingMore(true);
+    setPageError(false);
+    try {
+      const result = kind === 'requests'
+        ? await apiClient.getUserApplications(10, userApplications.length)
+        : await apiClient.getUserResponses(10, userResponses.length);
+      if (kind === 'requests') setUserApplications(current => [...current, ...result.applications]);
+      else setUserResponses(current => [...current, ...result.applications]);
+      setTotals(current => ({ ...current, [kind]: result.total }));
+    } catch {
+      setPageError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   const selectTab = (id: Tab) => {
     setTab(id);
+    setVisited(current => current.includes(id) ? current : [...current, id]);
     requestAnimationFrame(() =>
       document.getElementById(`tab-${id}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
   };
@@ -108,22 +135,17 @@ export default function ProfilePage() {
     { label: 'Заявок', value: stats?.total_applications || 0, icon: HelpCircle, tone: 'blue' },
     { label: 'Активных', value: stats?.active_applications || 0, icon: Clock, tone: 'emerald' },
     { label: 'Помог', value: stats?.help_given || 0, icon: Heart, tone: 'rose' },
-    { label: pluralRu(ratingCount, ['Оценка', 'Оценки', 'Оценок']), value: ratingCount, icon: Star, tone: 'amber' },
   ];
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: 'requests', label: t('profile.requests'), count: stats?.total_applications },
-    { id: 'responses', label: t('profile.responses') },
+    { id: 'responses', label: t('profile.responses'), count: hasVisitedResponses && !loadingResponses ? totals.responses : undefined },
     { id: 'reviews', label: 'Отзывы', count: stats?.received_ratings?.length },
-    { id: 'notifications', label: 'Уведомления' },
+    { id: 'notifications', label: t('profile.alerts') },
   ];
 
   return (
     <div className="container mx-auto px-4 py-6 sm:py-8">
-      <dialog ref={onboarding} aria-label={t('capability.title')} className="w-[calc(100%-2rem)] max-w-lg rounded-xl border p-5 backdrop:bg-gray-900/40">
-        {user.capability_onboarding_seen === false && <VolunteerSettings onDone={() => onboarding.current?.close()} />}
-      </dialog>
-
       <div className="mb-6 flex items-end justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-blue-600">Личный кабинет</p>
@@ -230,13 +252,19 @@ export default function ProfilePage() {
                 {userApplications.map((app: any) => <MyApplicationCard key={app.id} app={app} />)}
               </div>
             ) : (
-              <EmptyState text="У вас пока нет заявок. Если вам нужна помощь, создайте первую." href="/" actionLabel="Перейти на главную" />
+              <EmptyState text="У вас пока нет заявок. Если вам нужна помощь, создайте первую." href="/applications/new" actionLabel={t('home.hero.createApplication')} />
             )}
+          {userApplications.length < totals.requests && <button type="button" disabled={loadingMore}
+              onClick={() => loadMore('requests')} className="btn btn-secondary mt-3">{t('common.loadMore')}</button>}
+            {tab === 'requests' && pageError && <p role="alert" className="mt-2 text-danger-dark">{t('ui.action.error')}</p>}
           </section>
 
           <section id="panel-responses" role="tabpanel" aria-labelledby="tab-responses" className="space-y-6" hidden={tab !== 'responses'}>
+            {hasVisitedResponses && <>
             <div className="card">
-              {loadingApplications ? <Spinner /> : userResponses.length > 0 ? (
+              {loadingResponses ? <Spinner /> : responsesError
+                ? <p role="alert" className="text-danger-dark">{t('home.loadError')}</p>
+                : userResponses.length > 0 ? (
                 <div className="space-y-3">
                   {userResponses.map((app: any) => <MyResponseCard key={app.id} app={app} />)}
                 </div>
@@ -262,20 +290,30 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+          {userResponses.length < totals.responses && <button type="button" disabled={loadingMore}
+              onClick={() => loadMore('responses')} className="btn btn-secondary mt-3">{t('common.loadMore')}</button>}
+            {tab === 'responses' && pageError && <p role="alert" className="mt-2 text-danger-dark">{t('ui.action.error')}</p>}
+            </>}
           </section>
 
           <section id="panel-reviews" role="tabpanel" aria-labelledby="tab-reviews" className="card" hidden={tab !== 'reviews'}>
-            <Reviews ratings={stats?.received_ratings} />
+            {visited.includes('reviews') && <Reviews ratings={stats?.received_ratings} />}
           </section>
 
           <section id="panel-notifications" role="tabpanel" aria-labelledby="tab-notifications" className="space-y-4" hidden={tab !== 'notifications'}>
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <h3 className="mb-3 font-semibold text-blue-900">Telegram-оповещения</h3>
-              <TelegramLink telegramId={user.telegram_id} onLinked={() => loadProfile()} />
-            </div>
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <VolunteerLocation />
-            </div>
+            {visited.includes('notifications') && <>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <h3 className="mb-3 font-semibold text-blue-900">{t('profile.telegramAlerts')}</h3>
+                <TelegramLink telegramId={user.telegram_id} onLinked={telegramId => {
+                  setUser(current => current && ({ ...current, telegram_id: telegramId }));
+                }} />
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><VolunteerLocation /></div>
+              <details className="card">
+                <summary className="cursor-pointer font-semibold">{t('capability.title')}</summary>
+                <div className="mt-4"><VolunteerSettings /></div>
+              </details>
+            </>}
           </section>
         </div>
       </div>

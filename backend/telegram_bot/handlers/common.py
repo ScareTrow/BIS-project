@@ -92,12 +92,12 @@ async def create_at_location(message, state, *, sos):
             photo = FileStorage(stream=content, filename=data.get('photo_filename', 'proof.jpg'))
             validate_photos([photo])
             requester = check_requester(user.id, sos=sos)
-            from backend.website.views import validate_description, sanitize_description
+            from backend.website.views import validate_description
             description = 'SOS — Экстренная ситуация' if sos else data.get('description', '')
             valid, error = validate_description(description)
             if not valid:
                 raise ValueError(error)
-            application = Application(description=sanitize_description(description),
+            application = Application(description=description,
                 latitude=latitude, longitude=longitude,
                 category=ApplicationCategory.EMERGENCY if sos else ApplicationCategory(data.get('category', 'household')),
                 user_id=requester.id, city=requester.city, created_via='telegram',

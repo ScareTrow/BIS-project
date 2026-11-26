@@ -20,6 +20,7 @@ type UserDetail = Awaited<ReturnType<typeof apiClient.getUser>> & {
 };
 
 interface RecentApplication {
+  public_id?: string;
   id: number;
   description: string;
   category: string;
@@ -50,19 +51,7 @@ export default function AdminUserDetailPage() {
     try {
       setDetail(await apiClient.getUser(userId));
       try {
-        const all = await apiClient.getAdminApplications('all');
-        setApps(
-          all
-            .filter((a) => a.user_id === userId)
-            .slice(0, 10)
-            .map((a) => {
-              const full = a as typeof a & { full_description?: string };
-              return {
-                id: a.id, description: full.full_description || a.description, category: a.category,
-                is_sos: a.is_sos, is_false_call: a.is_false_call, date: a.date, moderation_status: a.moderation_status,
-              };
-            }),
-        );
+        setApps(await apiClient.getAdminApplications('all', { user_id: userId, limit: 10 }));
       } catch {
         /* список заявок — второстепенный, профиль показываем и без него */
       }
@@ -194,7 +183,7 @@ export default function AdminUserDetailPage() {
                         </p>
                       )}
                     </div>
-                    <Link href={`/applications/${a.id}`} className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Открыть</Link>
+                    <Link href={`/applications/${a.public_id || a.id}`} className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Открыть</Link>
                   </li>
                 ))}
               </ul>

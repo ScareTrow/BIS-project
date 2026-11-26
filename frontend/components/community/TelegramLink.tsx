@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { apiClient } from '@/lib/api';
+import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
 
 export default function TelegramLink({ guest = false, telegramId, onLinked }: {
@@ -9,62 +11,93 @@ export default function TelegramLink({ guest = false, telegramId, onLinked }: {
   telegramId?: string | null;
   onLinked?: (telegramId: string) => void;
 }) {
+  const [linkedId, setLinkedId] = useState(telegramId || '');
   const [url, setUrl] = useState('');
-  const [error, setError] = useState('');
-  const [linked, setLinked] = useState(telegramId || '');
+  const [error, setError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [expires, setExpires] = useState<number | null>(null);
   const onLinkedRef = useRef(onLinked);
   onLinkedRef.current = onLinked;
-  const { setUser } = useStore();
+  const { language, setUser } = useStore();
+  const t = useTranslation(language);
+  const linked = Boolean(telegramId || linkedId);
+  const showLink = guest || linked;
 
   useEffect(() => {
+    if (!showLink) return;
     let active = true;
-    async function load() {
-      try {
-        const info = guest || telegramId
-          ? await apiClient.getTelegramBotInfo()
-          : await apiClient.createTelegramLink();
-        if (active) { setUrl(info.bot_url || ''); setError(''); }
-      } catch {
-        if (active) setError('Не удалось получить ссылку на бота. Обновите страницу и попробуйте снова.');
-      }
-    }
-    load();
-    const timer = !guest && !telegramId ? setInterval(load, 9 * 60 * 1000) : undefined;
-    return () => { active = false; if (timer) clearInterval(timer); };
-  }, [guest, telegramId]);
+    setUrl('');
+    setError(false);
+    apiClient.getTelegramBotInfo().then(info => {
+      if (active) setUrl(info.bot_url || '');
+    }).catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [showLink]);
 
   useEffect(() => {
-    if (guest) return;
+    if (!expires) return;
+    const timeout = window.setTimeout(() => {
+      setUrl('');
+      setExpires(null);
+    }, Math.max(0, expires - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [expires]);
+
+  useEffect(() => {
+    if (guest || linked || !started) return;
+    let active = true;
+    let checking = false;
     async function refresh() {
-      if (document.visibilityState !== 'visible') return;
+      if (checking || document.visibilityState !== 'visible') return;
+      checking = true;
       try {
-        const { user } = await apiClient.getCurrentUser();
-        if (user.telegram_id) {
-          setLinked(user.telegram_id);
+        const { user } = await apiClient.getSession();
+        if (active && user.telegram_id) {
+          setLinkedId(user.telegram_id);
+          setExpires(null);
           setUser({ ...user, is_authenticated: true });
           onLinkedRef.current?.(user.telegram_id);
         }
-      } catch { /* Keep the form intact if the server is temporarily unavailable. */ }
+      } catch {
+        // The next return to this page retries the session check.
+      } finally {
+        checking = false;
+      }
     }
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
+      active = false;
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [guest, setUser]);
+  }, [guest, linked, started, setUser]);
+
+  async function createLink() {
+    setBusy(true);
+    setError(false);
+    try {
+      const info = await apiClient.createTelegramLink();
+      setUrl(info.bot_url);
+      setExpires(Date.now() + info.expires_in * 1000);
+      setStarted(true);
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return <div className="mt-3 space-y-2">
-    {linked && <p role="status" className="text-sm font-medium text-green-700">Telegram привязан. ID: {linked}</p>}
+    {linked && <p role="status" className="text-sm font-medium text-green-700">{t('telegram.linked')}</p>}
+    {!showLink && !url && <Button variant="secondary" busy={busy} onClick={createLink}>{t('telegram.link')}</Button>}
     {url && <a href={url} target="_blank" rel="noopener noreferrer"
       className={guest ? 'text-sm font-medium text-blue-600 underline hover:text-blue-800' : 'btn btn-outline inline-flex items-center justify-center'}>
-      {guest || linked ? 'Открыть Telegram-бота' : 'Привязать Telegram'}
+      {t('telegram.openBot')}
     </a>}
-    {!url && !error && <p className="text-sm text-gray-500">Получаем ссылку на бота…</p>}
-    {error && <p role="status" className="text-sm text-red-700">{error}</p>}
-    <p className="text-xs leading-relaxed text-gray-500">{guest
-      ? 'Сначала завершите регистрацию. Затем в профиле нажмите «Привязать Telegram» и Start в боте — ID заполнится автоматически.'
-      : linked ? 'Уведомления будут приходить в этот Telegram-аккаунт.'
-      : 'Откройте бота по этой ссылке и нажмите Start. После возвращения на сайт Telegram ID заполнится автоматически.'}</p>
+    {error && <p role="alert" className="text-sm text-danger-dark">{t('telegram.linkError')}</p>}
+    {guest && <p className="text-xs text-gray-600">{t('telegram.guestHint')}</p>}
+    {!guest && !linked && url && <p className="text-xs text-gray-600">{t('telegram.linkHint')}</p>}
   </div>;
 }

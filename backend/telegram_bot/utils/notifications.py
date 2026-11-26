@@ -3,6 +3,7 @@ from html import escape
 import asyncio
 import threading
 from aiogram import Bot
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from backend.telegram_bot.config import Config
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,11 @@ async def send_notification_async(telegram_id, title, message, notification_type
         emoji = emoji_map.get(notification_type, '🔔')
         text = f"{emoji} <b>{escape(str(title))}</b>\n\n{escape(str(message))}"
         
+        if isinstance(reply_markup, list):
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(**button) for button in row] for row in reply_markup
+            ])
+
         logger.info(f"Sending Telegram notification to {telegram_id}: {title}")
         await asyncio.wait_for(bot.send_message(
             chat_id=telegram_id, text=text, parse_mode='HTML', reply_markup=reply_markup,

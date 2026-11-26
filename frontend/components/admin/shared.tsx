@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslation } from '@/lib/i18n';
+import { CATEGORY_META } from '@/lib/categories';
+import type { ApplicationCategory } from '@/lib/api';
 import { useStore } from '@/lib/store';
 import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -32,19 +34,15 @@ export const refreshAdminCounts = () => window.dispatchEvent(new Event(ADMIN_COU
 
 /* ---------- Человекочитаемые подписи ---------- */
 
-export const ALL_CATEGORIES = [
-  'food', 'clothing', 'household', 'delivery', 'volunteering',
-  'social_project', 'medicine', 'shelter', 'emergency',
-] as const;
+export { ALL_CATEGORIES } from '@/lib/categories';
 
 export function useCategoryLabel() {
   const { language } = useStore();
   const t = useTranslation(language);
   return (category: string | null | undefined) => {
     if (!category) return 'Любая категория';
-    const key = `categories.${category}`;
-    const label = t(key);
-    return label === key ? category : label;
+    const key = CATEGORY_META[category as ApplicationCategory]?.labelKey;
+    return key ? t(key) : category;
   };
 }
 

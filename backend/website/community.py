@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Blueprint, jsonify, make_response, request
+from flask import Blueprint, abort, current_app, jsonify, make_response, request
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -142,6 +142,8 @@ def parse_application_extras(data):
 
 
 def apply_triage(application):
+    if not current_app.config.get("FEATURE_TRIAGE"):
+        return
     if application.is_sos or application.priority_source == "admin":
         return
     matches = []
@@ -261,8 +263,7 @@ def record_moderation(
     )
 
 
-def need_data(need):
-    entries = Contribution.query.filter_by(need_id=need.id).all()
+def need_data(need, entries, *, resolved=False):
     delivered = sum((c.quantity_delivered for c in entries), Decimal(0))
     return dict(
         id=need.id,
@@ -270,7 +271,8 @@ def need_data(need):
         unit=need.unit,
         quantity_needed=float(need.quantity_needed),
         quantity_delivered=float(delivered),
-        still_needed=float(max(need.quantity_needed - delivered, 0)),
+        still_needed=0 if resolved else float(max(need.quantity_needed - delivered, 0)),
+        confirmed_by_author=resolved and delivered < need.quantity_needed,
     )
 
 
@@ -461,7 +463,7 @@ def application_aid(app_id):
             for r in ApplicationCapability.query.filter_by(application_id=app_id)
         ],
         needs=[
-            need_data(n) for n in ApplicationNeed.query.filter_by(application_id=app_id)
+            need_data(n, (entry for entry in entries if entry.need_id == n.id), resolved=a.is_resolved and not a.is_false_call) for n in ApplicationNeed.query.filter_by(application_id=app_id)
         ],
         contributions=[
             contribution_data(c)
@@ -489,7 +491,8 @@ def save_contribution(response_id):
     response = ApplicationResponse.query.get_or_404(response_id)
     if response.responder_id != current_user.id:
         return jsonify(error="Доступ запрещён"), 403
-    application = response.application
+    application = Application.query.filter_by(id=response.application_id).with_for_update().first_or_404()
+    db.session.refresh(response)
     if (
         response.status != ResponseStatus.ACCEPTED
         or application.is_resolved
@@ -543,20 +546,23 @@ def save_contribution(response_id):
 @community.post("/api/responses/<int:response_id>/complete")
 @login_required
 def complete_response(response_id):
+    from .application_service import resolve, request_rating
     response = ApplicationResponse.query.get_or_404(response_id)
-    if response.application.user_id != current_user.id:
+    application = Application.query.filter_by(id=response.application_id).with_for_update().first_or_404()
+    db.session.refresh(response)
+    if application.user_id != current_user.id:
         return jsonify(error="Завершение подтверждает автор заявки"), 403
     if response.status != ResponseStatus.ACCEPTED:
         return jsonify(error="Отклик должен быть принят"), 409
-    if (
-        response.application.is_false_call
-        or response.application.moderation_status != ModerationStatus.APPROVED
-    ):
+    if application.is_resolved or application.is_false_call or application.moderation_status != ModerationStatus.APPROVED:
         return jsonify(error="Заявка больше не доступна для помощи"), 409
     response.status = ResponseStatus.COMPLETED
     create_notification(user_id=response.responder_id, title="Помощь подтверждена",
         message=f"Автор подтвердил помощь по заявке #{response.application_id}",
         notification_type="response_completed", related_application_id=response.application_id)
+    if not any(item.status == ResponseStatus.ACCEPTED for item in application.responses):
+        resolve(application)
+        request_rating(application)
     db.session.commit()
     return jsonify(success=True)
 
@@ -564,38 +570,13 @@ def complete_response(response_id):
 @community.post("/api/responses/<int:response_id>/rating")
 @login_required
 def rate_response(response_id):
+    from .application_service import notify_rating, save_response_rating, validate_rating
     response = ApplicationResponse.query.filter_by(id=response_id).with_for_update().first_or_404()
     if response.application.user_id != current_user.id:
         return jsonify(error="Оценку оставляет автор заявки"), 403
-    if response.status != ResponseStatus.COMPLETED:
-        return jsonify(error="Помощь ещё не завершена"), 409
-    data = payload()
-    score = data.get("score")
-    if isinstance(score, bool) or not isinstance(score, int) or not 1 <= score <= 5:
-        raise ValueError("Оценка должна быть от 1 до 5")
-    if Rating.query.filter_by(
-        application_id=response.application_id,
-        rater_id=current_user.id,
-        rated_id=response.responder_id,
-    ).first():
-        return jsonify(error="Вы уже оценили этот отклик"), 409
-    rating = Rating(
-        application_id=response.application_id,
-        rater_id=current_user.id,
-        rated_id=response.responder_id,
-        rating_value=score,
-        comment=text(data.get("comment", ""), 1000),
-    )
-    db.session.add(rating)
-    db.session.flush()
-    helper = db.session.get(User, response.responder_id)
-    received = Rating.query.filter_by(rated_id=helper.id).all()
-    helper.rating_sum = sum(r.rating_value for r in received)
-    helper.rating_count = len(received)
-    helper.update_badge()
-    create_notification(user_id=helper.id, title="Новая оценка",
-        message=f"Ваша помощь по заявке #{response.application_id} оценена на {score}/5",
-        notification_type="rating_received", related_application_id=response.application_id)
+    score, comment = validate_rating(payload())
+    rating = save_response_rating(response, current_user.id, score, comment)
+    notify_rating(rating)
     db.session.commit()
     return jsonify(success=True, id=rating.id), 201
 
@@ -831,6 +812,8 @@ def confirm_resource(confirmation_id):
 def triage_rules():
     if not current_user.isAdmin:
         return jsonify(error="Доступ запрещён"), 403
+    if not current_app.config.get("FEATURE_TRIAGE"):
+        abort(404)
     if request.method == "POST":
         data = payload()
         category = data.get("category") or None
@@ -880,6 +863,8 @@ def triage_rules():
 def analytics():
     if not current_user.isAdmin:
         return jsonify(error="Доступ запрещён"), 403
+    if not current_app.config.get("FEATURE_TRIAGE"):
+        abort(404)
     apps = Application.query.filter_by(
         moderation_status=ModerationStatus.APPROVED,
         is_resolved=False,

@@ -1,53 +1,11 @@
 'use client';
 
-import { Mail, Phone } from 'lucide-react';
-import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
 
 export default function Footer() {
-  const { language } = useStore();
-  const t = useTranslation(language);
-
-  return (
-    <footer className="bg-blue-800 text-white mt-16 border-t border-blue-900">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          <div>
-            <h3 className="text-xl font-bold mb-4">
-              ASAR.kz
-            </h3>
-            <p className="text-blue-200 text-sm">
-              {t('footer.description')}
-            </p>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4">{t('footer.quickLinks')}</h4>
-            <ul className="space-y-2 text-blue-200 text-sm">
-              <li><Link href="/" className="hover:text-white transition-colors">{t('nav.home')}</Link></li>
-              <li><Link href="/applications" className="hover:text-white transition-colors">{t('nav.applications')}</Link></li>
-              <li><Link href="/news" className="hover:text-white transition-colors">{t('nav.news')}</Link></li>
-              <li><Link href="/about" className="hover:text-white transition-colors">{t('nav.about')}</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4">{t('footer.contact')}</h4>
-            <div className="space-y-2 text-blue-200 text-sm">
-              <p className="flex items-center">
-                <Mail className="w-4 h-4 mr-2" />
-                support@asar.kz
-              </p>
-              <p className="flex items-center">
-                <Phone className="w-4 h-4 mr-2" />
-                +7 (XXX) XXX-XX-XX
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-blue-700 pt-6 text-center text-blue-200 text-sm">
-          <p>© 2026 ASAR.kz - {t('footer.rights')}</p>
-        </div>
-      </div>
-    </footer>
-  );
+  const t = useTranslation(useStore(state => state.language));
+  return <footer className="mt-8 border-t border-gray-200 bg-white">
+    <p className="container mx-auto px-4 py-4 text-sm text-gray-600">© 2026 ASAR.kz — {t('footer.description')}</p>
+  </footer>;
 }

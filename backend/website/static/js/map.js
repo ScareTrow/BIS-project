@@ -111,13 +111,19 @@ function addMarkerToMap(point) {
     markers.push(marker);
 }
 
+function escapeMapText(value) {
+    const rendered = document.createElement('span');
+    rendered.textContent = value ?? '';
+    return rendered.innerHTML;
+}
+
 function createPopupContent(point) {
     const categoryName = categoryNames[point.category] || point.category;
 
     let content = `
         <div class="map-popup">
             <h5><strong>${categoryName}</strong></h5>
-            <p>${point.description}</p>
+            <p>${escapeMapText(point.description)}</p>
     `;
 
     if (point.is_sos) {
@@ -366,10 +372,10 @@ function loadApplicationsList() {
                                     ${app.is_sos ? '<span class="badge badge-warning">SOS</span>' : ''}
                                     ${app.priority > 0 ? `<span class="badge badge-info">Приоритет: ${app.priority}</span>` : ''}
                                 </h5>
-                                <p class="card-text">${app.description}</p>
+                                <p class="card-text">${escapeMapText(app.description)}</p>
                                 <p class="card-text">
                                     <small class="text-muted">
-                                        <strong>Местоположение:</strong> ${app.location || 'Не указано'}<br>
+                                        <strong>Местоположение:</strong> ${escapeMapText(app.location || 'Не указано')}<br>
                                         <strong>Приоритет:</strong> ${app.priority || 0}
                                     </small>
                                 </p>

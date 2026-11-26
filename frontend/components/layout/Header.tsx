@@ -1,10 +1,9 @@
 'use client';
 
-import SearchBar from '@/components/common/SearchBar';
 import { apiClient, Notification } from '@/lib/api';
 import { getLanguage, Language, useTranslation } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
-import { Bell, ChevronDown, FileText, Globe, Home, LogOut, Shield, User, Menu, X } from 'lucide-react';
+import { Bell, ChevronDown, ClipboardList, Globe, Home, Info, LogIn, LogOut, MapPinned, Menu, Newspaper, Shield, UserCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,6 +21,9 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const mobileRef = useRef<HTMLElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const showToast = useToast()?.show;
@@ -44,6 +46,8 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setShowMore(false);
+      if (!mobileRef.current?.contains(event.target as Node)) setMenuOpen(false);
       if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
         setShowLangMenu(false);
       }
@@ -52,11 +56,11 @@ export default function Header() {
       }
     };
 
-    if (showLangMenu || showNotifications) {
+    if (showLangMenu || showNotifications || showMore || menuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showLangMenu, showNotifications]);
+  }, [showLangMenu, showNotifications, showMore, menuOpen]);
 
   const loadNotifications = useCallback(async () => {
     const revision = ++notificationVersion.current;
@@ -103,54 +107,78 @@ export default function Header() {
     };
   }, [user?.is_authenticated, user?.id, loadNotifications]);
 
-  useEffect(() => { setMenuOpen(false); setShowNotifications(false); }, [pathname]);
+  useEffect(() => { setMenuOpen(false); setShowMore(false); setShowNotifications(false); }, [pathname]);
   useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { setMenuOpen(false); setShowNotifications(false); setShowLangMenu(false); } };
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { setMenuOpen(false); setShowMore(false); setShowNotifications(false); setShowLangMenu(false); } };
     document.addEventListener('keydown', close);
     return () => document.removeEventListener('keydown', close);
   }, []);
 
-  const links = user?.is_authenticated ? [
+  const primary = [
     { href: '/', label: t('nav.home'), icon: Home },
-    { href: '/applications', label: t('nav.applications'), icon: FileText },
-    { href: '/resources', label: t('nav.resources'), icon: FileText },
-    { href: '/profile', label: t('nav.profile'), icon: User },
-    ...(user.isAdmin ? [{ href: '/admin', label: t('admin.title'), icon: Shield }] : []),
-  ] : [
-    { href: '/', label: t('nav.home'), icon: Home },
-    { href: '/applications', label: t('nav.applications'), icon: FileText },
-    { href: '/about', label: t('nav.about'), icon: FileText },
-    { href: '/resources', label: t('nav.resources'), icon: FileText },
-    { href: '/login', label: t('nav.login'), icon: User },
+    { href: '/applications', label: t('nav.applications'), icon: ClipboardList },
+    { href: '/resources', label: t('nav.resources'), icon: MapPinned },
+    user?.is_authenticated
+      ? { href: '/profile', label: t('nav.profile'), icon: UserCircle }
+      : { href: '/login', label: t('nav.login'), icon: LogIn },
+    ...(user?.isAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: Shield }] : []),
+  ];
+  const secondary = [
+    { href: '/news', label: t('nav.news'), icon: Newspaper },
+    { href: '/about', label: t('nav.about'), icon: Info },
   ];
 
+  function active(href: string) {
+    return pathname === href || (href !== '/' && pathname?.startsWith(href + '/'));
+  }
+
+  function navLink({ href, label, icon: Icon }: typeof primary[number]) {
+    return <Link key={href} href={href} aria-current={active(href) ? 'page' : undefined}
+      onClick={() => { setMenuOpen(false); setShowMore(false); }}
+      className={'flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2.5 text-sm hover:bg-blue-50 hover:text-blue-700 ' +
+        (active(href) ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700')}>
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />{label}
+    </Link>;
+  }
+
   async function logout() {
-    try { await apiClient.logout(); setUser(null); setMenuOpen(false); router.push('/'); }
+    try { await apiClient.logout(); setUser(null); setMenuOpen(false); setShowMore(false); router.push('/'); }
     catch (error) { console.error('Error logging out:', error); }
   }
 
   return (
     <header className="relative z-50 border-b border-gray-200 bg-white shadow-sm">
-      <nav className="container mx-auto px-4" aria-label="Основная навигация">
+      <nav ref={mobileRef} className="container mx-auto px-4" aria-label="Основная навигация">
         <div className="flex min-w-0 items-center justify-between gap-3 py-3">
           <Link href="/" aria-label="ASAR — главная" className="shrink-0">
             <span className="block h-10 w-24 overflow-hidden">
               <img src="/ASARlogoo.png" alt="ASAR" className="relative -left-2 -top-8 h-28 w-28 max-w-none" />
             </span>
           </Link>
-          <div className="hidden min-w-0 max-w-sm flex-1 xl:block"><SearchBar /></div>
           <div className="hidden items-center gap-1 lg:flex">
-            {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} title={label}
-              aria-label={label} className="flex items-center gap-2 rounded-md px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700">
-              <Icon className="h-5 w-5 shrink-0" /><span className="hidden 2xl:inline">{label}</span>
-            </Link>)}
-            {user?.is_authenticated && <button type="button" onClick={logout} title={t('nav.logout')}
-              aria-label={t('nav.logout')} className="rounded-md px-3 py-2 text-gray-700 hover:bg-blue-50"><LogOut className="h-5 w-5" /></button>}
+            {primary.map(navLink)}
+            <div className="relative" ref={moreRef}>
+              <button type="button" aria-expanded={showMore} onClick={() => {
+                setShowMore(!showMore);
+                setShowLangMenu(false);
+                setShowNotifications(false);
+              }} className={'flex items-center gap-1 rounded-md px-2 py-2 text-sm hover:bg-blue-50 ' +
+                (secondary.some(link => active(link.href)) ? 'bg-blue-50 text-blue-700' : 'text-gray-700')}>
+                {t('nav.more')}<ChevronDown aria-hidden="true" className="h-4 w-4" />
+              </button>
+              {showMore && <div className="absolute right-0 mt-2 min-w-40 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+                {secondary.map(navLink)}
+                {user?.is_authenticated && <button type="button" onClick={logout}
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50">
+                  <LogOut aria-hidden="true" className="h-4 w-4" />{t('nav.logout')}
+                </button>}
+              </div>}
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {user?.is_authenticated && <div className="relative" ref={notificationsRef}>
               <button type="button" aria-label={t('notifications.title')} aria-expanded={showNotifications}
-                onClick={() => { setShowNotifications(!showNotifications); setShowLangMenu(false); }}
+                onClick={() => { setShowNotifications(!showNotifications); setShowLangMenu(false); setShowMore(false); }}
                 className="relative rounded-md p-2 text-gray-700 hover:bg-blue-50">
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
@@ -161,7 +189,7 @@ export default function Header() {
             </div>}
             <div className="relative" ref={langMenuRef}>
               <button type="button" aria-label="Язык" aria-expanded={showLangMenu}
-                onClick={() => { setShowLangMenu(!showLangMenu); setShowNotifications(false); }}
+                onClick={() => { setShowLangMenu(!showLangMenu); setShowNotifications(false); setShowMore(false); }}
                 className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                 <Globe className="h-4 w-4" /><span>{language === 'kk' ? 'KZ' : language.toUpperCase()}</span><ChevronDown className="h-4 w-4" />
               </button>
@@ -180,10 +208,8 @@ export default function Header() {
           </div>
         </div>
         {menuOpen && <div id="mobile-navigation" className="space-y-3 border-t border-gray-100 py-4 lg:hidden">
-          <SearchBar />
           <div className="grid gap-1 sm:grid-cols-2">
-            {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 rounded-md px-3 py-3 text-gray-700 hover:bg-blue-50"><Icon className="h-5 w-5" />{label}</Link>)}
+            {[...primary, ...secondary].map(navLink)}
             {user?.is_authenticated && <button type="button" onClick={logout} className="flex items-center gap-3 rounded-md px-3 py-3 text-left text-gray-700 hover:bg-blue-50"><LogOut className="h-5 w-5" />{t('nav.logout')}</button>}
           </div>
         </div>}
