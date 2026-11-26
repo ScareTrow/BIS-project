@@ -1,75 +1,162 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { PageHeader, Spinner, useCategoryLabel, useRequireAdmin } from '@/components/admin/shared';
 import { apiClient } from '@/lib/api';
-import { useStore } from '@/lib/store';
-import { useTranslation } from '@/lib/i18n';
-import { AdminModerationQueue } from '@/components/community/AdminModerationQueue';
-import { Card } from '@/components/ui/Card';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { SectionTitle } from '@/components/ui/SectionTitle';
-import { buttonClassName } from '@/components/ui/Button';
+import {
+  AlertTriangle, ArrowRight, CheckCircle, ClipboardCheck, Newspaper,
+  SlidersHorizontal, TrendingUp, Users, XCircle,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useState, type ReactNode } from 'react';
 
-const metrics = ['total_applications', 'pending_applications', 'approved_applications', 'rejected_applications',
-  'total_responses', 'volunteers_count', 'false_calls_count'] as const;
+type AdminStats = Awaited<ReturnType<typeof apiClient.getAdminStats>>;
+
+const percent = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
 export default function AdminPage() {
-  const { user, language } = useStore();
-  const t = useTranslation(language);
-  const [stats, setStats] = useState<Awaited<ReturnType<typeof apiClient.getAdminStats>> | null>(null);
+  const ready = useRequireAdmin();
+  const categoryLabel = useCategoryLabel();
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState(false);
+
   useEffect(() => {
-    if (!user?.isAdmin) return;
-    let active = true;
-    apiClient.getAdminStats().then(data => { if (active) setStats(data); })
-      .catch(() => { if (active) setError(true); });
-    return () => { active = false; };
-  }, [user?.isAdmin]);
-  if (!user?.isAdmin) return null;
-  const maximum = Math.max(1, ...(stats?.category_stats ?? []).map(item => item.count));
-  return <PageContainer>
-    <PageHeader title={t('admin.title')} />
-    <Card className="space-y-3">
-      <SectionTitle>{t('admin.quickActions')}</SectionTitle>
-      <div className="flex flex-wrap gap-2">
-        <Link href="/admin/applications?status=pending" className={buttonClassName({ variant: 'secondary' })}>{t('admin.moderation.title')}</Link>
-        <Link href="/admin/resources" className={buttonClassName({ variant: 'secondary' })}>{t('resources.moderation')}</Link>
-        <Link href="/admin/users" className={buttonClassName({ variant: 'secondary' })}>{t('admin.users.title')}</Link>
-        <Link href="/admin/news" className={buttonClassName({ variant: 'secondary' })}>{t('nav.news')}</Link>
+    if (!ready) return;
+    apiClient.getAdminStats().then(setStats).catch(() => setError(true));
+  }, [ready]);
+
+  if (!ready) return <Spinner />;
+  if (error) return <p className="text-red-700">Не удалось загрузить статистику. Обновите страницу.</p>;
+  if (!stats) return <Spinner />;
+
+  const maxCategory = Math.max(1, ...stats.category_stats.map((c) => c.count));
+  const categories = [...stats.category_stats].sort((a, b) => b.count - a.count);
+
+  return (
+    <>
+      <PageHeader title="Обзор" description="Главное на сегодня: что ждёт вашего решения и как работает платформа." />
+
+      {/* 1. Что требует действия */}
+      {stats.pending_applications > 0 ? (
+        <Link
+          href="/admin/applications?status=pending"
+          className="group mb-8 flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border-2 border-yellow-300 bg-yellow-50 p-5 hover:bg-yellow-100 transition-colors"
+        >
+          <ClipboardCheck className="w-10 h-10 text-yellow-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-lg font-bold text-gray-900">
+              {stats.pending_applications} {plural(stats.pending_applications, 'заявка ждёт', 'заявки ждут', 'заявок ждут')} проверки
+            </p>
+            <p className="text-gray-700 text-sm">Пока заявка не одобрена, волонтёры её не видят. Начните с них.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 font-semibold text-white group-hover:bg-yellow-600">
+            Перейти к проверке <ArrowRight className="w-4 h-4" />
+          </span>
+        </Link>
+      ) : (
+        <div className="mb-8 flex items-center gap-3 rounded-xl border border-green-300 bg-green-50 p-5">
+          <CheckCircle className="w-8 h-8 text-green-600" />
+          <p className="font-medium text-green-900">Все заявки проверены — новых задач нет.</p>
+        </div>
+      )}
+
+      {/* 2. Ключевые цифры */}
+      <h2 className="text-lg font-semibold text-gray-900 mb-3">Заявки</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Всего" value={stats.total_applications} href="/admin/applications?status=all" />
+        <StatCard label="Ждут проверки" value={stats.pending_applications} tone="yellow" href="/admin/applications?status=pending" />
+        <StatCard
+          label="Одобрено" value={stats.approved_applications} tone="green" href="/admin/applications?status=approved"
+          hint={`${percent(stats.approved_applications, stats.total_applications)}% от всех`}
+          icon={<CheckCircle className="w-5 h-5" />}
+        />
+        <StatCard label="Отклонено" value={stats.rejected_applications} tone="red" href="/admin/applications?status=rejected" icon={<XCircle className="w-5 h-5" />} />
       </div>
-    </Card>
-    <section className="space-y-4">
-      <SectionTitle>{t('admin.moderation.title')}</SectionTitle>
-      <AdminModerationQueue compact />
-    </section>
-    {error && <p role="alert" className="text-danger-dark">{t('ui.action.error')}</p>}
-    {stats && <>
-      <section className="space-y-4">
-        <SectionTitle>{t('admin.stats.title')}</SectionTitle>
-        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map(key => <Card key={key}>
-            <dt className="text-sm text-gray-600">{t(`admin.metric.${key}`)}</dt>
-            <dd className={`mt-1 text-2xl font-semibold ${key === 'false_calls_count' ? 'text-danger-dark' : 'text-gray-900'}`}>{stats[key]}</dd>
-          </Card>)}
-        </dl>
-      </section>
-      {stats.category_stats.length > 0 && <Card className="space-y-4">
-        <SectionTitle>{t('admin.categoryStats')}</SectionTitle>
-        <ul className="space-y-3">
-          {stats.category_stats.map(({ category, count }) => {
-            const key = `category.${category.toLowerCase()}`;
-            const label = t(key);
-            return <li key={category} className="space-y-1">
-              <div className="flex justify-between gap-2 text-sm"><span>{label === key ? t('category.unknown') : label}</span><span>{count}</span></div>
-              <div className="h-2 rounded-full bg-gray-100" aria-hidden="true">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${100 * count / maximum}%` }} />
-              </div>
-            </li>;
-          })}
-        </ul>
-      </Card>}
-    </>}
-  </PageContainer>;
+
+      <h2 className="text-lg font-semibold text-gray-900 mb-3">Активность</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <StatCard label="Откликов волонтёров" value={stats.total_responses} icon={<TrendingUp className="w-5 h-5" />} />
+        <StatCard label="Волонтёров помогли" value={stats.volunteers_count} tone="green" icon={<Users className="w-5 h-5" />} />
+        <StatCard
+          label="Ложных заявок" value={stats.false_calls_count} tone="red" icon={<AlertTriangle className="w-5 h-5" />}
+          hint={`${percent(stats.false_calls_count, stats.total_applications)}% от всех`}
+        />
+      </div>
+
+      {/* 3. Категории */}
+      {categories.length > 0 && (
+        <section className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Заявки по категориям</h2>
+          <ul className="space-y-3">
+            {categories.map((c) => (
+              <li key={c.category}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-700">{categoryLabel(c.category)}</span>
+                  <span className="font-semibold text-gray-900">{c.count}</span>
+                </div>
+                <div className="h-3 rounded-full bg-gray-100">
+                  <div className="h-3 rounded-full bg-blue-500" style={{ width: `${(c.count / maxCategory) * 100}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* 4. Подсказка по разделам */}
+      <h2 className="text-lg font-semibold text-gray-900 mb-3">Что где находится</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SectionLink href="/admin/applications" icon={<ClipboardCheck />} title="Проверка заявок"
+          text="Одобряйте или отклоняйте новые заявки, задавайте приоритет, отмечайте ложные." />
+        <SectionLink href="/admin/users" icon={<Users />} title="Пользователи"
+          text="Поиск людей, их рейтинг и история. Здесь же блокировка и назначение администраторов." />
+        <SectionLink href="/admin/news" icon={<Newspaper />} title="Новости"
+          text="Публикация объявлений для всех пользователей платформы." />
+        <SectionLink href="/admin/community" icon={<SlidersHorizontal />} title="Правила и аналитика"
+          text="Автоматическое повышение приоритета по ключевым словам и карта потребности по городам." />
+      </div>
+    </>
+  );
+}
+
+function plural(n: number, one: string, few: string, many: string) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+const TONES = {
+  gray: 'text-gray-900',
+  yellow: 'text-yellow-600',
+  green: 'text-green-600',
+  red: 'text-red-600',
+};
+
+function StatCard({ label, value, hint, tone = 'gray', href, icon }: {
+  label: string; value: number; hint?: string; tone?: keyof typeof TONES; href?: string; icon?: ReactNode;
+}) {
+  const body = (
+    <>
+      <div className="flex items-center justify-between text-sm text-gray-600">
+        <span>{label}</span>
+        <span className={TONES[tone]}>{icon}</span>
+      </div>
+      <p className={`mt-1 text-3xl font-bold ${TONES[tone]}`}>{value}</p>
+      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+    </>
+  );
+  const cls = 'block bg-white rounded-xl border border-gray-200 p-4';
+  return href ? <Link href={href} className={`${cls} hover:border-blue-300 hover:shadow-sm transition`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+function SectionLink({ href, icon, title, text }: { href: string; icon: ReactNode; title: string; text: string }) {
+  return (
+    <Link href={href} className="group flex gap-4 bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition">
+      <span className="text-blue-600 [&>svg]:w-6 [&>svg]:h-6">{icon}</span>
+      <div>
+        <p className="font-semibold text-gray-900 group-hover:text-blue-700">{title}</p>
+        <p className="text-sm text-gray-600 mt-1">{text}</p>
+      </div>
+    </Link>
+  );
 }
