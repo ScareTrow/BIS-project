@@ -114,14 +114,18 @@ export default function SignUpPage() {
               {...register('lastName')} />
           </div>
           <Input id="phone" label={t('signup.phone')} type="tel" inputMode="numeric"
-            autoComplete="tel-national" placeholder="(700) 000-00-00" hint={t('signup.phoneHint')} error={errors.phone?.message}
+            autoComplete="tel" hint={t('signup.phoneHint')} error={errors.phone?.message}
             {...register('phone', { validate: value => /^\d{10}$/.test(value) || t('signup.phoneHint') })}
-            value={formatKzPhone(phone)}
+            value={phone ? `+7 ${formatKzPhone(phone)}` : '+7'}
+            onFocus={event => {
+              if (!phone) event.currentTarget.setSelectionRange(2, 2);
+            }}
             onChange={event => {
               const typed = event.target.value;
-              const digits = nationalPhoneDigits(typed);
+              const national = typed.startsWith('+7') ? typed.slice(2).trimStart() : typed;
+              const digits = typed === '+' ? '' : nationalPhoneDigits(national);
               // Стёрли только скобку, пробел или дефис: удаляем последнюю цифру, иначе поле «залипнет».
-              const next = typed.length < formatKzPhone(phone).length && digits === phone ? phone.slice(0, -1) : digits;
+              const next = national.length < formatKzPhone(phone).length && digits === phone ? phone.slice(0, -1) : digits;
               setValue('phone', next, { shouldValidate: !!errors.phone });
             }} />
           <Input id="city" label={t('signup.city')} autoComplete="address-level2" list="signup-cities" placeholder={copy.cityPh}
