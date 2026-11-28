@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import CategoryBadge from '@/components/common/CategoryBadge';
 import { InlineConfirm, ActionFeedback } from '@/components/ui/ActionFeedback';
+import PhotoGallery from '@/components/common/PhotoGallery';
 import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Input';
 import { PageHeader, refreshAdminCounts, useRequireAdmin } from '@/components/admin/shared';
@@ -35,11 +36,9 @@ function ReviewCard({ resource, onReviewed }: { resource: Resource; onReviewed: 
       href={`https://www.openstreetmap.org/?mlat=${resource.latitude}&mlon=${resource.longitude}#map=17/${resource.latitude}/${resource.longitude}`}>
       {t('resources.inspectMap')}
     </a>
-    {!!resource.photos?.length && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {resource.photos.map(photo => <a href={photo} key={photo} target="_blank" rel="noreferrer">
-        <img className="h-32 w-full rounded border object-contain" src={photo} alt={t('resources.photo')} />
-      </a>)}
-    </div>}
+    {!!resource.photos?.length && <PhotoGallery className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+      thumbClassName="h-32 w-full rounded border object-contain"
+      photos={resource.photos.map(photo => ({ src: photo, alt: t('resources.photo') }))} />}
     <Textarea id={`resource-reason-${resource.id}`} label={t('admin.moderation.reason')} rows={2}
       maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} />
     <div className="flex flex-wrap items-start gap-2">

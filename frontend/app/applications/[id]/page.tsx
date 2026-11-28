@@ -11,6 +11,7 @@ import RequestAid from '@/components/community/RequestAid';
 import ResolveDialog from '@/components/community/ResolveDialog';
 import { RequestActions } from '@/components/community/RequestActions';
 import { ActionFeedback, InlineConfirm } from '@/components/ui/ActionFeedback';
+import PhotoGallery from '@/components/common/PhotoGallery';
 import { Badge } from '@/components/ui/Badge';
 import { Button, buttonClassName } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -103,16 +104,15 @@ export default function ApplicationDetailPage() {
       <h2 className="text-xl font-semibold">{t('request.detailsDescription')}</h2>
       <p className="whitespace-pre-wrap break-words text-gray-800">{application.description}</p>
       {application.needed_help && <p className="whitespace-pre-wrap break-words text-gray-700">{application.needed_help}</p>}
-      {media.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {media.map((file, index) => <a key={file.id} href={'/api/uploads/' + encodeURIComponent(file.file_path)}
-          target="_blank" rel="noopener noreferrer" className="rounded-lg focus-visible:ring-2 focus-visible:ring-primary">
-          {file.file_type?.startsWith('image/') ? (
-            <img src={'/api/uploads/' + encodeURIComponent(file.file_path)}
-              alt={t('request.photoLabel', { number: index + 1, title: heading })}
-              className="h-32 w-full rounded-lg object-cover sm:h-48" />
-          ) : <span className="block break-all rounded-lg bg-gray-100 p-3">{file.file_path}</span>}
-        </a>)}
-      </div>}
+      {media.length > 0 && <PhotoGallery className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        thumbClassName="h-32 w-full rounded-lg object-cover sm:h-48"
+        photos={media.filter(file => file.file_type?.startsWith('image/')).map((file, index) => ({
+          src: '/api/uploads/' + encodeURIComponent(file.file_path),
+          alt: t('request.photoLabel', { number: index + 1, title: heading }),
+        }))} />}
+      {media.filter(file => !file.file_type?.startsWith('image/')).map(file => <a key={file.id}
+        href={'/api/uploads/' + encodeURIComponent(file.file_path)} target="_blank" rel="noopener noreferrer"
+        className="block break-all rounded-lg bg-gray-100 p-3">{file.file_path}</a>)}
     </section>
     {!(isAuthor && application.is_resolved && !application.is_false_call) && aid}
     <section className="card space-y-3">

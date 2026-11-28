@@ -1,6 +1,7 @@
 'use client';
 
 import { InlineConfirm } from '@/components/ui/ActionFeedback';
+import PhotoGallery from '@/components/common/PhotoGallery';
 
 import {
   EmptyState, NoticeBar, PageHeader, Pill, PRIORITY_LEVELS, refreshAdminCounts, SearchInput,
@@ -178,14 +179,10 @@ function AdminApplicationsPageContent() {
                   {!!app.responses_count && <span className="flex items-center gap-1"><MessageSquare className="w-4 h-4" />{app.responses_count} откликов</span>}
                 </div>
 
-                {!!app.media_files?.length && <div className="mb-4 flex flex-wrap gap-2">
-                  {app.media_files.slice(0, 3).map((media, index) => {
-                    const url = '/api/uploads/' + encodeURIComponent(media.file_path);
-                    return <a key={media.id} href={url} target="_blank" rel="noopener noreferrer">
-                      <img src={url} alt={'Фото заявки ' + (index + 1)} className="h-16 w-16 rounded border object-cover" />
-                    </a>;
-                  })}
-                </div>}
+                {!!app.media_files?.length && <PhotoGallery className="mb-4 flex flex-wrap gap-2"
+                  photos={app.media_files.slice(0, 3).map((media, index) => ({
+                    src: '/api/uploads/' + encodeURIComponent(media.file_path), alt: 'Фото заявки ' + (index + 1),
+                  }))} />}
 
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-t border-gray-100 pt-4">
                   <div className="flex flex-wrap gap-2">
