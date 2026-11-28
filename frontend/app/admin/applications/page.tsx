@@ -88,22 +88,29 @@ function AdminApplicationsPageContent() {
     return () => { active = false; };
   }, [ready, load]);
 
-  const run = async (id: number, action: () => Promise<unknown>, success: string, failure: string) => {
+  // Patch only the card that changed: reloading the list flashed a spinner, lost scroll and collapsed cards.
+  const patch = (id: number, changes: Partial<AdminApplication>) =>
+    setApplications(current => current.map(app => app.id === id ? { ...app, ...changes } : app));
+
+  const run = async (id: number, action: () => Promise<unknown>, changes: Partial<AdminApplication>, success: string, failure: string) => {
     setBusyId(id);
     try {
       await action();
+      patch(id, changes);
       setNotice({ kind: 'success', text: success });
       refreshAdminCounts();
-      await load();
+      return true;
     } catch {
       setNotice({ kind: 'error', text: failure });
+      return false;
     } finally {
       setBusyId(null);
     }
   };
 
   const approve = (id: number) =>
-    run(id, () => apiClient.approveApplication(id), `Заявка #${id} одобрена — волонтёры её видят.`, 'Не удалось одобрить заявку.');
+    run(id, () => apiClient.approveApplication(id), { moderation_status: 'approved', moderated_at: new Date().toISOString() },
+      `Заявка #${id} одобрена — волонтёры её видят.`, 'Не удалось одобрить заявку.');
 
   const submitReject = () => {
     if (!rejecting) return;
@@ -114,15 +121,21 @@ function AdminApplicationsPageContent() {
     }
     const id = rejecting.id;
     setRejecting(null);
-    run(id, () => apiClient.rejectApplication(id, reason), `Заявка #${id} отклонена, автор получит объяснение.`, 'Не удалось отклонить заявку.');
+    run(id, () => apiClient.rejectApplication(id, reason),
+      { moderation_status: 'rejected', status: 'rejected', rejection_reason: reason, moderated_at: new Date().toISOString() },
+      `Заявка #${id} отклонена, автор получит объяснение.`, 'Не удалось отклонить заявку.');
   };
 
   const markFalse = (id: number) => {
-    return run(id, () => apiClient.markFalseApplication(id), `Заявка #${id} помечена как ложная.`, 'Не удалось пометить заявку.');
+    return run(id, () => apiClient.markFalseApplication(id), { is_false_call: true, is_resolved: true },
+      `Заявка #${id} помечена как ложная.`, 'Не удалось пометить заявку.');
   };
 
-  const setPriority = (id: number, priority: number) =>
-    run(id, () => apiClient.setApplicationPriority(id, priority), `Приоритет заявки #${id}: ${priority}.`, 'Не удалось изменить приоритет.');
+  const setPriority = async (id: number, priority: number) => {
+    const saved = await run(id, () => apiClient.setApplicationPriority(id, priority), { priority },
+      `Приоритет заявки #${id}: ${priority}.`, 'Не удалось изменить приоритет.');
+    if (saved) setPriorities(({ [id]: _saved, ...rest }) => rest);
+  };
 
   const changeTab = (next: StatusFilter) => {
     setQuery('');
@@ -230,8 +243,10 @@ function AdminApplicationsPageContent() {
                         </select>
                       </label>
                       {priorities[app.id] !== undefined && priorities[app.id] !== app.priority &&
-                        <InlineConfirm disabled={busy} prompt={'Изменить приоритет на ' + priorities[app.id] + '?'}
-                          onConfirm={() => setPriority(app.id, priorities[app.id])}>Сохранить приоритет</InlineConfirm>}
+                        <button type="button" disabled={busy} onClick={() => setPriority(app.id, priorities[app.id])}
+                          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                          Сохранить
+                        </button>}
                     </div>
                   )}
                 </div>

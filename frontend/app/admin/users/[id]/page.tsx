@@ -46,8 +46,9 @@ export default function AdminUserDetailPage() {
   const [deleteEmail, setDeleteEmail] = useState('');
   const [notice, setNotice] = useNotice();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // silent: refresh after an action without the full-page spinner, keeping scroll and open panels.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       setDetail(await apiClient.getUser(userId));
       try {
@@ -56,9 +57,9 @@ export default function AdminUserDetailPage() {
         /* список заявок — второстепенный, профиль показываем и без него */
       }
     } catch {
-      setDetail(null);
+      if (!silent) setDetail(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [userId]);
 
@@ -70,7 +71,7 @@ export default function AdminUserDetailPage() {
     try {
       await action();
       setNotice({ kind: 'success', text: success });
-      await load();
+      await load(true);
     } catch {
       setNotice({ kind: 'error', text: failure });
     }

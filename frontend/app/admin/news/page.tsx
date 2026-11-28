@@ -33,15 +33,16 @@ export default function AdminNewsPage() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useNotice();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // silent: refresh after an action without the full-page spinner, keeping scroll and open panels.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await apiClient.getAdminNews();
       setItems(data.news || []);
     } catch {
       setNotice({ kind: 'error', text: 'Не удалось загрузить новости.' });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [setNotice]);
 
@@ -77,7 +78,7 @@ export default function AdminNewsPage() {
       else await apiClient.createNews(form);
       setNotice({ kind: 'success', text: form.is_published ? 'Новость опубликована.' : 'Черновик сохранён.' });
       close();
-      await load();
+      await load(true);
     } catch {
       setNotice({ kind: 'error', text: 'Не удалось сохранить новость.' });
     } finally {
@@ -89,7 +90,7 @@ export default function AdminNewsPage() {
     try {
       await apiClient.deleteNews(n.id);
       setNotice({ kind: 'success', text: 'Новость удалена.' });
-      await load();
+      await load(true);
     } catch {
       setNotice({ kind: 'error', text: 'Не удалось удалить новость.' });
     }
@@ -99,7 +100,7 @@ export default function AdminNewsPage() {
     try {
       await apiClient.updateNews(n.id, { is_published: !n.is_published });
       setNotice({ kind: 'success', text: n.is_published ? 'Новость скрыта — теперь это черновик.' : 'Новость опубликована.' });
-      await load();
+      await load(true);
     } catch {
       setNotice({ kind: 'error', text: 'Не удалось изменить статус новости.' });
     }

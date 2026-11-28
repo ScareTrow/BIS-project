@@ -29,14 +29,15 @@ export default function AdminUsersPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [notice, setNotice] = useNotice();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // silent: refresh after an action without the full-page spinner, keeping scroll and open panels.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       setUsers(await apiClient.getAdminUsers());
     } catch {
       setNotice({ kind: 'error', text: 'Не удалось загрузить пользователей.' });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [setNotice]);
 
@@ -66,7 +67,7 @@ export default function AdminUsersPage() {
     try {
       await apiClient.makeAdmin(u.id);
       setNotice({ kind: 'success', text: `${u.first_name} теперь администратор.` });
-      await load();
+      await load(true);
     } catch {
       setNotice({ kind: 'error', text: 'Не удалось назначить администратора.' });
     }

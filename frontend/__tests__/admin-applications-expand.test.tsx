@@ -10,7 +10,7 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/admin/applications',
 }));
 jest.mock('next/dynamic', () => () => () => <div data-testid="map" />);
-jest.mock('../lib/api', () => ({ apiClient: { getAdminApplications: jest.fn(), getApplication: jest.fn() } }));
+jest.mock('../lib/api', () => ({ apiClient: { getAdminApplications: jest.fn(), getApplication: jest.fn(), setApplicationPriority: jest.fn(), approveApplication: jest.fn() } }));
 
 const pending = {
   id: 2, public_id: 'f520a80b', description: 'Пожилой соседке нужны продукты', category: 'food',
@@ -44,4 +44,31 @@ test('"Подробнее" expands the request in place instead of navigating aw
 
   fireEvent.click(screen.getByRole('button', { name: 'Свернуть' }));
   expect(document.getElementById('application-details-2')).toBeNull();
+});
+
+test('priority saves with one click and only that card changes', async () => {
+  jest.mocked(apiClient.setApplicationPriority).mockResolvedValue({} as never);
+  render(<AdminApplicationsPage />);
+  const select = await screen.findByRole('combobox', { name: 'Приоритет' });
+  expect(apiClient.getAdminApplications).toHaveBeenCalledTimes(1);
+
+  fireEvent.change(select, { target: { value: '3' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByText('Приоритет заявки #2: 3.')).toBeInTheDocument();
+  expect(apiClient.setApplicationPriority).toHaveBeenCalledWith(2, 3);
+  expect(screen.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
+  expect(select).toHaveValue('3');
+  expect(apiClient.getAdminApplications).toHaveBeenCalledTimes(1);
+});
+
+test('approving updates the card in place without reloading the list', async () => {
+  jest.mocked(apiClient.approveApplication).mockResolvedValue({} as never);
+  render(<AdminApplicationsPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Подробнее' }));
+  fireEvent.click(screen.getByRole('button', { name: /Одобрить/ }));
+  expect(await screen.findByText('Заявка #2 одобрена — волонтёры её видят.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Одобрить/ })).toBeNull();
+  expect(document.getElementById('application-details-2')).not.toBeNull();
+  expect(apiClient.getAdminApplications).toHaveBeenCalledTimes(1);
 });

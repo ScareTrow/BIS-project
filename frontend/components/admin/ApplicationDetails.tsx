@@ -39,7 +39,8 @@ export default function ApplicationDetails({ application, authorEmail }: { appli
     return () => { active = false; };
   }, [ref]);
 
-  const item = details ?? application;
+  // The list item carries the latest moderation changes made on this page; details add the rest.
+  const item = details ? { ...details, ...application } : application;
   const position: [number, number] = [item.latitude, item.longitude];
   const responses = details?.responses ?? [];
 
