@@ -76,6 +76,31 @@ def test_photo_with_cyrillic_filename(client, test_user):
     assert submit(client, files=[(io.BytesIO(PNG), 'помощь.png')]).status_code == 201
 
 
+def _jpeg(fmt='JPEG'):
+    buffer = io.BytesIO()
+    image = Image.new('RGB', (4, 4), 'red')
+    if fmt == 'MPO':
+        # Phone cameras append a preview or depth frame; Pillow reports such .jpg files as MPO.
+        image.save(buffer, format='MPO', save_all=True, append_images=[Image.new('RGB', (2, 2))])
+    else:
+        image.save(buffer, format='JPEG')
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize('content,name,stored_suffix', [
+    (_jpeg(), 'photo.jpg', '.jpg'),
+    (_jpeg(), 'PHOTO.JPEG', '.jpeg'),
+    (_jpeg('MPO'), 'IMG_20261127.jpg', '.jpg'),
+    (_jpeg(), 'download.jfif', '.jpg'),
+])
+def test_jpeg_variants_are_accepted(app, client, test_user, content, name, stored_suffix):
+    login(client, test_user)
+    response = submit(client, files=[(io.BytesIO(content), name)])
+    assert response.status_code == 201, response.json
+    with app.app_context():
+        assert ApplicationMedia.query.one().file_path.endswith(stored_suffix)
+
+
 def test_json_cannot_bypass_required_photo(app, client, test_user):
     login(client, test_user)
     response = client.post('/api/applications', json=dict(latitude=43.22, longitude=76.85,

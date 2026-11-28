@@ -116,7 +116,7 @@ describe('New request form: files', () => {
   it('restricts the picker to JPEG/PNG', () => {
     const { container } = render(<NewApplicationPage />);
     const input = container.querySelector('input[type=file]')!;
-    expect(input).toHaveAttribute('accept', 'image/jpeg,image/png,.jpg,.jpeg,.png');
+    expect(input).toHaveAttribute('accept', 'image/jpeg,image/png,.jpg,.jpeg,.jfif,.png');
     expect(input).toBeRequired();
   });
 

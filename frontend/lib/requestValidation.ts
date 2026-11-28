@@ -5,7 +5,7 @@ export function validateRequestPhotos(photos: File[], translate = (key: string) 
   for (const photo of photos) {
     if (photo.size === 0) return translate('photo.empty');
     if (photo.size > 10 * 1024 * 1024) return translate('photo.size');
-    if (!/\.(jpe?g|png)$/i.test(photo.name) || (photo.type && !['image/jpeg', 'image/png'].includes(photo.type))) {
+    if (!/\.(jpe?g|jfif|png)$/i.test(photo.name) || (photo.type && !['image/jpeg', 'image/png'].includes(photo.type))) {
       return translate('photo.type');
     }
   }

@@ -158,7 +158,7 @@ export default function ResourcesPage() {
             options={ALL_CATEGORIES.map(value => ({ value, label: t(CATEGORY_META[value].labelKey) }))} />
           <AddressPicker title={t('resources.where')} city={selectedCity} value={point} onChange={setPoint} allowCurrentLocation />
           <label className="form-field">{t('resources.optionalPhotos')}
-            <input type="file" name="media_files" className="form-file" multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png" />
+            <input type="file" name="media_files" className="form-file" multiple accept="image/jpeg,image/png,.jpg,.jpeg,.jfif,.png" />
           </label>
           <Button type="submit" busy={busy}>{t('request.create.submit')}</Button>
         </form>

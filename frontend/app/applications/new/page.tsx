@@ -133,7 +133,7 @@ export default function NewApplicationPage() {
             type="file"
             multiple
             required
-            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+            accept="image/jpeg,image/png,.jpg,.jpeg,.jfif,.png"
             onChange={event => {
               setPhotos(Array.from(event.target.files || []));
               setFieldErrors(current => ({ ...current, photos: undefined }));

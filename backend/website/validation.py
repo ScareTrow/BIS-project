@@ -4,7 +4,9 @@ import io
 from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 
-MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.png'}
+MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.jfif', '.png'}
+# Phone cameras save .jpg as MPO: a JPEG with an extra preview or depth frame.
+JPEG_FORMATS = {'JPEG', 'MPO'}
 MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_PHOTOS = 3
 
@@ -50,12 +52,15 @@ def validate_upload(file, *, document=False):
     else:
         try:
             with Image.open(io.BytesIO(content)) as image:
-                expected = 'PNG' if extension == '.png' else 'JPEG'
-                if image.format != expected:
+                expected = {'PNG'} if extension == '.png' else JPEG_FORMATS
+                if image.format not in expected:
                     raise UploadValidationError('Содержимое файла не соответствует JPEG/PNG', 415)
                 image.verify()
         except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError) as error:
             raise UploadValidationError('Файл не является корректным изображением JPEG/PNG', 415) from error
+        if extension == '.jfif':
+            # Callers name the stored file from this; .jpg is served as image/jpeg everywhere.
+            filename = file.filename = filename[:-len(extension)] + '.jpg'
     return filename
 
 
