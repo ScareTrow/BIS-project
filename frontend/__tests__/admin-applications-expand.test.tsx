@@ -1,0 +1,47 @@
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import AdminApplicationsPage from '../app/admin/applications/page';
+import { apiClient } from '../lib/api';
+import { useStore } from '../lib/store';
+
+const push = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams('status=pending'),
+  usePathname: () => '/admin/applications',
+}));
+jest.mock('next/dynamic', () => () => () => <div data-testid="map" />);
+jest.mock('../lib/api', () => ({ apiClient: { getAdminApplications: jest.fn(), getApplication: jest.fn() } }));
+
+const pending = {
+  id: 2, public_id: 'f520a80b', description: 'Пожилой соседке нужны продукты', category: 'food',
+  latitude: 43.2389, longitude: 76.8897, date: '2026-11-28T15:26:31+05:00', status: 'pending',
+  moderation_status: 'pending', is_sos: false, is_resolved: false, is_false_call: false, user_id: 3, priority: 0,
+  address: 'Алматы, ул. Абая 52', user: { id: 3, first_name: 'Пользователь', email: 'user@asar.local' },
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  useStore.setState({ authLoading: false, language: 'ru', user: { id: 1, email: 'admin@asar.local', first_name: 'Админ', isAdmin: true, is_authenticated: true } as never });
+  jest.mocked(apiClient.getAdminApplications).mockResolvedValue([pending] as never);
+  jest.mocked(apiClient.getApplication).mockResolvedValue({ ...pending, created_via: 'web', needed_help: 'Крупы и молоко',
+    responses: [{ id: 7, responder_id: 5, status: 'pending', created_at: '2026-11-28T16:00:00+05:00', responder: { id: 5, first_name: 'Алия' } }] } as never);
+});
+
+test('"Подробнее" expands the request in place instead of navigating away', async () => {
+  render(<AdminApplicationsPage />);
+  const toggle = await screen.findByRole('button', { name: 'Подробнее' });
+  expect(screen.queryByRole('link', { name: 'Открыть' })).toBeNull();
+  expect(apiClient.getApplication).not.toHaveBeenCalled();
+
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const panel = document.getElementById('application-details-2')!;
+  expect(await within(panel).findByText('Алия')).toBeInTheDocument();
+  expect(within(panel).getByText('Крупы и молоко')).toBeInTheDocument();
+  expect(within(panel).getByText('user@asar.local')).toBeInTheDocument();
+  expect(apiClient.getApplication).toHaveBeenCalledWith('f520a80b');
+  expect(push).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Свернуть' }));
+  expect(document.getElementById('application-details-2')).toBeNull();
+});

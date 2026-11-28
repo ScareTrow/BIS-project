@@ -2,13 +2,14 @@
 
 import { InlineConfirm } from '@/components/ui/ActionFeedback';
 import PhotoGallery from '@/components/common/PhotoGallery';
+import ApplicationDetails from '@/components/admin/ApplicationDetails';
 
 import {
   EmptyState, NoticeBar, PageHeader, Pill, PRIORITY_LEVELS, refreshAdminCounts, SearchInput,
   Spinner, StatusBadge, Tabs, useCategoryLabel, useNotice, useRequireAdmin,
 } from '@/components/admin/shared';
 import { apiClient, Application } from '@/lib/api';
-import { AlertTriangle, Calendar, CheckCircle, Eye, FileText, MapPin, MessageSquare, User, XCircle } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle, ChevronDown, ChevronUp, FileText, MapPin, MessageSquare, User, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -43,6 +44,12 @@ function AdminApplicationsPageContent() {
   const status: StatusFilter = isStatus(statusParam) ? statusParam : 'pending';
 
   const [applications, setApplications] = useState<AdminApplication[]>([]);
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const toggleExpanded = (id: number) => setExpanded(current => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [term, setTerm] = useState('');
@@ -151,6 +158,7 @@ function AdminApplicationsPageContent() {
         <ul className="space-y-4">
           {applications.map((app) => {
             const busy = busyId === app.id;
+            const open = expanded.has(app.id);
             return (
               <li key={app.id} className={`bg-white rounded-xl border p-5 ${app.is_sos ? 'border-red-300' : 'border-gray-200'} ${busy ? 'opacity-60' : ''}`}>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -166,7 +174,7 @@ function AdminApplicationsPageContent() {
                   {app.is_false_call && <Pill className="bg-orange-100 text-orange-800 border-orange-300">Ложная</Pill>}
                 </div>
 
-                <p className="text-gray-800 mb-3 whitespace-pre-line line-clamp-3">{app.description}</p>
+                <p className={`text-gray-800 mb-3 whitespace-pre-line break-words ${open ? '' : 'line-clamp-3'}`}>{app.description}</p>
 
                 <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600 mb-4">
                   {app.user && (
@@ -184,11 +192,16 @@ function AdminApplicationsPageContent() {
                     src: '/api/uploads/' + encodeURIComponent(media.file_path), alt: 'Фото заявки ' + (index + 1),
                   }))} />}
 
+                {open && <div id={`application-details-${app.id}`} className="mb-4">
+                  <ApplicationDetails application={app} authorEmail={app.user?.email} />
+                </div>}
+
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-t border-gray-100 pt-4">
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/applications/${app.public_id || app.id}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                      <Eye className="w-4 h-4" />Открыть
-                    </Link>
+                    <button type="button" onClick={() => toggleExpanded(app.id)} aria-expanded={open} aria-controls={`application-details-${app.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                      {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}{open ? 'Свернуть' : 'Подробнее'}
+                    </button>
                     {needsDecision(app) && (
                       <>
                         <button disabled={busy} onClick={() => approve(app.id)} className="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50">

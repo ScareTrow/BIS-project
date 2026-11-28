@@ -37,6 +37,7 @@ export interface Application {
   author_contact?: { phone: string | null };
   is_own?: boolean;
   public_id?: string;
+  created_via?: string;
 }
 export interface Notification {
   id: number; title: string; message: string; notification_type: string;
