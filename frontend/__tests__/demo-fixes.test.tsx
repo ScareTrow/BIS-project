@@ -12,7 +12,7 @@ jest.mock('next/dynamic',()=>()=>()=> <div>Карта</div>);
 jest.mock('../components/community/TelegramLink',()=>()=>null);
 jest.mock('../components/home/CursorEffect',()=>({children}: {children:React.ReactNode})=><div>{children}</div>);
 jest.mock('../components/community/RequestAid',()=>()=>null);
-jest.mock('../lib/api',()=>({apiClient:{getApplication:jest.fn(),respondToApplication:jest.fn(),searchLocations:jest.fn(),createSOS:jest.fn()}}));
+jest.mock('../lib/api',()=>({apiClient:{getApplication:jest.fn(),respondToApplication:jest.fn(),signup:jest.fn(),searchLocations:jest.fn(),createSOS:jest.fn()}}));
 
 beforeEach(()=>{
  jest.clearAllMocks();
@@ -59,4 +59,21 @@ test('signup button accepts three conditions and requires matching confirmation'
  expect(screen.getByText(/Выполнено 3 из 5/)).toBeInTheDocument();
  fireEvent.change(document.getElementById('password2')!,{target:{value:'Different'}});
  expect(screen.getByRole('button',{name:'Зарегистрироваться'})).toBeDisabled();
+});
+
+test('signup sends the ten phone digits after the phone field loses focus',async()=>{
+ jest.mocked(apiClient.signup).mockResolvedValue({success:true,user:{id:9,email:'new@example.com',first_name:'Айдар',isAdmin:false}} as never);
+ render(<SignUpPage/>);
+ fireEvent.change(document.getElementById('firstName')!,{target:{value:'Айдар'}});
+ const phone=document.getElementById('phone')!;
+ fireEvent.focus(phone);
+ fireEvent.change(phone,{target:{value:'+77019876543'}});
+ expect(phone).toHaveValue('+7 (701) 987-65-43');
+ fireEvent.blur(phone);
+ fireEvent.change(document.getElementById('city')!,{target:{value:'Алматы'}});
+ fireEvent.change(document.getElementById('email')!,{target:{value:'new@example.com'}});
+ fireEvent.change(document.getElementById('password1')!,{target:{value:'RiverStone8'}});
+ fireEvent.change(document.getElementById('password2')!,{target:{value:'RiverStone8'}});
+ fireEvent.click(screen.getByRole('button',{name:'Зарегистрироваться'}));
+ await waitFor(()=>expect(apiClient.signup).toHaveBeenCalledWith(expect.objectContaining({phone:'+77019876543'})));
 });
